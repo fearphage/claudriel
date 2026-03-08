@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Day Brief</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 2rem auto; color: #333; }
+        h1 { border-bottom: 2px solid #333; padding-bottom: .5rem; }
+        h2 { color: #555; margin-top: 2rem; }
+        ul { padding-left: 1.5rem; }
+        li { margin: .4rem 0; }
+        .drifting { color: #c0392b; }
+    </style>
+</head>
+<body>
+    <h1>Day Brief</h1>
+
+    <h2>Recent Events ({{ recent_events|length }})</h2>
+    <ul>
+    {% for event in recent_events %}
+        <li>[{{ event.get('source') }}] {{ event.get('type') }}</li>
+    {% else %}
+        <li>No recent events.</li>
+    {% endfor %}
+    </ul>
+
+    <h2>Pending Commitments ({{ pending_commitments|length }})</h2>
+    <ul>
+    {% for c in pending_commitments %}
+        <li>{{ c.get('title') }} — {{ (c.get('confidence') * 100)|round }}% confidence</li>
+    {% else %}
+        <li>No pending commitments.</li>
+    {% endfor %}
+    </ul>
+
+    {% if drifting_commitments|length > 0 %}
+    <h2 class="drifting">Drifting — No Activity 48h+</h2>
+    <ul>
+    {% for c in drifting_commitments %}
+        <li class="drifting">{{ c.get('title') }}</li>
+    {% endfor %}
+    </ul>
+    {% endif %}
+</body>
+</html>

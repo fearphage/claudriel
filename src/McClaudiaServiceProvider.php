@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MyClaudia;
 
+use MyClaudia\Controller\DayBriefController;
 use MyClaudia\Entity\Account;
 use MyClaudia\Entity\Commitment;
 use MyClaudia\Entity\Integration;
@@ -11,6 +12,8 @@ use MyClaudia\Entity\McEvent;
 use MyClaudia\Entity\Person;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Foundation\ServiceProvider\ServiceProvider;
+use Waaseyaa\Routing\RouteBuilder;
+use Waaseyaa\Routing\WaaseyaaRouter;
 
 final class McClaudiaServiceProvider extends ServiceProvider
 {
@@ -50,5 +53,17 @@ final class McClaudiaServiceProvider extends ServiceProvider
             class: Commitment::class,
             keys: ['id' => 'cid', 'uuid' => 'uuid', 'label' => 'title'],
         ));
+    }
+
+    public function routes(WaaseyaaRouter $router): void
+    {
+        $router->addRoute(
+            'myclaudia.brief',
+            RouteBuilder::create('/brief')
+                ->controller(DayBriefController::class . '::show')
+                ->allowAll()
+                ->methods('GET')
+                ->build(),
+        );
     }
 }
