@@ -156,6 +156,16 @@
             padding-bottom: 0.5rem;
             margin-bottom: 1rem;
         }
+        .chat-model-badge {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #666;
+            background: #eee;
+            padding: 0.15rem 0.5rem;
+            border-radius: 0.25rem;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+        }
         .chat-panel .messages {
             flex: 1;
             overflow-y: auto;
@@ -430,7 +440,7 @@
 
         {# ── Right Column: Chat Panel ── #}
         <div class="chat-panel">
-            <h1 class="chat-panel-title">Chat</h1>
+            <h1 class="chat-panel-title">Chat{% if model %}<span class="chat-model-badge">{{ model }}</span>{% endif %}</h1>
 
             {% if not api_configured %}
             <div class="not-configured">
