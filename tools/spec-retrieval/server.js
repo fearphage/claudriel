@@ -55,7 +55,6 @@ const server = new McpServer({
 server.tool(
   'claudriel_list_specs',
   'List all Claudriel subsystem specification documents. Use this to discover which specs are available before retrieving one.',
-  {},
   async () => {
     const specs = listSpecs();
     const rows = specs.map(s => `| ${s} | docs/specs/${s}.md |`).join('\n');
@@ -71,7 +70,7 @@ server.tool(
 server.tool(
   'claudriel_get_spec',
   'Retrieve the full content of a Claudriel subsystem spec. Use when you need deep implementation details for a subsystem.',
-  { name: z.string().describe("Spec name without .md extension, e.g. 'entity', 'ingestion', 'day-brief', 'pipeline', 'web-cli', 'workflow'") },
+  { name: z.string().describe("Spec name without .md extension, e.g. 'entity', 'ingestion', 'day-brief', 'pipeline', 'web-cli', 'workflow', 'chat', 'infrastructure'") },
   async ({ name }) => {
     const content = readSpec(name);
     if (!content) {

@@ -26,10 +26,14 @@ Layer 0 — Waaseyaa packages (entity, foundation, ai-pipeline, routing, cli, ap
 Layer 1 — Entity (src/Entity/*)            extends ContentEntityBase
 Layer 2 — Ingestion (src/Ingestion/*)      depends on Layer 1 + Waaseyaa
          Pipeline (src/Pipeline/*)          depends on Layer 1 + ai-pipeline
-         DayBrief (src/DayBrief/*, src/DriftDetector.php)  depends on Layer 1
+         DayBrief (src/DayBrief/*)          depends on Layer 1
+         Support (src/Support/*)            depends on Layer 1 (utilities)
+         Domain (src/Domain/*)              depends on Layer 1 + Layer 2
 Layer 3 — Web/CLI (src/Controller/*, src/Command/*)  depends on Layer 2
-Layer 4 — Service registration (McClaudiaServiceProvider)  depends on all
+Layer 4 — Service registration (src/Provider/ClaudrielServiceProvider)  depends on all
 ```
+
+Reserved namespaces (empty, scaffolded for future use): `src/Access/`, `src/Search/`, `src/Seed/`
 
 Rule: higher layers import lower layers only. Never import from src/Command inside src/Ingestion.
 
@@ -38,18 +42,22 @@ Rule: higher layers import lower layers only. Never import from src/Command insi
 | File pattern | Specialist skill | Cold memory spec |
 |---|---|---|
 | `src/Entity/*` | — | `docs/specs/entity.md` |
-| `src/Ingestion/*` | — | `docs/specs/ingestion.md` |
-| `src/DayBrief/*, src/DriftDetector.php` | — | `docs/specs/day-brief.md` |
-| `src/Pipeline/*` | — | `docs/specs/pipeline.md` |
+| `src/Ingestion/*` | `claudriel:ingestion` | `docs/specs/ingestion.md` |
+| `src/Pipeline/*` | `claudriel:ingestion` | `docs/specs/pipeline.md` |
+| `src/DayBrief/*` | `claudriel:day-brief` | `docs/specs/day-brief.md` |
+| `src/Support/*` | `claudriel:day-brief` | `docs/specs/infrastructure.md` |
+| `src/Domain/Chat/*` | `claudriel:chat` | `docs/specs/chat.md` |
+| `src/Entity/Chat*.php` | `claudriel:chat` | `docs/specs/chat.md` |
+| `src/Controller/Chat*.php` | `claudriel:chat` | `docs/specs/chat.md` |
 | `src/Controller/*, src/Command/*` | — | `docs/specs/web-cli.md` |
-| `McClaudiaServiceProvider.php` | — | `docs/specs/entity.md` |
+| `src/Provider/*` | — | `docs/specs/infrastructure.md` |
 | GitHub issues, milestones, new features, roadmap | — | `docs/specs/workflow.md` |
 
 ## Common Operations
 
 **Add a new entity type:**
 1. Create `src/Entity/Foo.php` extending `ContentEntityBase` with `entityTypeId` and `entityKeys`
-2. Register in `McClaudiaServiceProvider::register()` via `$this->entityType(new EntityType(...))`
+2. Register in `ClaudrielServiceProvider::register()` via `$this->entityType(new EntityType(...))`
 3. Wire an `EntityRepository` for it in the service container / config
 
 **Add an ingestion handler:**
@@ -69,7 +77,7 @@ Rule: higher layers import lower layers only. Never import from src/Command insi
 
 **Add a web route:**
 1. Create controller in `src/Controller/`
-2. Register in `McClaudiaServiceProvider::routes()` via `$router->addRoute(...)`
+2. Register in `ClaudrielServiceProvider::routes()` via `$router->addRoute(...)`
 
 ## GitHub Workflow
 

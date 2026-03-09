@@ -5,7 +5,7 @@
 | File | Purpose |
 |------|---------|
 | `src/DayBrief/DayBriefAssembler.php` | Assembles the daily brief data structure |
-| `src/DriftDetector.php` | Finds active commitments with no recent activity |
+| `src/Support/DriftDetector.php` | Finds active commitments with no recent activity |
 | `src/Controller/DayBriefController.php` | `GET /brief` → JSON response |
 | `src/Command/BriefCommand.php` | `claudriel:brief` CLI command |
 | `templates/day-brief.html.twig` | Twig template (currently unused by controller — controller returns JSON) |

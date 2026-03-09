@@ -13,13 +13,14 @@ echo "Files changed in last ${N_COMMITS} commits:"
 
 declare -A FILE_TO_SPEC=(
   ["src/Entity"]="docs/specs/entity.md"
-  ["src/McClaudiaServiceProvider"]="docs/specs/entity.md"
   ["src/Ingestion"]="docs/specs/ingestion.md"
+  ["src/Pipeline"]="docs/specs/pipeline.md"
   ["src/DayBrief"]="docs/specs/day-brief.md"
-  ["src/DriftDetector"]="docs/specs/day-brief.md"
+  ["src/Support"]="docs/specs/infrastructure.md"
+  ["src/Provider"]="docs/specs/infrastructure.md"
+  ["src/Domain/Chat"]="docs/specs/chat.md"
   ["src/Controller"]="docs/specs/web-cli.md"
   ["src/Command"]="docs/specs/web-cli.md"
-  ["src/Pipeline"]="docs/specs/pipeline.md"
 )
 
 declare -A FLAGGED_SPECS=()
