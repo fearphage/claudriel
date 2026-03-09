@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Claudriel\Controller;
 
 use Claudriel\Ingestion\Handler\CommitmentIngestHandler;
+use Claudriel\Support\BriefSignal;
 use Claudriel\Ingestion\Handler\GenericEventHandler;
 use Claudriel\Ingestion\Handler\PersonIngestHandler;
 use Claudriel\Ingestion\IngestHandlerRegistry;
@@ -60,6 +61,8 @@ final class IngestController
 
         $result = $this->registry->handle($data);
 
+        $this->touchBriefSignal();
+
         return new JsonResponse($result, 201);
     }
 
@@ -77,6 +80,13 @@ final class IngestController
         $token = substr($header, 7);
 
         return $token !== '' ? $token : null;
+    }
+
+    private function touchBriefSignal(): void
+    {
+        $storageDir = getenv('CLAUDRIEL_STORAGE') ?: dirname(__DIR__, 2) . '/storage';
+        $signal = new BriefSignal($storageDir . '/brief-signal.txt');
+        $signal->touch();
     }
 
     /**
