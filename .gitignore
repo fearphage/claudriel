@@ -3,4 +3,9 @@ vendor/
 *.cache
 var/
 storage/framework/cache/
+storage/framework/entity-audit.jsonl
+storage/framework/packages.php
+storage/brief-session.txt
+config/active/
+waaseyaa.sqlite
 .worktrees/

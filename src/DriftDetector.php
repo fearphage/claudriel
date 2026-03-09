@@ -17,7 +17,12 @@ final class DriftDetector
     public function findDrifting(string $tenantId): array
     {
         $cutoff = new \DateTimeImmutable(sprintf('-%d hours', self::DRIFT_HOURS));
-        $active = $this->repo->findBy(['status' => 'active', 'tenant_id' => $tenantId]);
+        // Load all commitments and filter in memory — status is stored in the _data JSON blob.
+        $all = $this->repo->findBy([]);
+        $active = array_filter(
+            $all,
+            fn (ContentEntityInterface $c) => $c->get('status') === 'active',
+        );
 
         return array_values(array_filter(
             $active,

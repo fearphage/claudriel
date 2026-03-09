@@ -32,6 +32,13 @@
         "optimize-autoloader": true,
         "sort-packages": true
     },
+    "extra": {
+        "waaseyaa": {
+            "providers": [
+                "MyClaudia\\McClaudiaServiceProvider"
+            ]
+        }
+    },
     "minimum-stability": "dev",
     "prefer-stable": true
 }

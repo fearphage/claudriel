@@ -20,7 +20,8 @@ final class CommitmentsCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $commitments = $this->commitmentRepo->findBy(['status' => 'active']);
+        $all = $this->commitmentRepo->findBy([]);
+        $commitments = array_values(array_filter($all, fn ($c) => $c->get('status') === 'active'));
         if (empty($commitments)) {
             $output->writeln('No active commitments.');
             return Command::SUCCESS;
