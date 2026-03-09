@@ -9,3 +9,4 @@ storage/brief-session.txt
 config/active/
 waaseyaa.sqlite
 .worktrees/
+node_modules/
