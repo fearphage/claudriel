@@ -10,6 +10,7 @@ use Claudriel\Support\DriftDetector;
 use Twig\Environment;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\SSR\SsrResponse;
+use Waaseyaa\User\Middleware\CsrfMiddleware;
 
 final class DashboardController
 {
@@ -90,6 +91,7 @@ final class DashboardController
                 'drifting_commitments' => $twigDrifting,
                 'sessions' => $twigSessions,
                 'api_configured' => $apiConfigured,
+                'csrf_token' => CsrfMiddleware::token(),
             ]);
 
             return new SsrResponse(

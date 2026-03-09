@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>Dashboard — Claudriel</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -450,11 +451,11 @@
 
             <div class="messages" id="messages">
                 <div class="empty-state" id="emptyState">
-                    Start a conversation with Claudia.
+                    Start a conversation with Claudriel.
                 </div>
             </div>
 
-            <div class="loading" id="loading">Claudia is thinking...</div>
+            <div class="loading" id="loading">Claudriel is thinking...</div>
 
             <div class="input-area">
                 <textarea
@@ -516,7 +517,7 @@
 
             var label = document.createElement('div');
             label.className = 'message-label';
-            label.textContent = role === 'user' ? 'You' : 'Claudia';
+            label.textContent = role === 'user' ? 'You' : 'Claudriel';
             div.appendChild(label);
 
             var contentDiv = document.createElement('div');
@@ -556,7 +557,10 @@
 
             fetch('/api/chat/send', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': document.head.querySelector('meta[name="csrf-token"]')?.content || '',
+                },
                 body: JSON.stringify(payload),
             })
             .then(function(resp) {
@@ -678,7 +682,7 @@
                 var fresh = document.createElement('div');
                 fresh.className = 'empty-state';
                 fresh.id = 'emptyState';
-                fresh.textContent = 'Start a conversation with Claudia.';
+                fresh.textContent = 'Start a conversation with Claudriel.';
                 messagesEl.appendChild(fresh);
             });
         });
