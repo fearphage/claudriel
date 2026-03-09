@@ -53,6 +53,9 @@ final class ChatStreamController
 
         return new StreamedResponse(
             function () use ($sessionUuid, $apiKey, $msgStorage): void {
+                if (session_status() === PHP_SESSION_ACTIVE) {
+                    session_write_close();
+                }
                 $this->streamTokens($sessionUuid, $apiKey, $msgStorage);
             },
             200,

@@ -27,6 +27,9 @@ final class BriefStreamController
 
         return new StreamedResponse(
             function () use ($signalFile): void {
+                if (session_status() === PHP_SESSION_ACTIVE) {
+                    session_write_close();
+                }
                 $this->streamLoop($signalFile);
             },
             200,
