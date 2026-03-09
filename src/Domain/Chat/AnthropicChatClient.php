@@ -8,7 +8,7 @@ final class AnthropicChatClient
 {
     public function __construct(
         private readonly string $apiKey,
-        private readonly string $model = 'claude-sonnet-4-5-20250514',
+        private readonly string $model = 'claude-sonnet-4-20250514',
         private readonly int $maxTokens = 4096,
     ) {}
 

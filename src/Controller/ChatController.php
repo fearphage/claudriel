@@ -159,7 +159,8 @@ final class ChatController
         $systemPrompt = $promptBuilder->build();
 
         // Call Anthropic
-        $client = new AnthropicChatClient($apiKey);
+        $model = $_ENV['ANTHROPIC_MODEL'] ?? getenv('ANTHROPIC_MODEL') ?: 'claude-sonnet-4-20250514';
+        $client = new AnthropicChatClient($apiKey, $model);
 
         try {
             $response = $client->complete($systemPrompt, $apiMessages);
