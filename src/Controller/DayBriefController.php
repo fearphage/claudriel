@@ -40,7 +40,7 @@ final class DayBriefController
         $people = [];
         foreach ($recentEvents as $event) {
             $source = $event->get('source') ?? 'unknown';
-            $eventsBySource[$source][] = $event->toArray();
+            $eventsBySource[$source][] = $event;
             $payload = json_decode($event->get('payload') ?? '{}', true) ?? [];
             $email   = $payload['from_email'] ?? null;
             $name    = $payload['from_name'] ?? null;
@@ -57,15 +57,60 @@ final class DayBriefController
             fn ($c) => $c->get('status') === 'pending',
         ));
 
+        $sessionStore->recordBriefAt(new \DateTimeImmutable());
+
+        // Render HTML via Twig when available, otherwise fall back to JSON.
+        if ($this->twig !== null) {
+            // Pre-process events for Twig: decode payload JSON so the template
+            // doesn't need a json_decode filter.
+            $twigEventsBySource = [];
+            foreach ($eventsBySource as $source => $events) {
+                foreach ($events as $event) {
+                    $payload = json_decode($event->get('payload') ?? '{}', true) ?? [];
+                    $twigEventsBySource[$source][] = [
+                        'type'      => $event->get('type'),
+                        'source'    => $event->get('source'),
+                        'occurred'  => $event->get('occurred'),
+                        'subject'   => $payload['subject'] ?? $event->get('type'),
+                        'from_name' => $payload['from_name'] ?? null,
+                    ];
+                }
+            }
+
+            $twigCommitments = [];
+            foreach ($pendingCommitments as $c) {
+                $twigCommitments[] = [
+                    'title'      => $c->get('title'),
+                    'confidence' => $c->get('confidence') ?? 1.0,
+                    'due_date'   => $c->get('due_date'),
+                ];
+            }
+
+            $html = $this->twig->render('day-brief.html.twig', [
+                'recent_events'        => $recentEvents,
+                'events_by_source'     => $twigEventsBySource,
+                'people'               => $people,
+                'pending_commitments'  => $twigCommitments,
+                'drifting_commitments' => [],
+            ]);
+
+            return new SsrResponse(
+                content: $html,
+                statusCode: 200,
+                headers: ['Content-Type' => 'text/html; charset=UTF-8'],
+            );
+        }
+
         $brief = [
             'recent_events'        => array_map(fn ($e) => $e->toArray(), $recentEvents),
-            'events_by_source'     => $eventsBySource,
+            'events_by_source'     => array_map(
+                fn (array $events) => array_map(fn ($e) => $e->toArray(), $events),
+                $eventsBySource,
+            ),
             'people'               => $people,
             'pending_commitments'  => array_map(fn ($c) => $c->toArray(), $pendingCommitments),
             'drifting_commitments' => [],
         ];
-
-        $sessionStore->recordBriefAt(new \DateTimeImmutable());
 
         return new SsrResponse(
             content: json_encode($brief, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR),

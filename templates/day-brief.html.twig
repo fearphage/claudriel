@@ -2,44 +2,182 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Day Brief</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Day Brief — MyClaudia</title>
     <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 2rem auto; color: #333; }
-        h1 { border-bottom: 2px solid #333; padding-bottom: .5rem; }
-        h2 { color: #555; margin-top: 2rem; }
-        ul { padding-left: 1.5rem; }
-        li { margin: .4rem 0; }
-        .drifting { color: #c0392b; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 720px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            color: #1a1a2e;
+            background: #f8f9fa;
+            line-height: 1.6;
+        }
+        h1 {
+            font-size: 1.75rem;
+            border-bottom: 3px solid #1a1a2e;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        h1 small {
+            font-weight: 400;
+            font-size: 0.85rem;
+            color: #666;
+            display: block;
+            margin-top: 0.25rem;
+        }
+        section { margin-bottom: 2rem; }
+        h2 {
+            font-size: 1.1rem;
+            color: #444;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        h2 .count {
+            background: #e0e0e0;
+            color: #333;
+            font-size: 0.8rem;
+            padding: 0.1rem 0.5rem;
+            border-radius: 10px;
+        }
+        h3 {
+            font-size: 0.95rem;
+            color: #555;
+            margin: 0.75rem 0 0.4rem;
+            text-transform: capitalize;
+        }
+        ul { list-style: none; padding: 0; }
+        li {
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.35rem;
+            background: #fff;
+            border-radius: 6px;
+            border-left: 3px solid #ccc;
+            font-size: 0.9rem;
+        }
+        li .meta {
+            display: block;
+            font-size: 0.78rem;
+            color: #888;
+            margin-top: 0.15rem;
+        }
+        .source-gmail { border-left-color: #d93025; }
+        .source-unknown { border-left-color: #999; }
+        .pending { border-left-color: #f0ad4e; }
+        .drifting { border-left-color: #c0392b; }
+        .drifting-heading { color: #c0392b; }
+        .confidence {
+            display: inline-block;
+            font-size: 0.75rem;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .confidence.low { background: #fff3e0; color: #e65100; }
+        .empty {
+            color: #999;
+            font-style: italic;
+            padding: 0.5rem 0;
+        }
+        .people-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 0.5rem;
+        }
+        .people-grid li {
+            border-left-color: #5c6bc0;
+        }
+        .people-grid .person-name { font-weight: 600; }
+        .people-grid .person-email { font-size: 0.78rem; color: #888; }
     </style>
 </head>
 <body>
-    <h1>Day Brief</h1>
+    <h1>
+        Day Brief
+        <small>Generated {{ "now"|date("Y-m-d H:i T") }}</small>
+    </h1>
 
-    <h2>Recent Events ({{ recent_events|length }})</h2>
-    <ul>
-    {% for event in recent_events %}
-        <li>[{{ event.get('source') }}] {{ event.get('type') }}</li>
-    {% else %}
-        <li>No recent events.</li>
-    {% endfor %}
-    </ul>
+    {# ── Events by Source ── #}
+    <section>
+        <h2>Events <span class="count">{{ recent_events|length }}</span></h2>
+        {% if events_by_source|length > 0 %}
+            {% for source, events in events_by_source %}
+                <h3>{{ source }}</h3>
+                <ul>
+                {% for event in events %}
+                    <li class="source-{{ source }}">
+                        {{ event.subject }}
+                        <span class="meta">
+                            {{ event.type }}
+                            {% if event.from_name %} — {{ event.from_name }}{% endif %}
+                            {% if event.occurred %} — {{ event.occurred }}{% endif %}
+                        </span>
+                    </li>
+                {% endfor %}
+                </ul>
+            {% endfor %}
+        {% else %}
+            <p class="empty">No recent events.</p>
+        {% endif %}
+    </section>
 
-    <h2>Pending Commitments ({{ pending_commitments|length }})</h2>
-    <ul>
-    {% for c in pending_commitments %}
-        <li>{{ c.get('title') }} — {{ (c.get('confidence') * 100)|round }}% confidence</li>
-    {% else %}
-        <li>No pending commitments.</li>
-    {% endfor %}
-    </ul>
+    {# ── People ── #}
+    <section>
+        <h2>People <span class="count">{{ people|length }}</span></h2>
+        {% if people|length > 0 %}
+            <ul class="people-grid">
+            {% for email, name in people %}
+                <li>
+                    <span class="person-name">{{ name }}</span>
+                    <span class="person-email">{{ email }}</span>
+                </li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <p class="empty">No people seen recently.</p>
+        {% endif %}
+    </section>
 
+    {# ── Pending Commitments ── #}
+    <section>
+        <h2>Pending Commitments <span class="count">{{ pending_commitments|length }}</span></h2>
+        {% if pending_commitments|length > 0 %}
+            <ul>
+            {% for c in pending_commitments %}
+                <li class="pending">
+                    {{ c.title|default('(untitled)') }}
+                    <span class="confidence{{ c.confidence < 0.8 ? ' low' : '' }}">{{ (c.confidence * 100)|round }}%</span>
+                    {% if c.due_date %}
+                        <span class="meta">Due: {{ c.due_date }}</span>
+                    {% endif %}
+                </li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <p class="empty">No pending commitments.</p>
+        {% endif %}
+    </section>
+
+    {# ── Drifting Commitments ── #}
     {% if drifting_commitments|length > 0 %}
-    <h2 class="drifting">Drifting — No Activity 48h+</h2>
-    <ul>
-    {% for c in drifting_commitments %}
-        <li class="drifting">{{ c.get('title') }}</li>
-    {% endfor %}
-    </ul>
+    <section>
+        <h2 class="drifting-heading">Drifting — No Activity 48h+ <span class="count">{{ drifting_commitments|length }}</span></h2>
+        <ul>
+        {% for c in drifting_commitments %}
+            <li class="drifting">
+                {{ c.title|default('(untitled)') }}
+                {% if c.updated_at %}
+                    <span class="meta">Last activity: {{ c.updated_at }}</span>
+                {% endif %}
+            </li>
+        {% endfor %}
+        </ul>
+    </section>
     {% endif %}
 </body>
 </html>
