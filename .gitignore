@@ -3,3 +3,4 @@ vendor/
 *.cache
 var/
 storage/framework/cache/
+.worktrees/
