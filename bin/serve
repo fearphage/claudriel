@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Start the Claudriel dashboard on localhost
+set -euo pipefail
+
+PORT="${1:-8089}"
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
+echo "Claudriel dashboard → http://localhost:${PORT}"
+exec php -S "localhost:${PORT}" -t "${DIR}/public"
