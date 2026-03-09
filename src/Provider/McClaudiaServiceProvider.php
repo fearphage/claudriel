@@ -9,7 +9,9 @@ use MyClaudia\Command\CommitmentUpdateCommand;
 use MyClaudia\Command\CommitmentsCommand;
 use MyClaudia\Command\SkillsCommand;
 use MyClaudia\Controller\CommitmentUpdateController;
+use MyClaudia\Controller\ContextController;
 use MyClaudia\Controller\DayBriefController;
+use MyClaudia\Controller\IngestController;
 use MyClaudia\Domain\DayBrief\Assembler\DayBriefAssembler;
 use MyClaudia\Domain\DayBrief\Service\BriefSessionStore;
 use MyClaudia\Support\DriftDetector;
@@ -103,6 +105,26 @@ final class McClaudiaServiceProvider extends ServiceProvider
                 ->controller(CommitmentUpdateController::class . '::update')
                 ->allowAll()
                 ->methods('PATCH')
+                ->build(),
+        );
+
+        // POST /api/ingest — external ingestion endpoint.
+        $router->addRoute(
+            'myclaudia.api.ingest',
+            RouteBuilder::create('/api/ingest')
+                ->controller(IngestController::class . '::handle')
+                ->allowAll()
+                ->methods('POST')
+                ->build(),
+        );
+
+        // GET /api/context — composite brief + context files.
+        $router->addRoute(
+            'myclaudia.api.context',
+            RouteBuilder::create('/api/context')
+                ->controller(ContextController::class . '::show')
+                ->allowAll()
+                ->methods('GET')
                 ->build(),
         );
     }
