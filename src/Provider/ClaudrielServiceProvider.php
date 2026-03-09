@@ -8,9 +8,12 @@ use Claudriel\Command\BriefCommand;
 use Claudriel\Command\CommitmentUpdateCommand;
 use Claudriel\Command\CommitmentsCommand;
 use Claudriel\Command\SkillsCommand;
+use Claudriel\Controller\BriefStreamController;
 use Claudriel\Controller\ChatController;
+use Claudriel\Controller\ChatStreamController;
 use Claudriel\Controller\CommitmentUpdateController;
 use Claudriel\Controller\ContextController;
+use Claudriel\Controller\DashboardController;
 use Claudriel\Controller\DayBriefController;
 use Claudriel\Controller\IngestController;
 use Claudriel\Domain\DayBrief\Assembler\DayBriefAssembler;
@@ -98,17 +101,19 @@ final class ClaudrielServiceProvider extends ServiceProvider
 
     public function routes(WaaseyaaRouter $router): void
     {
+        // Dashboard (replaces separate brief and chat pages)
         $router->addRoute(
-            'myclaudia.home',
+            'claudriel.dashboard',
             RouteBuilder::create('/')
-                ->controller(DayBriefController::class . '::show')
+                ->controller(DashboardController::class . '::show')
                 ->allowAll()
                 ->methods('GET')
                 ->build(),
         );
 
+        // Legacy: /brief still serves JSON for API consumers
         $router->addRoute(
-            'myclaudia.brief',
+            'claudriel.brief',
             RouteBuilder::create('/brief')
                 ->controller(DayBriefController::class . '::show')
                 ->allowAll()
@@ -116,8 +121,38 @@ final class ClaudrielServiceProvider extends ServiceProvider
                 ->build(),
         );
 
+        // Legacy: /chat redirects to dashboard
         $router->addRoute(
-            'myclaudia.commitment.update',
+            'claudriel.chat',
+            RouteBuilder::create('/chat')
+                ->controller(DashboardController::class . '::show')
+                ->allowAll()
+                ->methods('GET')
+                ->build(),
+        );
+
+        // SSE streams
+        $router->addRoute(
+            'claudriel.stream.brief',
+            RouteBuilder::create('/stream/brief')
+                ->controller(BriefStreamController::class . '::stream')
+                ->allowAll()
+                ->methods('GET')
+                ->build(),
+        );
+
+        $router->addRoute(
+            'claudriel.stream.chat',
+            RouteBuilder::create('/stream/chat/{messageId}')
+                ->controller(ChatStreamController::class . '::stream')
+                ->allowAll()
+                ->methods('GET')
+                ->build(),
+        );
+
+        // Existing API routes
+        $router->addRoute(
+            'claudriel.commitment.update',
             RouteBuilder::create('/commitments/{uuid}')
                 ->controller(CommitmentUpdateController::class . '::update')
                 ->allowAll()
@@ -125,9 +160,8 @@ final class ClaudrielServiceProvider extends ServiceProvider
                 ->build(),
         );
 
-        // POST /api/ingest — external ingestion endpoint.
         $router->addRoute(
-            'myclaudia.api.ingest',
+            'claudriel.api.ingest',
             RouteBuilder::create('/api/ingest')
                 ->controller(IngestController::class . '::handle')
                 ->allowAll()
@@ -135,9 +169,8 @@ final class ClaudrielServiceProvider extends ServiceProvider
                 ->build(),
         );
 
-        // GET /api/context — composite brief + context files.
         $router->addRoute(
-            'myclaudia.api.context',
+            'claudriel.api.context',
             RouteBuilder::create('/api/context')
                 ->controller(ContextController::class . '::show')
                 ->allowAll()
@@ -146,16 +179,7 @@ final class ClaudrielServiceProvider extends ServiceProvider
         );
 
         $router->addRoute(
-            'myclaudia.chat',
-            RouteBuilder::create('/chat')
-                ->controller(ChatController::class . '::index')
-                ->allowAll()
-                ->methods('GET')
-                ->build(),
-        );
-
-        $router->addRoute(
-            'myclaudia.api.chat.send',
+            'claudriel.api.chat.send',
             RouteBuilder::create('/api/chat/send')
                 ->controller(ChatController::class . '::send')
                 ->allowAll()
