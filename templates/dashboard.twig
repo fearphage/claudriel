@@ -491,31 +491,36 @@
         var sending = false;
         var chatSource = null;
 
-        // SSE: Brief updates
-        var briefSource = new EventSource('/stream/brief');
-        briefSource.addEventListener('brief-update', function(e) {
-            try {
-                var data = JSON.parse(e.data);
-                if (data.events_html) {
+        // Poll brief updates (PHP's built-in dev server is single-threaded,
+        // so persistent SSE connections block all other requests including chat).
+        function pollBrief() {
+            fetch('/brief')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
                     var eventsEl = document.getElementById('briefEvents');
-                    if (eventsEl) eventsEl.innerHTML = data.events_html;
-                }
-                if (data.people_html) {
                     var peopleEl = document.getElementById('briefPeople');
-                    if (peopleEl) peopleEl.innerHTML = data.people_html;
-                }
-                if (data.commitments_html) {
                     var commitmentsEl = document.getElementById('briefCommitments');
-                    if (commitmentsEl) commitmentsEl.innerHTML = data.commitments_html;
-                }
-                if (data.drifting_html) {
                     var driftingEl = document.getElementById('briefDrifting');
-                    if (driftingEl) driftingEl.innerHTML = data.drifting_html;
-                }
-            } catch (err) {
-                // Ignore malformed SSE data
-            }
-        });
+                    if (eventsEl) {
+                        var h = eventsEl.querySelector('h2 span');
+                        if (h) h.textContent = (data.recent_events || []).length;
+                    }
+                    if (peopleEl) {
+                        var h = peopleEl.querySelector('h2 span');
+                        if (h) h.textContent = (data.people || []).length;
+                    }
+                    if (commitmentsEl) {
+                        var h = commitmentsEl.querySelector('h2 span');
+                        if (h) h.textContent = (data.pending_commitments || []).length;
+                    }
+                    if (driftingEl) {
+                        var h = driftingEl.querySelector('h2 span');
+                        if (h) h.textContent = (data.drifting_commitments || []).length;
+                    }
+                })
+                .catch(function() { /* retry next interval */ });
+        }
+        setInterval(pollBrief, 60000);
 
         function appendMessage(role, content) {
             if (emptyState) {
