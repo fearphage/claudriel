@@ -110,7 +110,7 @@ final class ChatStreamController
         }
 
         $onToken = function (string $token): void {
-            $data = json_encode(['token' => $token], JSON_THROW_ON_ERROR);
+            $data = json_encode(['token' => $token], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
             echo "event: chat-token\ndata: {$data}\n\n";
             if (ob_get_level() > 0) {
                 ob_flush();
@@ -128,7 +128,7 @@ final class ChatStreamController
             ]);
             $msgStorage->save($assistantMsg);
 
-            $data = json_encode(['done' => true, 'full_response' => $fullResponse], JSON_THROW_ON_ERROR);
+            $data = json_encode(['done' => true, 'full_response' => $fullResponse], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
             echo "event: chat-done\ndata: {$data}\n\n";
             if (ob_get_level() > 0) {
                 ob_flush();
@@ -137,7 +137,7 @@ final class ChatStreamController
         };
 
         $onError = function (string $error): void {
-            $data = json_encode(['error' => $error], JSON_THROW_ON_ERROR);
+            $data = json_encode(['error' => $error], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
             echo "event: chat-error\ndata: {$data}\n\n";
             if (ob_get_level() > 0) {
                 ob_flush();
