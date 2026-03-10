@@ -165,14 +165,13 @@ final class ClaudrielServiceProvider extends ServiceProvider
                 ->build(),
         );
 
-        $router->addRoute(
-            'claudriel.api.ingest',
-            RouteBuilder::create('/api/ingest')
-                ->controller(IngestController::class . '::handle')
-                ->allowAll()
-                ->methods('POST')
-                ->build(),
-        );
+        $ingestRoute = RouteBuilder::create('/api/ingest')
+            ->controller(IngestController::class . '::handle')
+            ->allowAll()
+            ->methods('POST')
+            ->build();
+        $ingestRoute->setOption('_csrf', false);
+        $router->addRoute('claudriel.api.ingest', $ingestRoute);
 
         $router->addRoute(
             'claudriel.api.context',

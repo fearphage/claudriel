@@ -25,11 +25,12 @@ class ErrorEvent:
 
 StreamEvent = TokenEvent | DoneEvent | ErrorEvent
 
-# Restrict Claude to Gmail and Calendar MCP tools only.
-# No file system, shell, or code editing access.
+# Restrict Claude to Gmail, Calendar, and Bash (for curl ingestion) tools.
+# No file system or code editing access.
 ALLOWED_TOOLS = [
     "mcp__claude_ai_Gmail__*",
     "mcp__claude_ai_Google_Calendar__*",
+    "Bash",
 ]
 
 

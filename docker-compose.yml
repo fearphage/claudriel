@@ -23,6 +23,7 @@ services:
       - APP_ENV=dev
       - SIDECAR_URL=http://sidecar:8100
       - CLAUDRIEL_SIDECAR_KEY=${CLAUDRIEL_SIDECAR_KEY}
+      - CLAUDRIEL_API_KEY=${CLAUDRIEL_API_KEY}
       - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-4-20250514}
       - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-6}
     depends_on:
@@ -34,10 +35,12 @@ services:
       context: ./docker/sidecar
     environment:
       - CLAUDRIEL_SIDECAR_KEY=${CLAUDRIEL_SIDECAR_KEY}
+      - CLAUDRIEL_API_KEY=${CLAUDRIEL_API_KEY}
+      - CLAUDRIEL_INGEST_URL=http://caddy/api/ingest
       - SESSION_TIMEOUT_MINUTES=15
       - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-6}
     volumes:
-      - ${HOME}/.claude:/root/.claude:ro
+      - ${HOME}/.claude:/root/.claude-config:ro
       - ${HOME}/.claude.json:/root/.claude.json:ro
     expose:
       - "8100"

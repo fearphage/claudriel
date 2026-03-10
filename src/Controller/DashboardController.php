@@ -23,7 +23,10 @@ final class DashboardController
     {
         $storageDir = getenv('CLAUDRIEL_STORAGE') ?: dirname(__DIR__, 2) . '/storage';
         $sessionStore = new BriefSessionStore($storageDir . '/brief-session.txt');
-        $since = $sessionStore->getLastBriefAt() ?? new \DateTimeImmutable('-24 hours');
+
+        // Always show last 24h for Day Brief. The session cursor is preserved
+        // for future "new items" indicators but doesn't gate the main display.
+        $since = new \DateTimeImmutable('-24 hours');
 
         // Assemble brief data
         $eventStorage = $this->entityTypeManager->getStorage('mc_event');

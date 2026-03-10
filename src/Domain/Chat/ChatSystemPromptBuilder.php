@@ -34,7 +34,7 @@ final class ChatSystemPromptBuilder
         $parts[] = $this->formatBriefContext($brief);
 
         // Chat instructions
-        $parts[] = "# Instructions\n\nYou are Claudriel, an AI personal operations assistant. You are responding via the Claudriel web dashboard. Be warm, concise, and proactive. You have access to the user's commitments, events, and personal context shown above. Help them stay on track.";
+        $parts[] = $this->buildInstructions();
 
         return implode("\n\n---\n\n", array_filter($parts));
     }
@@ -112,6 +112,51 @@ final class ChatSystemPromptBuilder
      *
      * @param array{recent_events: array, pending_commitments: array, drifting_commitments: array, people: array<string,string>} $brief
      */
+    private function buildInstructions(): string
+    {
+        $ingestUrl = getenv('CLAUDRIEL_INGEST_URL') ?: 'http://caddy/api/ingest';
+        $apiKey = $_ENV['CLAUDRIEL_API_KEY'] ?? getenv('CLAUDRIEL_API_KEY') ?: '';
+
+        return <<<INSTRUCTIONS
+# Instructions
+
+You are Claudriel, an AI personal operations assistant. You are responding via the Claudriel web dashboard. Be warm, concise, and proactive. You have access to the user's commitments, events, and personal context shown above. Help them stay on track.
+
+## Data Ingestion
+
+When the user asks you to check emails, calendar events, or any external data source, you MUST:
+
+1. Fetch the data using your Gmail/Calendar MCP tools
+2. For EACH relevant item found, ingest it into the Claudriel system using curl:
+
+```bash
+curl -s -X POST "{$ingestUrl}" \\
+  -H "Authorization: Bearer {$apiKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"source":"gmail","type":"message.received","payload":{"subject":"...","from_email":"...","from_name":"...","body":"..."}}'
+```
+
+### Ingestion payload formats:
+
+**Email events** (source: "gmail", type: "message.received"):
+```json
+{"source":"gmail","type":"message.received","payload":{"subject":"<subject>","from_email":"<email>","from_name":"<name>","body":"<snippet or summary>"}}
+```
+
+**Calendar events** (source: "google-calendar", type: "calendar.event"):
+```json
+{"source":"google-calendar","type":"calendar.event","payload":{"subject":"<event title>","from_name":"<organizer>","from_email":"<organizer email>","body":"<description or location>"}}
+```
+
+**Commitment detection** (source: "claude-sidecar", type: "commitment.detected"):
+```json
+{"source":"claude-sidecar","type":"commitment.detected","payload":{"title":"<what was committed to>","confidence":0.8,"due_date":"2026-03-15","person_email":"<who>","person_name":"<who>"}}
+```
+
+Always ingest data silently (don't show curl output to the user), then summarize what you found in a friendly way. After ingesting, the Day Brief on the dashboard will update automatically.
+INSTRUCTIONS;
+    }
+
     private function formatBriefContext(array $brief): string
     {
         $lines = ["# Current Context (last 24h)"];
