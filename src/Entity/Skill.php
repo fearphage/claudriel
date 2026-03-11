@@ -11,8 +11,8 @@ final class Skill extends ContentEntityBase
     protected string $entityTypeId = 'skill';
 
     protected array $entityKeys = [
-        'id'    => 'sid',
-        'uuid'  => 'uuid',
+        'id' => 'sid',
+        'uuid' => 'uuid',
         'label' => 'name',
     ];
 

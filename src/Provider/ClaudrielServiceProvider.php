@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Claudriel\Provider;
 
 use Claudriel\Command\BriefCommand;
-use Claudriel\Command\CommitmentUpdateCommand;
 use Claudriel\Command\CommitmentsCommand;
+use Claudriel\Command\CommitmentUpdateCommand;
 use Claudriel\Command\SkillsCommand;
 use Claudriel\Controller\BriefStreamController;
 use Claudriel\Controller\ChatController;
@@ -19,7 +19,6 @@ use Claudriel\Controller\IngestController;
 use Claudriel\Controller\NotFoundController;
 use Claudriel\Domain\DayBrief\Assembler\DayBriefAssembler;
 use Claudriel\Domain\DayBrief\Service\BriefSessionStore;
-use Claudriel\Support\DriftDetector;
 use Claudriel\Entity\Account;
 use Claudriel\Entity\ChatMessage;
 use Claudriel\Entity\ChatSession;
@@ -28,6 +27,8 @@ use Claudriel\Entity\Integration;
 use Claudriel\Entity\McEvent;
 use Claudriel\Entity\Person;
 use Claudriel\Entity\Skill;
+use Claudriel\Support\DriftDetector;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Waaseyaa\Database\PdoDatabase;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
@@ -37,7 +38,6 @@ use Waaseyaa\EntityStorage\EntityRepository;
 use Waaseyaa\Foundation\ServiceProvider\ServiceProvider;
 use Waaseyaa\Routing\RouteBuilder;
 use Waaseyaa\Routing\WaaseyaaRouter;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 final class ClaudrielServiceProvider extends ServiceProvider
 {
@@ -106,7 +106,7 @@ final class ClaudrielServiceProvider extends ServiceProvider
         $router->addRoute(
             'claudriel.dashboard',
             RouteBuilder::create('/')
-                ->controller(DashboardController::class . '::show')
+                ->controller(DashboardController::class.'::show')
                 ->allowAll()
                 ->methods('GET')
                 ->render()
@@ -117,7 +117,7 @@ final class ClaudrielServiceProvider extends ServiceProvider
         $router->addRoute(
             'claudriel.brief',
             RouteBuilder::create('/brief')
-                ->controller(DayBriefController::class . '::show')
+                ->controller(DayBriefController::class.'::show')
                 ->allowAll()
                 ->methods('GET')
                 ->render()
@@ -128,7 +128,7 @@ final class ClaudrielServiceProvider extends ServiceProvider
         $router->addRoute(
             'claudriel.chat',
             RouteBuilder::create('/chat')
-                ->controller(DashboardController::class . '::show')
+                ->controller(DashboardController::class.'::show')
                 ->allowAll()
                 ->methods('GET')
                 ->render()
@@ -139,7 +139,7 @@ final class ClaudrielServiceProvider extends ServiceProvider
         $router->addRoute(
             'claudriel.stream.brief',
             RouteBuilder::create('/stream/brief')
-                ->controller(BriefStreamController::class . '::stream')
+                ->controller(BriefStreamController::class.'::stream')
                 ->allowAll()
                 ->methods('GET')
                 ->render()
@@ -149,7 +149,7 @@ final class ClaudrielServiceProvider extends ServiceProvider
         $router->addRoute(
             'claudriel.stream.chat',
             RouteBuilder::create('/stream/chat/{messageId}')
-                ->controller(ChatStreamController::class . '::stream')
+                ->controller(ChatStreamController::class.'::stream')
                 ->allowAll()
                 ->methods('GET')
                 ->render()
@@ -160,14 +160,14 @@ final class ClaudrielServiceProvider extends ServiceProvider
         $router->addRoute(
             'claudriel.commitment.update',
             RouteBuilder::create('/commitments/{uuid}')
-                ->controller(CommitmentUpdateController::class . '::update')
+                ->controller(CommitmentUpdateController::class.'::update')
                 ->allowAll()
                 ->methods('PATCH')
                 ->build(),
         );
 
         $ingestRoute = RouteBuilder::create('/api/ingest')
-            ->controller(IngestController::class . '::handle')
+            ->controller(IngestController::class.'::handle')
             ->allowAll()
             ->methods('POST')
             ->build();
@@ -177,7 +177,7 @@ final class ClaudrielServiceProvider extends ServiceProvider
         $router->addRoute(
             'claudriel.api.context',
             RouteBuilder::create('/api/context')
-                ->controller(ContextController::class . '::show')
+                ->controller(ContextController::class.'::show')
                 ->allowAll()
                 ->methods('GET')
                 ->build(),
@@ -186,7 +186,7 @@ final class ClaudrielServiceProvider extends ServiceProvider
         $router->addRoute(
             'claudriel.api.chat.send',
             RouteBuilder::create('/api/chat/send')
-                ->controller(ChatController::class . '::send')
+                ->controller(ChatController::class.'::send')
                 ->allowAll()
                 ->methods('POST')
                 ->render()
@@ -199,7 +199,7 @@ final class ClaudrielServiceProvider extends ServiceProvider
         $router->addRoute(
             'claudriel.not_found',
             RouteBuilder::create('/{path}')
-                ->controller(NotFoundController::class . '::show')
+                ->controller(NotFoundController::class.'::show')
                 ->allowAll()
                 ->methods('GET')
                 ->render()
@@ -272,8 +272,8 @@ final class ClaudrielServiceProvider extends ServiceProvider
             $dispatcher,
         );
 
-        $assembler    = new DayBriefAssembler($eventRepo, $commitmentRepo, new DriftDetector($commitmentRepo), $personRepo, $skillRepo);
-        $sessionStore = new BriefSessionStore($this->projectRoot . '/storage/brief-session.txt');
+        $assembler = new DayBriefAssembler($eventRepo, $commitmentRepo, new DriftDetector($commitmentRepo), $personRepo, $skillRepo);
+        $sessionStore = new BriefSessionStore($this->projectRoot.'/storage/brief-session.txt');
 
         return [
             new BriefCommand($assembler, $sessionStore),

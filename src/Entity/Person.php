@@ -11,8 +11,8 @@ final class Person extends ContentEntityBase
     protected string $entityTypeId = 'person';
 
     protected array $entityKeys = [
-        'id'    => 'pid',
-        'uuid'  => 'uuid',
+        'id' => 'pid',
+        'uuid' => 'uuid',
         'label' => 'name',
     ];
 

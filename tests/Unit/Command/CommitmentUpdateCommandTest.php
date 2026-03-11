@@ -6,24 +6,25 @@ namespace Claudriel\Tests\Unit\Command;
 
 use Claudriel\Command\CommitmentUpdateCommand;
 use Claudriel\Entity\Commitment;
-use Waaseyaa\Entity\EntityType;
-use Waaseyaa\EntityStorage\Driver\InMemoryStorageDriver;
-use Waaseyaa\EntityStorage\EntityRepository;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+use Waaseyaa\Entity\EntityType;
+use Waaseyaa\EntityStorage\Driver\InMemoryStorageDriver;
+use Waaseyaa\EntityStorage\EntityRepository;
 
 final class CommitmentUpdateCommandTest extends TestCase
 {
     private EntityRepository $repo;
+
     private CommitmentUpdateCommand $command;
 
     protected function setUp(): void
     {
         $this->repo = new EntityRepository(
             new EntityType(id: 'commitment', label: 'Commitment', class: Commitment::class, keys: ['id' => 'cid', 'uuid' => 'uuid', 'label' => 'title']),
-            new InMemoryStorageDriver(),
-            new EventDispatcher(),
+            new InMemoryStorageDriver,
+            new EventDispatcher,
         );
         $this->command = new CommitmentUpdateCommand($this->repo);
     }
@@ -32,10 +33,11 @@ final class CommitmentUpdateCommandTest extends TestCase
     {
         $commitment = new Commitment(['title' => 'Test commitment', 'status' => 'pending', 'uuid' => $uuid]);
         $this->repo->save($commitment);
+
         return $commitment;
     }
 
-    public function testMarkAsDone(): void
+    public function test_mark_as_done(): void
     {
         $uuid = 'aaaaaaaa-0001-0001-0001-aaaaaaaaaaaa';
         $this->saveCommitment($uuid);
@@ -48,7 +50,7 @@ final class CommitmentUpdateCommandTest extends TestCase
         self::assertSame('done', $results[0]->get('status'));
     }
 
-    public function testMarkAsIgnored(): void
+    public function test_mark_as_ignored(): void
     {
         $uuid = 'aaaaaaaa-0002-0002-0002-aaaaaaaaaaaa';
         $this->saveCommitment($uuid);
@@ -61,7 +63,7 @@ final class CommitmentUpdateCommandTest extends TestCase
         self::assertSame('ignored', $results[0]->get('status'));
     }
 
-    public function testMarkAsTracked(): void
+    public function test_mark_as_tracked(): void
     {
         $uuid = 'aaaaaaaa-0003-0003-0003-aaaaaaaaaaaa';
         $this->saveCommitment($uuid);
@@ -74,7 +76,7 @@ final class CommitmentUpdateCommandTest extends TestCase
         self::assertSame('active', $results[0]->get('status'));
     }
 
-    public function testUnknownUuidReturnsFailure(): void
+    public function test_unknown_uuid_returns_failure(): void
     {
         $tester = new CommandTester($this->command);
         $tester->execute(['uuid' => 'does-not-exist', 'action' => 'done']);
@@ -83,7 +85,7 @@ final class CommitmentUpdateCommandTest extends TestCase
         self::assertStringContainsString('not found', $tester->getDisplay());
     }
 
-    public function testInvalidActionReturnsFailure(): void
+    public function test_invalid_action_returns_failure(): void
     {
         $uuid = 'aaaaaaaa-0004-0004-0004-aaaaaaaaaaaa';
         $this->saveCommitment($uuid);

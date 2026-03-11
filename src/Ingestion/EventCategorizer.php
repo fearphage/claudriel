@@ -49,7 +49,7 @@ final class EventCategorizer
     {
         $subject = strtolower($payload['subject'] ?? '');
         $body = strtolower($payload['body'] ?? '');
-        $combined = $subject . ' ' . $body;
+        $combined = $subject.' '.$body;
 
         foreach (self::JOB_KEYWORDS as $keyword) {
             if (str_contains($combined, $keyword)) {

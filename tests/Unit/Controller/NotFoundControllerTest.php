@@ -11,7 +11,7 @@ use Twig\Loader\ArrayLoader;
 
 final class NotFoundControllerTest extends TestCase
 {
-    public function testReturns404WithTwigTemplate(): void
+    public function test_returns404_with_twig_template(): void
     {
         $twig = new Environment(new ArrayLoader([
             '404.html.twig' => '<h1>Not Found</h1><p>{{ path }}</p>',
@@ -25,9 +25,9 @@ final class NotFoundControllerTest extends TestCase
         self::assertStringContainsString('/nonexistent-page', $response->content);
     }
 
-    public function testReturns404WithoutTwig(): void
+    public function test_returns404_without_twig(): void
     {
-        $controller = new NotFoundController();
+        $controller = new NotFoundController;
 
         $response = $controller->show(['path' => 'missing']);
 
@@ -36,7 +36,7 @@ final class NotFoundControllerTest extends TestCase
         self::assertStringContainsString('/missing', $response->content);
     }
 
-    public function testFallsBackToPlainHtmlOnTwigError(): void
+    public function test_falls_back_to_plain_html_on_twig_error(): void
     {
         // Twig environment with no templates loaded, so rendering will fail.
         $twig = new Environment(new ArrayLoader([]));
@@ -49,9 +49,9 @@ final class NotFoundControllerTest extends TestCase
         self::assertStringContainsString('/broken', $response->content);
     }
 
-    public function testNormalizesPathWithLeadingSlash(): void
+    public function test_normalizes_path_with_leading_slash(): void
     {
-        $controller = new NotFoundController();
+        $controller = new NotFoundController;
 
         $response = $controller->show(['path' => '/already-slashed']);
 
@@ -61,9 +61,9 @@ final class NotFoundControllerTest extends TestCase
         self::assertStringNotContainsString('//already-slashed', $response->content);
     }
 
-    public function testHandlesEmptyPath(): void
+    public function test_handles_empty_path(): void
     {
-        $controller = new NotFoundController();
+        $controller = new NotFoundController;
 
         $response = $controller->show([]);
 
@@ -71,9 +71,9 @@ final class NotFoundControllerTest extends TestCase
         self::assertStringContainsString('/', $response->content);
     }
 
-    public function testEscapesHtmlInPath(): void
+    public function test_escapes_html_in_path(): void
     {
-        $controller = new NotFoundController();
+        $controller = new NotFoundController;
 
         $response = $controller->show(['path' => '<script>alert(1)</script>']);
 

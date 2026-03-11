@@ -18,11 +18,11 @@ final class SkillFileIngester
      */
     public function ingestDirectory(string $directory): array
     {
-        if (!is_dir($directory)) {
+        if (! is_dir($directory)) {
             throw new \InvalidArgumentException(sprintf('Directory not found: %s', $directory));
         }
 
-        $files = glob($directory . '/*.md');
+        $files = glob($directory.'/*.md');
         if ($files === false) {
             return [];
         }
@@ -55,13 +55,13 @@ final class SkillFileIngester
 
         [$frontMatter, $body] = $parsed;
 
-        if (!isset($frontMatter['name'])) {
+        if (! isset($frontMatter['name'])) {
             return null;
         }
 
         // Check if a skill with this source_path already exists; update it if so.
         $existing = $this->findBySourcePath($filePath);
-        $skill = $existing ?? new Skill();
+        $skill = $existing ?? new Skill;
 
         // Use the UUID as the storage ID when no explicit sid is set.
         // This ensures each skill gets a unique key in all storage drivers.
@@ -87,7 +87,7 @@ final class SkillFileIngester
      */
     public function parseFrontMatter(string $content): ?array
     {
-        if (!preg_match('/\A---\s*\n(.*?)\n---\s*\n?(.*)\z/s', $content, $matches)) {
+        if (! preg_match('/\A---\s*\n(.*?)\n---\s*\n?(.*)\z/s', $content, $matches)) {
             return null;
         }
 
@@ -95,7 +95,7 @@ final class SkillFileIngester
         $lines = explode("\n", $matches[1]);
         foreach ($lines as $line) {
             $line = trim($line);
-            if ($line === '' || !str_contains($line, ':')) {
+            if ($line === '' || ! str_contains($line, ':')) {
                 continue;
             }
             $colonPos = strpos($line, ':');

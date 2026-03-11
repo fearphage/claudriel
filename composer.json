@@ -22,6 +22,8 @@
     },
     "require-dev": {
         "deployer/deployer": "^7.5",
+        "laravel/pint": "^1.28",
+        "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^10.5",
         "symfony/event-dispatcher": "^7.0"
     },
@@ -30,6 +32,12 @@
     },
     "autoload-dev": {
         "psr-4": { "Claudriel\\Tests\\": "tests/" }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "lint": "pint --test",
+        "format": "pint",
+        "analyse": "phpstan analyse"
     },
     "config": {
         "optimize-autoloader": true,

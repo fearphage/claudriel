@@ -102,7 +102,7 @@ final class ChatController
         $session = null;
         if ($sessionUuid !== null) {
             $ids = $sessionStorage->getQuery()->condition('uuid', $sessionUuid)->execute();
-            if (!empty($ids)) {
+            if (! empty($ids)) {
                 $session = $sessionStorage->load(reset($ids));
             }
         }
@@ -111,7 +111,7 @@ final class ChatController
             $session = new ChatSession([
                 'uuid' => $this->generateUuid(),
                 'title' => mb_substr($message, 0, 60),
-                'created_at' => (new \DateTimeImmutable())->format('c'),
+                'created_at' => (new \DateTimeImmutable)->format('c'),
             ]);
             $sessionStorage->save($session);
         }
@@ -124,7 +124,7 @@ final class ChatController
             'session_uuid' => $sessionUuid,
             'role' => 'user',
             'content' => $message,
-            'created_at' => (new \DateTimeImmutable())->format('c'),
+            'created_at' => (new \DateTimeImmutable)->format('c'),
         ]);
         $messageStorage->save($userMsg);
 
@@ -142,6 +142,7 @@ final class ChatController
     private function getApiKey(): ?string
     {
         $key = getenv('ANTHROPIC_API_KEY');
+
         return is_string($key) && $key !== '' ? $key : null;
     }
 
@@ -149,11 +150,11 @@ final class ChatController
     {
         return sprintf(
             '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-            random_int(0, 0xffff), random_int(0, 0xffff),
-            random_int(0, 0xffff),
-            random_int(0, 0x0fff) | 0x4000,
-            random_int(0, 0x3fff) | 0x8000,
-            random_int(0, 0xffff), random_int(0, 0xffff), random_int(0, 0xffff),
+            random_int(0, 0xFFFF), random_int(0, 0xFFFF),
+            random_int(0, 0xFFFF),
+            random_int(0, 0x0FFF) | 0x4000,
+            random_int(0, 0x3FFF) | 0x8000,
+            random_int(0, 0xFFFF), random_int(0, 0xFFFF), random_int(0, 0xFFFF),
         );
     }
 }

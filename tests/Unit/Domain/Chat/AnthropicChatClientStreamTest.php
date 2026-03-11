@@ -9,7 +9,7 @@ use PHPUnit\Framework\TestCase;
 
 final class AnthropicChatClientStreamTest extends TestCase
 {
-    public function testStreamCallsCallbackWithTokens(): void
+    public function test_stream_calls_callback_with_tokens(): void
     {
         // We can't easily test the real Anthropic API in unit tests.
         // Instead, test that the stream() method exists and has the right signature.

@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace Claudriel\Command;
 
-use Waaseyaa\Entity\Repository\EntityRepositoryInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Waaseyaa\Entity\Repository\EntityRepositoryInterface;
 
 #[AsCommand(name: 'claudriel:commitment:update', description: 'Update a commitment status')]
 final class CommitmentUpdateCommand extends Command
 {
     private const ACTION_MAP = [
-        'done'   => 'done',
+        'done' => 'done',
         'ignore' => 'ignored',
-        'track'  => 'active',
+        'track' => 'active',
     ];
 
     public function __construct(private readonly EntityRepositoryInterface $commitmentRepo)
@@ -33,19 +33,21 @@ final class CommitmentUpdateCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $uuid   = (string) $input->getArgument('uuid');
+        $uuid = (string) $input->getArgument('uuid');
         $action = (string) $input->getArgument('action');
 
-        if (!array_key_exists($action, self::ACTION_MAP)) {
+        if (! array_key_exists($action, self::ACTION_MAP)) {
             $output->writeln(sprintf('<error>Invalid action "%s". Use: done, ignore, track</error>', $action));
+
             return Command::FAILURE;
         }
 
-        $results    = $this->commitmentRepo->findBy(['uuid' => $uuid]);
+        $results = $this->commitmentRepo->findBy(['uuid' => $uuid]);
         $commitment = $results[0] ?? null;
 
         if ($commitment === null) {
             $output->writeln(sprintf('<error>Commitment "%s" not found.</error>', $uuid));
+
             return Command::FAILURE;
         }
 
@@ -53,6 +55,7 @@ final class CommitmentUpdateCommand extends Command
         $this->commitmentRepo->save($commitment);
 
         $output->writeln(sprintf('Commitment "%s" marked as %s.', $uuid, self::ACTION_MAP[$action]));
+
         return Command::SUCCESS;
     }
 }

@@ -8,19 +8,21 @@ use Claudriel\Controller\IngestController;
 use Claudriel\Entity\Commitment;
 use Claudriel\Entity\McEvent;
 use Claudriel\Entity\Person;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\HttpFoundation\Request;
 use Waaseyaa\Database\PdoDatabase;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\EntityStorage\SqlEntityStorage;
 use Waaseyaa\EntityStorage\SqlSchemaHandler;
-use PHPUnit\Framework\TestCase;
-use Symfony\Component\EventDispatcher\EventDispatcher;
-use Symfony\Component\HttpFoundation\Request;
 
 final class IngestControllerTest extends TestCase
 {
     private EntityTypeManager $entityTypeManager;
+
     private IngestController $controller;
+
     private string $originalApiKey;
 
     protected function setUp(): void
@@ -28,12 +30,13 @@ final class IngestControllerTest extends TestCase
         $this->originalApiKey = $_ENV['CLAUDRIEL_API_KEY'] ?? '';
 
         $db = PdoDatabase::createSqlite(':memory:');
-        $dispatcher = new EventDispatcher();
+        $dispatcher = new EventDispatcher;
 
         $this->entityTypeManager = new EntityTypeManager(
             $dispatcher,
             function ($definition) use ($db, $dispatcher): SqlEntityStorage {
                 (new SqlSchemaHandler($definition, $db))->ensureTable();
+
                 return new SqlEntityStorage($definition, $db, $dispatcher);
             },
         );
@@ -56,7 +59,7 @@ final class IngestControllerTest extends TestCase
         }
     }
 
-    public function testReturns401WithoutBearerToken(): void
+    public function test_returns401_without_bearer_token(): void
     {
         $request = Request::create('/api/ingest', 'POST', [], [], [], [], '{}');
         $response = $this->controller->handle([], [], null, $request);
@@ -64,7 +67,7 @@ final class IngestControllerTest extends TestCase
         self::assertSame(401, $response->getStatusCode());
     }
 
-    public function testReturns401WithInvalidToken(): void
+    public function test_returns401_with_invalid_token(): void
     {
         $request = Request::create('/api/ingest', 'POST', [], [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer wrong-key',
@@ -74,7 +77,7 @@ final class IngestControllerTest extends TestCase
         self::assertSame(401, $response->getStatusCode());
     }
 
-    public function testReturns422WithMissingFields(): void
+    public function test_returns422_with_missing_fields(): void
     {
         $request = Request::create('/api/ingest', 'POST', [], [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer test-secret-key',
@@ -86,7 +89,7 @@ final class IngestControllerTest extends TestCase
         self::assertSame('Invalid payload', $body['error']);
     }
 
-    public function testReturns422WithNonObjectPayload(): void
+    public function test_returns422_with_non_object_payload(): void
     {
         $request = Request::create('/api/ingest', 'POST', [], [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer test-secret-key',
@@ -96,13 +99,13 @@ final class IngestControllerTest extends TestCase
         self::assertSame(422, $response->getStatusCode());
     }
 
-    public function testCreatesGenericEventForUnknownType(): void
+    public function test_creates_generic_event_for_unknown_type(): void
     {
         $request = Request::create('/api/ingest', 'POST', [], [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer test-secret-key',
         ], json_encode([
-            'source'  => 'test-source',
-            'type'    => 'some.unknown.event',
+            'source' => 'test-source',
+            'type' => 'some.unknown.event',
             'payload' => ['key' => 'value'],
         ]));
 
@@ -115,18 +118,18 @@ final class IngestControllerTest extends TestCase
         self::assertNotEmpty($body['uuid']);
     }
 
-    public function testCreatesCommitmentForCommitmentDetectedType(): void
+    public function test_creates_commitment_for_commitment_detected_type(): void
     {
         $request = Request::create('/api/ingest', 'POST', [], [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer test-secret-key',
         ], json_encode([
-            'source'  => 'gmail',
-            'type'    => 'commitment.detected',
+            'source' => 'gmail',
+            'type' => 'commitment.detected',
             'payload' => [
-                'title'        => 'Follow up with Bob',
-                'confidence'   => 0.85,
+                'title' => 'Follow up with Bob',
+                'confidence' => 0.85,
                 'person_email' => 'bob@example.com',
-                'person_name'  => 'Bob',
+                'person_name' => 'Bob',
             ],
         ]));
 
@@ -140,16 +143,16 @@ final class IngestControllerTest extends TestCase
         self::assertNotEmpty($body['person_uuid']);
     }
 
-    public function testCreatesPersonForPersonCreatedType(): void
+    public function test_creates_person_for_person_created_type(): void
     {
         $request = Request::create('/api/ingest', 'POST', [], [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer test-secret-key',
         ], json_encode([
-            'source'  => 'manual',
-            'type'    => 'person.created',
+            'source' => 'manual',
+            'type' => 'person.created',
             'payload' => [
                 'email' => 'alice@example.com',
-                'name'  => 'Alice',
+                'name' => 'Alice',
             ],
         ]));
 

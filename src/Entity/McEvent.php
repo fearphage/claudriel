@@ -15,8 +15,8 @@ final class McEvent extends ContentEntityBase
     protected string $entityTypeId = 'mc_event';
 
     protected array $entityKeys = [
-        'id'           => 'eid',
-        'uuid'         => 'uuid',
+        'id' => 'eid',
+        'uuid' => 'uuid',
         'content_hash' => 'content_hash',
     ];
 

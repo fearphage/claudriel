@@ -9,13 +9,13 @@ use PHPUnit\Framework\TestCase;
 
 final class SkillTest extends TestCase
 {
-    public function testEntityTypeId(): void
+    public function test_entity_type_id(): void
     {
         $skill = new Skill(['name' => 'brainstorming']);
         self::assertSame('skill', $skill->getEntityTypeId());
     }
 
-    public function testUuidAutoGeneration(): void
+    public function test_uuid_auto_generation(): void
     {
         $skill = new Skill(['name' => 'brainstorming']);
         self::assertNotEmpty($skill->uuid());
@@ -25,7 +25,7 @@ final class SkillTest extends TestCase
         );
     }
 
-    public function testGetSetFields(): void
+    public function test_get_set_fields(): void
     {
         $skill = new Skill([
             'name' => 'brainstorming',

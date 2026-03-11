@@ -26,8 +26,8 @@ final class DayBriefController
 
     public function show(array $params = [], array $query = [], mixed $account = null, ?Request $httpRequest = null): SsrResponse
     {
-        $storageDir   = getenv('CLAUDRIEL_STORAGE') ?: dirname(__DIR__, 2) . '/storage';
-        $sessionStore = new BriefSessionStore($storageDir . '/brief-session.txt');
+        $storageDir = getenv('CLAUDRIEL_STORAGE') ?: dirname(__DIR__, 2).'/storage';
+        $sessionStore = new BriefSessionStore($storageDir.'/brief-session.txt');
 
         $since = new \DateTimeImmutable('-24 hours');
 
@@ -42,11 +42,11 @@ final class DayBriefController
                 || str_contains($accept, 'application/vnd.api+json');
         }
 
-        if (!$wantsJson) {
-            $sessionStore->recordBriefAt(new \DateTimeImmutable());
+        if (! $wantsJson) {
+            $sessionStore->recordBriefAt(new \DateTimeImmutable);
         }
 
-        if ($this->twig !== null && !$wantsJson) {
+        if ($this->twig !== null && ! $wantsJson) {
             $html = $this->twig->render('day-brief.html.twig', $brief);
 
             return new SsrResponse(

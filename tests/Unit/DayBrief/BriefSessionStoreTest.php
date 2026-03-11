@@ -13,7 +13,7 @@ final class BriefSessionStoreTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->storageFile = sys_get_temp_dir() . '/brief_session_' . uniqid('', true) . '.txt';
+        $this->storageFile = sys_get_temp_dir().'/brief_session_'.uniqid('', true).'.txt';
     }
 
     protected function tearDown(): void
@@ -23,16 +23,16 @@ final class BriefSessionStoreTest extends TestCase
         }
     }
 
-    public function testReturnsNullWhenNoSessionExists(): void
+    public function test_returns_null_when_no_session_exists(): void
     {
         $store = new BriefSessionStore($this->storageFile);
         self::assertNull($store->getLastBriefAt());
     }
 
-    public function testStoreAndRetrieveTimestamp(): void
+    public function test_store_and_retrieve_timestamp(): void
     {
         $store = new BriefSessionStore($this->storageFile);
-        $now   = new \DateTimeImmutable('2026-03-08T10:00:00+00:00');
+        $now = new \DateTimeImmutable('2026-03-08T10:00:00+00:00');
 
         $store->recordBriefAt($now);
         $retrieved = $store->getLastBriefAt();
@@ -41,10 +41,10 @@ final class BriefSessionStoreTest extends TestCase
         self::assertSame($now->format(\DateTimeInterface::ATOM), $retrieved->format(\DateTimeInterface::ATOM));
     }
 
-    public function testOverwritesPreviousTimestamp(): void
+    public function test_overwrites_previous_timestamp(): void
     {
-        $store  = new BriefSessionStore($this->storageFile);
-        $first  = new \DateTimeImmutable('2026-03-08T08:00:00+00:00');
+        $store = new BriefSessionStore($this->storageFile);
+        $first = new \DateTimeImmutable('2026-03-08T08:00:00+00:00');
         $second = new \DateTimeImmutable('2026-03-08T10:00:00+00:00');
 
         $store->recordBriefAt($first);

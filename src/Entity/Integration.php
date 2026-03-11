@@ -11,8 +11,8 @@ final class Integration extends ContentEntityBase
     protected string $entityTypeId = 'integration';
 
     protected array $entityKeys = [
-        'id'    => 'iid',
-        'uuid'  => 'uuid',
+        'id' => 'iid',
+        'uuid' => 'uuid',
         'label' => 'name',
     ];
 

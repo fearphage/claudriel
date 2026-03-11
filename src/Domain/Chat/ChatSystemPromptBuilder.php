@@ -20,13 +20,13 @@ final class ChatSystemPromptBuilder
         // Personality from CLAUDE.user.md or CLAUDE.md
         $claudeMd = $this->readFile('CLAUDE.user.md') ?? $this->readFile('CLAUDE.md') ?? '';
         if ($claudeMd !== '') {
-            $parts[] = "# Personality & Behavior\n\n" . $this->extractPersonality($claudeMd);
+            $parts[] = "# Personality & Behavior\n\n".$this->extractPersonality($claudeMd);
         }
 
         // User context
         $me = $this->readFile('context/me.md');
         if ($me !== null) {
-            $parts[] = "# About the User\n\n" . $me;
+            $parts[] = "# About the User\n\n".$me;
         }
 
         // Brief summary
@@ -41,12 +41,13 @@ final class ChatSystemPromptBuilder
 
     private function readFile(string $relativePath): ?string
     {
-        $path = $this->projectRoot . '/' . $relativePath;
-        if (!is_file($path)) {
+        $path = $this->projectRoot.'/'.$relativePath;
+        if (! is_file($path)) {
             return null;
         }
 
         $content = file_get_contents($path);
+
         return $content !== false ? $content : null;
     }
 
@@ -89,9 +90,9 @@ final class ChatSystemPromptBuilder
 
                 $capturing = $isPersonality;
                 $currentSection = $heading;
-                $currentContent = $capturing ? $line . "\n" : '';
+                $currentContent = $capturing ? $line."\n" : '';
             } elseif ($capturing) {
-                $currentContent .= $line . "\n";
+                $currentContent .= $line."\n";
             }
         }
 
@@ -110,7 +111,7 @@ final class ChatSystemPromptBuilder
     /**
      * Format the brief data into a concise context block for the system prompt.
      *
-     * @param array{recent_events: array, pending_commitments: array, drifting_commitments: array, people: array<string,string>} $brief
+     * @param  array{recent_events: array, pending_commitments: array, drifting_commitments: array, people: array<string,string>}  $brief
      */
     private function buildInstructions(bool $hasToolAccess): string
     {
@@ -120,7 +121,7 @@ final class ChatSystemPromptBuilder
 You are Claudriel, an AI personal operations assistant. You are responding via the Claudriel web dashboard. Be warm, concise, and proactive. You have access to the user's commitments, events, and personal context shown above. Help them stay on track.
 INSTRUCTIONS;
 
-        if (!$hasToolAccess) {
+        if (! $hasToolAccess) {
             $base .= <<<'NO_TOOLS'
 
 
@@ -128,6 +129,7 @@ INSTRUCTIONS;
 
 You can see the user's current context (commitments, events, people) shown above, and you can have a helpful conversation based on that context. You do NOT have access to Gmail, Calendar, or any external data sources in this mode. If the user asks you to check email or calendar, let them know that external data access requires the sidecar service to be running.
 NO_TOOLS;
+
             return $base;
         }
 
@@ -175,9 +177,9 @@ TOOLS;
 
     private function formatBriefContext(array $brief): string
     {
-        $lines = ["# Current Context (last 24h)"];
+        $lines = ['# Current Context (last 24h)'];
 
-        if (!empty($brief['schedule'])) {
+        if (! empty($brief['schedule'])) {
             $count = count($brief['schedule']);
             $lines[] = "\nSchedule ({$count}):";
             foreach (array_slice($brief['schedule'], 0, 5) as $item) {
@@ -185,7 +187,7 @@ TOOLS;
             }
         }
 
-        if (!empty($brief['job_hunt'])) {
+        if (! empty($brief['job_hunt'])) {
             $count = count($brief['job_hunt']);
             $lines[] = "\nJob Hunt ({$count}):";
             foreach (array_slice($brief['job_hunt'], 0, 5) as $item) {
@@ -193,10 +195,10 @@ TOOLS;
             }
         }
 
-        if (!empty($brief['people'])) {
+        if (! empty($brief['people'])) {
             $count = count($brief['people']);
             $names = array_map(fn ($p) => $p['person_name'], array_slice($brief['people'], 0, 10));
-            $lines[] = "\nPeople ({$count}): " . implode(', ', $names);
+            $lines[] = "\nPeople ({$count}): ".implode(', ', $names);
         }
 
         $pending = $brief['commitments']['pending'] ?? [];

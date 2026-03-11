@@ -16,7 +16,7 @@ final class ActionabilityStepTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->step = new ActionabilityStep();
+        $this->step = new ActionabilityStep;
         $this->context = new PipelineContext(pipelineId: 'test', startedAt: time());
     }
 

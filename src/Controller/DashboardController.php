@@ -21,8 +21,8 @@ final class DashboardController
 
     public function show(array $params = [], array $query = [], mixed $account = null, mixed $httpRequest = null): SsrResponse
     {
-        $storageDir = getenv('CLAUDRIEL_STORAGE') ?: dirname(__DIR__, 2) . '/storage';
-        $sessionStore = new BriefSessionStore($storageDir . '/brief-session.txt');
+        $storageDir = getenv('CLAUDRIEL_STORAGE') ?: dirname(__DIR__, 2).'/storage';
+        $sessionStore = new BriefSessionStore($storageDir.'/brief-session.txt');
 
         // Always show last 24h for Day Brief. The session cursor is preserved
         // for future "new items" indicators but doesn't gate the main display.
@@ -47,7 +47,7 @@ final class DashboardController
         $assembler = new DayBriefAssembler($eventRepo, $commitmentRepo, $driftDetector, $personRepo, $skillRepo);
         $brief = $assembler->assemble('default', $since);
 
-        $sessionStore->recordBriefAt(new \DateTimeImmutable());
+        $sessionStore->recordBriefAt(new \DateTimeImmutable);
 
         // Load chat sessions
         $chatSessionStorage = $this->entityTypeManager->getStorage('chat_session');

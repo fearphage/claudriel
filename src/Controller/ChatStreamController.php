@@ -124,7 +124,7 @@ final class ChatStreamController
                 'session_uuid' => $sessionUuid,
                 'role' => 'assistant',
                 'content' => $fullResponse,
-                'created_at' => (new \DateTimeImmutable())->format('c'),
+                'created_at' => (new \DateTimeImmutable)->format('c'),
             ]);
             $msgStorage->save($assistantMsg);
 
@@ -172,6 +172,7 @@ final class ChatStreamController
     private function getApiKey(): ?string
     {
         $key = $_ENV['ANTHROPIC_API_KEY'] ?? getenv('ANTHROPIC_API_KEY') ?: null;
+
         return is_string($key) && $key !== '' ? $key : null;
     }
 
@@ -183,11 +184,12 @@ final class ChatStreamController
         }
         $dir = __DIR__;
         while ($dir !== '/' && $dir !== '') {
-            if (is_file($dir . '/composer.json')) {
+            if (is_file($dir.'/composer.json')) {
                 return $dir;
             }
             $dir = dirname($dir);
         }
+
         return getcwd() ?: '/tmp';
     }
 
@@ -203,6 +205,7 @@ final class ChatStreamController
         $driftDetector = new DriftDetector($commitmentRepo);
 
         $assembler = new DayBriefAssembler($eventRepo, $commitmentRepo, $driftDetector, $skillRepo);
+
         return new ChatSystemPromptBuilder($assembler, $projectRoot);
     }
 
@@ -210,11 +213,11 @@ final class ChatStreamController
     {
         return sprintf(
             '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-            random_int(0, 0xffff), random_int(0, 0xffff),
-            random_int(0, 0xffff),
-            random_int(0, 0x0fff) | 0x4000,
-            random_int(0, 0x3fff) | 0x8000,
-            random_int(0, 0xffff), random_int(0, 0xffff), random_int(0, 0xffff),
+            random_int(0, 0xFFFF), random_int(0, 0xFFFF),
+            random_int(0, 0xFFFF),
+            random_int(0, 0x0FFF) | 0x4000,
+            random_int(0, 0x3FFF) | 0x8000,
+            random_int(0, 0xFFFF), random_int(0, 0xFFFF), random_int(0, 0xFFFF),
         );
     }
 }

@@ -22,8 +22,8 @@ final class BriefStreamController
      */
     public function stream(array $params = [], array $query = [], mixed $account = null, mixed $httpRequest = null): StreamedResponse
     {
-        $storageDir = getenv('CLAUDRIEL_STORAGE') ?: dirname(__DIR__, 2) . '/storage';
-        $signalFile = $storageDir . '/brief-signal.txt';
+        $storageDir = getenv('CLAUDRIEL_STORAGE') ?: dirname(__DIR__, 2).'/storage';
+        $signalFile = $storageDir.'/brief-signal.txt';
 
         return new StreamedResponse(
             function () use ($signalFile): void {
@@ -52,7 +52,9 @@ final class BriefStreamController
         ?\Closure $shouldStop = null,
         ?\Closure $sleepCallback = null,
     ): void {
-        $output = $outputCallback ?? static function (string $data): void { echo $data; };
+        $output = $outputCallback ?? static function (string $data): void {
+            echo $data;
+        };
         $flush = $flushCallback ?? static function (): void {
             if (ob_get_level() > 0) {
                 ob_flush();
@@ -60,7 +62,9 @@ final class BriefStreamController
             flush();
         };
         $shouldStop = $shouldStop ?? static fn (): bool => connection_aborted() === 1;
-        $sleep = $sleepCallback ?? static function (): void { usleep(2_000_000); };
+        $sleep = $sleepCallback ?? static function (): void {
+            usleep(2_000_000);
+        };
 
         $signal = new BriefSignal($signalFile);
         $lastMtime = 0;
@@ -77,14 +81,16 @@ final class BriefStreamController
         $flush();
         $lastMtime = $signal->lastModified();
 
-        while (!$shouldStop()) {
+        while (! $shouldStop()) {
             // Check for signal changes
             if ($signal->hasChangedSince($lastMtime)) {
                 $lastMtime = $signal->lastModified();
                 $briefJson = $this->assembleBriefJson();
                 $output("event: brief-update\ndata: {$briefJson}\n\n");
                 $flush();
-                ($sleepCallback ?? static function (): void { usleep(200_000); })();
+                ($sleepCallback ?? static function (): void {
+                    usleep(200_000);
+                })();
             }
 
             // Keepalive every 15 seconds

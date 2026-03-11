@@ -7,28 +7,30 @@ namespace Claudriel\Tests\Unit\Ingestion\Handler;
 use Claudriel\Entity\Commitment;
 use Claudriel\Entity\Person;
 use Claudriel\Ingestion\Handler\CommitmentIngestHandler;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Waaseyaa\Database\PdoDatabase;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\EntityStorage\SqlEntityStorage;
 use Waaseyaa\EntityStorage\SqlSchemaHandler;
-use PHPUnit\Framework\TestCase;
-use Symfony\Component\EventDispatcher\EventDispatcher;
 
 final class CommitmentIngestHandlerTest extends TestCase
 {
     private EntityTypeManager $entityTypeManager;
+
     private CommitmentIngestHandler $handler;
 
     protected function setUp(): void
     {
         $db = PdoDatabase::createSqlite(':memory:');
-        $dispatcher = new EventDispatcher();
+        $dispatcher = new EventDispatcher;
 
         $this->entityTypeManager = new EntityTypeManager(
             $dispatcher,
             function ($definition) use ($db, $dispatcher): SqlEntityStorage {
                 (new SqlSchemaHandler($definition, $db))->ensureTable();
+
                 return new SqlEntityStorage($definition, $db, $dispatcher);
             },
         );
@@ -50,22 +52,22 @@ final class CommitmentIngestHandlerTest extends TestCase
         $this->handler = new CommitmentIngestHandler($this->entityTypeManager);
     }
 
-    public function testSupportsCommitmentDetected(): void
+    public function test_supports_commitment_detected(): void
     {
         self::assertTrue($this->handler->supports('commitment.detected'));
         self::assertFalse($this->handler->supports('person.created'));
     }
 
-    public function testCreatesCommitmentAndPerson(): void
+    public function test_creates_commitment_and_person(): void
     {
         $result = $this->handler->handle([
             'source' => 'gmail',
-            'type'   => 'commitment.detected',
+            'type' => 'commitment.detected',
             'payload' => [
-                'title'        => 'Follow up with Bob',
-                'confidence'   => 0.9,
+                'title' => 'Follow up with Bob',
+                'confidence' => 0.9,
                 'person_email' => 'bob@example.com',
-                'person_name'  => 'Bob',
+                'person_name' => 'Bob',
             ],
         ]);
 
@@ -75,15 +77,15 @@ final class CommitmentIngestHandlerTest extends TestCase
         self::assertNotEmpty($result['person_uuid']);
     }
 
-    public function testUpsertsSamePersonOnSecondCall(): void
+    public function test_upserts_same_person_on_second_call(): void
     {
         $data = [
             'source' => 'gmail',
-            'type'   => 'commitment.detected',
+            'type' => 'commitment.detected',
             'payload' => [
-                'title'        => 'Task 1',
+                'title' => 'Task 1',
                 'person_email' => 'bob@example.com',
-                'person_name'  => 'Bob',
+                'person_name' => 'Bob',
             ],
         ];
 

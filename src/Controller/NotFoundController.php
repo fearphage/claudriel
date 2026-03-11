@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Claudriel\Controller;
 
+use Twig\Environment;
 use Waaseyaa\SSR\SsrResponse;
 
 /**
@@ -22,9 +23,9 @@ final class NotFoundController
 
     public function show(array $params = [], array $query = [], mixed $account = null, mixed $httpRequest = null): SsrResponse
     {
-        $path = '/' . ltrim((string) ($params['path'] ?? ''), '/');
+        $path = '/'.ltrim((string) ($params['path'] ?? ''), '/');
 
-        if ($this->twig instanceof \Twig\Environment) {
+        if ($this->twig instanceof Environment) {
             try {
                 $html = $this->twig->render('404.html.twig', ['path' => $path]);
 

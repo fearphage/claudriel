@@ -6,28 +6,30 @@ namespace Claudriel\Tests\Unit\Ingestion\Handler;
 
 use Claudriel\Entity\Person;
 use Claudriel\Ingestion\Handler\PersonIngestHandler;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Waaseyaa\Database\PdoDatabase;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\EntityStorage\SqlEntityStorage;
 use Waaseyaa\EntityStorage\SqlSchemaHandler;
-use PHPUnit\Framework\TestCase;
-use Symfony\Component\EventDispatcher\EventDispatcher;
 
 final class PersonIngestHandlerTest extends TestCase
 {
     private EntityTypeManager $entityTypeManager;
+
     private PersonIngestHandler $handler;
 
     protected function setUp(): void
     {
         $db = PdoDatabase::createSqlite(':memory:');
-        $dispatcher = new EventDispatcher();
+        $dispatcher = new EventDispatcher;
 
         $this->entityTypeManager = new EntityTypeManager(
             $dispatcher,
             function ($definition) use ($db, $dispatcher): SqlEntityStorage {
                 (new SqlSchemaHandler($definition, $db))->ensureTable();
+
                 return new SqlEntityStorage($definition, $db, $dispatcher);
             },
         );
@@ -42,20 +44,20 @@ final class PersonIngestHandlerTest extends TestCase
         $this->handler = new PersonIngestHandler($this->entityTypeManager);
     }
 
-    public function testSupportsPersonCreated(): void
+    public function test_supports_person_created(): void
     {
         self::assertTrue($this->handler->supports('person.created'));
         self::assertFalse($this->handler->supports('commitment.detected'));
     }
 
-    public function testCreatesNewPerson(): void
+    public function test_creates_new_person(): void
     {
         $result = $this->handler->handle([
             'source' => 'manual',
-            'type'   => 'person.created',
+            'type' => 'person.created',
             'payload' => [
                 'email' => 'alice@example.com',
-                'name'  => 'Alice',
+                'name' => 'Alice',
             ],
         ]);
 
@@ -64,25 +66,25 @@ final class PersonIngestHandlerTest extends TestCase
         self::assertNotEmpty($result['uuid']);
     }
 
-    public function testUpdatesExistingPerson(): void
+    public function test_updates_existing_person(): void
     {
         // Create first.
         $result1 = $this->handler->handle([
             'source' => 'manual',
-            'type'   => 'person.created',
+            'type' => 'person.created',
             'payload' => [
                 'email' => 'alice@example.com',
-                'name'  => 'Alice',
+                'name' => 'Alice',
             ],
         ]);
 
         // Upsert with same email, new name.
         $result2 = $this->handler->handle([
             'source' => 'manual',
-            'type'   => 'person.created',
+            'type' => 'person.created',
             'payload' => [
                 'email' => 'alice@example.com',
-                'name'  => 'Alice Smith',
+                'name' => 'Alice Smith',
             ],
         ]);
 
@@ -90,11 +92,11 @@ final class PersonIngestHandlerTest extends TestCase
         self::assertSame($result1['uuid'], $result2['uuid']);
     }
 
-    public function testReturnsErrorForMissingEmail(): void
+    public function test_returns_error_for_missing_email(): void
     {
         $result = $this->handler->handle([
             'source' => 'manual',
-            'type'   => 'person.created',
+            'type' => 'person.created',
             'payload' => ['name' => 'No Email'],
         ]);
 

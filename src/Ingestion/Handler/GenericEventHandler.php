@@ -27,9 +27,9 @@ final class GenericEventHandler implements IngestHandlerInterface
     public function handle(array $data): array
     {
         $event = new McEvent([
-            'source'   => $data['source'],
-            'type'     => $data['type'],
-            'payload'  => json_encode($data['payload'], JSON_THROW_ON_ERROR),
+            'source' => $data['source'],
+            'type' => $data['type'],
+            'payload' => json_encode($data['payload'], JSON_THROW_ON_ERROR),
             'occurred' => date('Y-m-d H:i:s'),
         ]);
 
@@ -37,9 +37,9 @@ final class GenericEventHandler implements IngestHandlerInterface
         $storage->save($event);
 
         return [
-            'status'      => 'created',
+            'status' => 'created',
             'entity_type' => 'mc_event',
-            'uuid'        => $event->uuid(),
+            'uuid' => $event->uuid(),
         ];
     }
 }

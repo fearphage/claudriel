@@ -22,12 +22,12 @@ final class CommitmentHandler
                 continue;
             }
             $this->repo->save(new Commitment([
-                'title'           => $candidate['title'],
-                'confidence'      => $candidate['confidence'],
-                'status'          => 'pending',
+                'title' => $candidate['title'],
+                'confidence' => $candidate['confidence'],
+                'status' => 'pending',
                 'source_event_id' => $event->id(),
-                'person_id'       => $personId,
-                'tenant_id'       => $tenantId,
+                'person_id' => $personId,
+                'tenant_id' => $tenantId,
             ]));
         }
     }

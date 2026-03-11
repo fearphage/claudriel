@@ -8,16 +8,16 @@ use Claudriel\Controller\DayBriefController;
 use Claudriel\Entity\Commitment;
 use Claudriel\Entity\McEvent;
 use Claudriel\Entity\Person;
-use Waaseyaa\Entity\EntityType;
-use Waaseyaa\Entity\EntityTypeManager;
-use Waaseyaa\EntityStorage\SqlEntityStorage;
-use Waaseyaa\EntityStorage\SqlSchemaHandler;
-use Waaseyaa\Database\PdoDatabase;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\Request;
 use Twig\Environment;
 use Twig\Loader\ArrayLoader;
+use Waaseyaa\Database\PdoDatabase;
+use Waaseyaa\Entity\EntityType;
+use Waaseyaa\Entity\EntityTypeManager;
+use Waaseyaa\EntityStorage\SqlEntityStorage;
+use Waaseyaa\EntityStorage\SqlSchemaHandler;
 
 final class DayBriefControllerTest extends TestCase
 {
@@ -25,13 +25,14 @@ final class DayBriefControllerTest extends TestCase
 
     protected function setUp(): void
     {
-        $db         = PdoDatabase::createSqlite(':memory:');
-        $dispatcher = new EventDispatcher();
+        $db = PdoDatabase::createSqlite(':memory:');
+        $dispatcher = new EventDispatcher;
 
         $this->entityTypeManager = new EntityTypeManager(
             $dispatcher,
             function ($definition) use ($db, $dispatcher): SqlEntityStorage {
                 (new SqlSchemaHandler($definition, $db))->ensureTable();
+
                 return new SqlEntityStorage($definition, $db, $dispatcher);
             },
         );
@@ -53,7 +54,7 @@ final class DayBriefControllerTest extends TestCase
     public function test_json_response_has_categorized_shape(): void
     {
         $controller = new DayBriefController($this->entityTypeManager, null);
-        $response   = $controller->show();
+        $response = $controller->show();
 
         self::assertSame(200, $response->statusCode);
         self::assertSame('application/json', $response->headers['Content-Type']);
@@ -78,7 +79,7 @@ final class DayBriefControllerTest extends TestCase
         $twig = new Environment($loader);
 
         $controller = new DayBriefController($this->entityTypeManager, $twig);
-        $response   = $controller->show();
+        $response = $controller->show();
 
         self::assertSame(200, $response->statusCode);
         self::assertSame('text/html; charset=UTF-8', $response->headers['Content-Type']);
@@ -161,21 +162,21 @@ final class DayBriefControllerTest extends TestCase
     public function test_json_includes_event_data(): void
     {
         $event = new McEvent([
-            'uuid'     => 'eeee0001-0001-0001-0001-eeeeeeeeeeee',
-            'type'     => 'message.received',
-            'source'   => 'gmail',
+            'uuid' => 'eeee0001-0001-0001-0001-eeeeeeeeeeee',
+            'type' => 'message.received',
+            'source' => 'gmail',
             'category' => 'people',
-            'occurred' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
-            'payload'  => json_encode([
-                'subject'    => 'Test Subject Line',
+            'occurred' => (new \DateTimeImmutable)->format('Y-m-d H:i:s'),
+            'payload' => json_encode([
+                'subject' => 'Test Subject Line',
                 'from_email' => 'alice@example.com',
-                'from_name'  => 'Alice',
+                'from_name' => 'Alice',
             ]),
         ]);
         $this->entityTypeManager->getStorage('mc_event')->save($event);
 
         $controller = new DayBriefController($this->entityTypeManager, null);
-        $response   = $controller->show();
+        $response = $controller->show();
 
         $body = json_decode($response->content, true);
         self::assertCount(1, $body['people']);

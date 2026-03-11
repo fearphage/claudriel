@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Claudriel\Command;
 
-use Waaseyaa\Entity\Repository\EntityRepositoryInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Waaseyaa\Entity\Repository\EntityRepositoryInterface;
 
 #[AsCommand(name: 'claudriel:skills', description: 'List skills in the vault')]
 final class SkillsCommand extends Command

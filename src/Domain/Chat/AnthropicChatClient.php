@@ -15,8 +15,7 @@ final class AnthropicChatClient
     /**
      * Send a message to the Anthropic Messages API and return the full response.
      *
-     * @param string $systemPrompt
-     * @param array<array{role: string, content: string}> $messages
+     * @param  array<array{role: string, content: string}>  $messages
      * @return string The assistant's response text.
      *
      * @throws \RuntimeException On API errors.
@@ -40,7 +39,7 @@ final class AnthropicChatClient
             CURLOPT_POST => true,
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/json',
-                'x-api-key: ' . $this->apiKey,
+                'x-api-key: '.$this->apiKey,
                 'anthropic-version: 2023-06-01',
             ],
             CURLOPT_POSTFIELDS => $payload,
@@ -62,7 +61,7 @@ final class AnthropicChatClient
         }
 
         $data = json_decode($response, true);
-        if (!is_array($data)) {
+        if (! is_array($data)) {
             throw new \RuntimeException('Anthropic API returned invalid JSON');
         }
 
@@ -72,11 +71,10 @@ final class AnthropicChatClient
     /**
      * Stream a response from the Anthropic Messages API, calling callbacks for each token.
      *
-     * @param string $systemPrompt
-     * @param array<array{role: string, content: string}> $messages
-     * @param \Closure(string): void $onToken Called with each text delta.
-     * @param \Closure(string): void $onDone Called with the full assembled response.
-     * @param \Closure(string): void $onError Called with error message on failure.
+     * @param  array<array{role: string, content: string}>  $messages
+     * @param  \Closure(string): void  $onToken  Called with each text delta.
+     * @param  \Closure(string): void  $onDone  Called with the full assembled response.
+     * @param  \Closure(string): void  $onError  Called with error message on failure.
      */
     public function stream(
         string $systemPrompt,
@@ -96,6 +94,7 @@ final class AnthropicChatClient
         $ch = curl_init('https://api.anthropic.com/v1/messages');
         if ($ch === false) {
             $onError('Failed to initialize cURL');
+
             return;
         }
 
@@ -106,7 +105,7 @@ final class AnthropicChatClient
             CURLOPT_POST => true,
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/json',
-                'x-api-key: ' . $this->apiKey,
+                'x-api-key: '.$this->apiKey,
                 'anthropic-version: 2023-06-01',
             ],
             CURLOPT_POSTFIELDS => $payload,
@@ -124,7 +123,7 @@ final class AnthropicChatClient
                         continue;
                     }
 
-                    if (!str_starts_with($line, 'data: ')) {
+                    if (! str_starts_with($line, 'data: ')) {
                         continue;
                     }
 
@@ -134,7 +133,7 @@ final class AnthropicChatClient
                     }
 
                     $event = json_decode($json, true);
-                    if (!is_array($event)) {
+                    if (! is_array($event)) {
                         continue;
                     }
 
@@ -163,11 +162,13 @@ final class AnthropicChatClient
 
         if ($result === false) {
             $onError("cURL error: {$curlError}");
+
             return;
         }
 
         if ($httpCode !== 200 && $fullResponse === '') {
             $onError("Anthropic API error: HTTP {$httpCode}");
+
             return;
         }
 

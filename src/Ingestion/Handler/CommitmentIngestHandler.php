@@ -38,20 +38,20 @@ final class CommitmentIngestHandler implements IngestHandlerInterface
         }
 
         $commitment = new Commitment([
-            'title'      => $payload['title'] ?? 'Untitled commitment',
+            'title' => $payload['title'] ?? 'Untitled commitment',
             'confidence' => $payload['confidence'] ?? 1.0,
-            'status'     => 'pending',
-            'due_date'   => $payload['due_date'] ?? null,
-            'source'     => $data['source'],
+            'status' => 'pending',
+            'due_date' => $payload['due_date'] ?? null,
+            'source' => $data['source'],
         ]);
 
         $storage = $this->entityTypeManager->getStorage('commitment');
         $storage->save($commitment);
 
         return [
-            'status'      => 'created',
+            'status' => 'created',
             'entity_type' => 'commitment',
-            'uuid'        => $commitment->uuid(),
+            'uuid' => $commitment->uuid(),
             'person_uuid' => $personUuid,
         ];
     }
@@ -66,12 +66,13 @@ final class CommitmentIngestHandler implements IngestHandlerInterface
 
         if ($ids !== []) {
             $person = $storage->load(reset($ids));
+
             return $person?->uuid();
         }
 
         $person = new Person([
             'email' => $email,
-            'name'  => $name,
+            'name' => $name,
         ]);
         $storage->save($person);
 

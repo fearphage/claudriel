@@ -8,7 +8,7 @@ on:
 
 jobs:
   lint:
-    name: Lint
+    name: Lint & Analyse
     runs-on: ubuntu-latest
     steps:
       - name: Checkout claudriel
@@ -16,19 +16,40 @@ jobs:
         with:
           path: claudriel
 
+      - name: Checkout waaseyaa framework
+        uses: actions/checkout@v4
+        with:
+          repository: waaseyaa/framework
+          path: waaseyaa
+
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
+          extensions: pdo_sqlite, sqlite3, mbstring, xml
           coverage: none
 
-      - name: Validate composer.json
+      - name: Rewrite Composer path repositories for CI
         working-directory: claudriel
-        run: composer validate --no-check-publish
+        run: |
+          php -r "
+            \$c = json_decode(file_get_contents('composer.json'), true);
+            \$c['repositories'] = [['type' => 'path', 'url' => '../waaseyaa/packages/*']];
+            file_put_contents('composer.json', json_encode(\$c, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . \"\\n\");
+          "
+          rm -f composer.lock
 
-      - name: Check PHP syntax
+      - name: Install dependencies
         working-directory: claudriel
-        run: find src -name '*.php' -print0 | xargs -0 -n1 php -l
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Check formatting (Pint)
+        working-directory: claudriel
+        run: composer lint
+
+      - name: Static analysis (PHPStan)
+        working-directory: claudriel
+        run: composer analyse
 
   test:
     name: PHPUnit
@@ -66,6 +87,32 @@ jobs:
         working-directory: claudriel
         run: composer install --no-interaction --prefer-dist
 
-      - name: Run unit tests
+      - name: Run tests
         working-directory: claudriel
-        run: ./vendor/bin/phpunit
+        run: composer test
+
+  sidecar:
+    name: Sidecar (Python)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: claudriel/docker/sidecar
+    steps:
+      - name: Checkout claudriel
+        uses: actions/checkout@v4
+        with:
+          path: claudriel
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Lint (ruff)
+        run: ruff check app/
+
+      - name: Test (pytest)
+        run: pytest

@@ -9,13 +9,13 @@ use PHPUnit\Framework\TestCase;
 
 final class AccountTest extends TestCase
 {
-    public function testEntityTypeId(): void
+    public function test_entity_type_id(): void
     {
         $account = new Account(['email' => 'test@example.com', 'name' => 'Test User']);
         self::assertSame('account', $account->getEntityTypeId());
     }
 
-    public function testGetEmail(): void
+    public function test_get_email(): void
     {
         $account = new Account(['email' => 'test@example.com', 'name' => 'Test User']);
         self::assertSame('test@example.com', $account->get('email'));

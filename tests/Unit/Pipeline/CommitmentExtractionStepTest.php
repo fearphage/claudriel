@@ -1,23 +1,27 @@
 <?php
+
 declare(strict_types=1);
+
 namespace Claudriel\Tests\Unit\Pipeline;
+
 use Claudriel\Ingestion\Pipeline\CommitmentExtractionStep;
-use Waaseyaa\AI\Pipeline\PipelineContext;
 use PHPUnit\Framework\TestCase;
+use Waaseyaa\AI\Pipeline\PipelineContext;
 
 final class CommitmentExtractionStepTest extends TestCase
 {
-    public function testExtractsCommitmentsFromBody(): void
+    public function test_extracts_commitments_from_body(): void
     {
-        $aiClient = new class {
+        $aiClient = new class
+        {
             public function complete(string $prompt): string
             {
                 return json_encode([['title' => 'Send report by Friday', 'confidence' => 0.92]]);
             }
         };
-        $step    = new CommitmentExtractionStep($aiClient);
+        $step = new CommitmentExtractionStep($aiClient);
         $context = new PipelineContext(pipelineId: 'test', startedAt: time());
-        $result  = $step->process(
+        $result = $step->process(
             ['body' => 'Can you send the report by Friday?', 'from_email' => 'jane@example.com'],
             $context
         );
@@ -27,26 +31,34 @@ final class CommitmentExtractionStepTest extends TestCase
         self::assertSame(0.92, $result->output['commitments'][0]['confidence']);
     }
 
-    public function testReturnsEmptyForNonCommitmentBody(): void
+    public function test_returns_empty_for_non_commitment_body(): void
     {
-        $aiClient = new class {
-            public function complete(string $prompt): string { return json_encode([]); }
+        $aiClient = new class
+        {
+            public function complete(string $prompt): string
+            {
+                return json_encode([]);
+            }
         };
-        $step    = new CommitmentExtractionStep($aiClient);
+        $step = new CommitmentExtractionStep($aiClient);
         $context = new PipelineContext(pipelineId: 'test', startedAt: time());
-        $result  = $step->process(['body' => 'Just saying hi!', 'from_email' => 'jane@example.com'], $context);
+        $result = $step->process(['body' => 'Just saying hi!', 'from_email' => 'jane@example.com'], $context);
         self::assertTrue($result->success);
         self::assertCount(0, $result->output['commitments']);
     }
 
-    public function testFailsOnInvalidJsonFromAiClient(): void
+    public function test_fails_on_invalid_json_from_ai_client(): void
     {
-        $aiClient = new class {
-            public function complete(string $prompt): string { return 'not valid json'; }
+        $aiClient = new class
+        {
+            public function complete(string $prompt): string
+            {
+                return 'not valid json';
+            }
         };
-        $step    = new CommitmentExtractionStep($aiClient);
+        $step = new CommitmentExtractionStep($aiClient);
         $context = new PipelineContext(pipelineId: 'test', startedAt: time());
-        $result  = $step->process(['body' => 'Send the report by Friday.', 'from_email' => 'jane@example.com'], $context);
+        $result = $step->process(['body' => 'Send the report by Friday.', 'from_email' => 'jane@example.com'], $context);
         self::assertFalse($result->success);
         self::assertStringContainsString('invalid JSON', $result->message);
     }

@@ -76,26 +76,26 @@ final class DayBriefAssembler
         ));
         $drifting = $this->driftDetector->findDrifting($tenantId);
 
-        $today = (new \DateTimeImmutable())->format('Y-m-d');
+        $today = (new \DateTimeImmutable)->format('Y-m-d');
         $dueToday = count(array_filter($pending, fn ($c) => ($c->get('due_date') ?? '') === $today));
 
         return [
-            'schedule'      => $schedule,
-            'job_hunt'      => $jobHunt,
-            'people'        => $peopleEvents,
-            'creators'      => $creators,
+            'schedule' => $schedule,
+            'job_hunt' => $jobHunt,
+            'people' => $peopleEvents,
+            'creators' => $creators,
             'notifications' => $notifications,
-            'commitments'   => [
-                'pending'  => $pending,
+            'commitments' => [
+                'pending' => $pending,
                 'drifting' => $drifting,
             ],
             'counts' => [
                 'job_alerts' => count($jobHunt),
-                'messages'   => count($peopleEvents),
-                'due_today'  => $dueToday,
-                'drifting'   => count($drifting),
+                'messages' => count($peopleEvents),
+                'due_today' => $dueToday,
+                'drifting' => count($drifting),
             ],
-            'generated_at'  => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+            'generated_at' => (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
             'matched_skills' => $this->matchSkillsToEvents($recentEvents),
         ];
     }
@@ -113,6 +113,7 @@ final class DayBriefAssembler
                 $index[$email] = $person;
             }
         }
+
         return $index;
     }
 
@@ -129,11 +130,11 @@ final class DayBriefAssembler
 
         $eventText = '';
         foreach ($recentEvents as $event) {
-            $eventText .= ' ' . strtolower($event->get('source') ?? '');
-            $eventText .= ' ' . strtolower($event->get('type') ?? '');
+            $eventText .= ' '.strtolower($event->get('source') ?? '');
+            $eventText .= ' '.strtolower($event->get('type') ?? '');
             $payload = json_decode($event->get('payload') ?? '{}', true) ?? [];
-            $eventText .= ' ' . strtolower($payload['subject'] ?? '');
-            $eventText .= ' ' . strtolower($payload['from_name'] ?? '');
+            $eventText .= ' '.strtolower($payload['subject'] ?? '');
+            $eventText .= ' '.strtolower($payload['from_name'] ?? '');
         }
 
         $matched = [];

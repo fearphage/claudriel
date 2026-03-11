@@ -6,25 +6,27 @@ namespace Claudriel\Tests\Unit\Controller;
 
 use Claudriel\Controller\CommitmentUpdateController;
 use Claudriel\Entity\Commitment;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\HttpFoundation\Request;
 use Waaseyaa\Database\PdoDatabase;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\EntityStorage\SqlEntityStorage;
 use Waaseyaa\EntityStorage\SqlSchemaHandler;
-use PHPUnit\Framework\TestCase;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\EventDispatcher\EventDispatcher;
+use Waaseyaa\SSR\SsrResponse;
 
 final class CommitmentUpdateControllerTest extends TestCase
 {
     private EntityTypeManager $entityTypeManager;
+
     private CommitmentUpdateController $controller;
 
     protected function setUp(): void
     {
-        $db         = PdoDatabase::createSqlite(':memory:');
-        $dispatcher = new EventDispatcher();
-        $type       = new EntityType(
+        $db = PdoDatabase::createSqlite(':memory:');
+        $dispatcher = new EventDispatcher;
+        $type = new EntityType(
             id: 'commitment',
             label: 'Commitment',
             class: Commitment::class,
@@ -35,6 +37,7 @@ final class CommitmentUpdateControllerTest extends TestCase
             $dispatcher,
             function ($definition) use ($db, $dispatcher): SqlEntityStorage {
                 (new SqlSchemaHandler($definition, $db))->ensureTable();
+
                 return new SqlEntityStorage($definition, $db, $dispatcher);
             },
         );
@@ -49,9 +52,10 @@ final class CommitmentUpdateControllerTest extends TestCase
         $this->entityTypeManager->getStorage('commitment')->save($c);
     }
 
-    private function call(string $uuid, string $body): \Waaseyaa\SSR\SsrResponse
+    private function call(string $uuid, string $body): SsrResponse
     {
-        $httpRequest = Request::create('/commitments/' . $uuid, 'PATCH', [], [], [], [], $body);
+        $httpRequest = Request::create('/commitments/'.$uuid, 'PATCH', [], [], [], [], $body);
+
         return $this->controller->update(
             params: ['uuid' => $uuid],
             query: [],
@@ -60,7 +64,7 @@ final class CommitmentUpdateControllerTest extends TestCase
         );
     }
 
-    public function testUpdateStatusToDone(): void
+    public function test_update_status_to_done(): void
     {
         $uuid = 'bbbbbbbb-0001-0001-0001-bbbbbbbbbbbb';
         $this->saveCommitment($uuid);
@@ -73,13 +77,13 @@ final class CommitmentUpdateControllerTest extends TestCase
         self::assertSame($uuid, $body['uuid']);
     }
 
-    public function testReturns404ForUnknownUuid(): void
+    public function test_returns404_for_unknown_uuid(): void
     {
         $response = $this->call('no-such-uuid', json_encode(['status' => 'done']));
         self::assertSame(404, $response->statusCode);
     }
 
-    public function testReturns422ForInvalidStatus(): void
+    public function test_returns422_for_invalid_status(): void
     {
         $uuid = 'bbbbbbbb-0002-0002-0002-bbbbbbbbbbbb';
         $this->saveCommitment($uuid);

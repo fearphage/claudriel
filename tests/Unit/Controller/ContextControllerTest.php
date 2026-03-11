@@ -7,13 +7,13 @@ namespace Claudriel\Tests\Unit\Controller;
 use Claudriel\Controller\ContextController;
 use Claudriel\Entity\Commitment;
 use Claudriel\Entity\McEvent;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Waaseyaa\Database\PdoDatabase;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\EntityStorage\SqlEntityStorage;
 use Waaseyaa\EntityStorage\SqlSchemaHandler;
-use PHPUnit\Framework\TestCase;
-use Symfony\Component\EventDispatcher\EventDispatcher;
 
 final class ContextControllerTest extends TestCase
 {
@@ -22,12 +22,13 @@ final class ContextControllerTest extends TestCase
     protected function setUp(): void
     {
         $db = PdoDatabase::createSqlite(':memory:');
-        $dispatcher = new EventDispatcher();
+        $dispatcher = new EventDispatcher;
 
         $this->entityTypeManager = new EntityTypeManager(
             $dispatcher,
             function ($definition) use ($db, $dispatcher): SqlEntityStorage {
                 (new SqlSchemaHandler($definition, $db))->ensureTable();
+
                 return new SqlEntityStorage($definition, $db, $dispatcher);
             },
         );
@@ -47,7 +48,7 @@ final class ContextControllerTest extends TestCase
         ));
     }
 
-    public function testShowReturnsJsonWithBriefAndContextFiles(): void
+    public function test_show_returns_json_with_brief_and_context_files(): void
     {
         $controller = new ContextController($this->entityTypeManager, null);
         $response = $controller->show();
@@ -71,14 +72,14 @@ final class ContextControllerTest extends TestCase
         self::assertArrayHasKey('patterns', $contextFiles);
     }
 
-    public function testShowIncludesRecentEvents(): void
+    public function test_show_includes_recent_events(): void
     {
         $event = new McEvent([
-            'uuid'     => 'eeee0001-0001-0001-0001-eeeeeeeeeeee',
-            'type'     => 'email_received',
-            'source'   => 'gmail',
-            'occurred' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
-            'payload'  => json_encode(['subject' => 'Test']),
+            'uuid' => 'eeee0001-0001-0001-0001-eeeeeeeeeeee',
+            'type' => 'email_received',
+            'source' => 'gmail',
+            'occurred' => (new \DateTimeImmutable)->format('Y-m-d H:i:s'),
+            'payload' => json_encode(['subject' => 'Test']),
         ]);
         $this->entityTypeManager->getStorage('mc_event')->save($event);
 
@@ -89,10 +90,10 @@ final class ContextControllerTest extends TestCase
         self::assertNotEmpty($body['brief']['recent_events']);
     }
 
-    public function testShowIncludesPendingCommitments(): void
+    public function test_show_includes_pending_commitments(): void
     {
         $commitment = new Commitment([
-            'title'  => 'Follow up',
+            'title' => 'Follow up',
             'status' => 'pending',
         ]);
         $this->entityTypeManager->getStorage('commitment')->save($commitment);

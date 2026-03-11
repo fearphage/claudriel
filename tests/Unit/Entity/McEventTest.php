@@ -9,13 +9,13 @@ use PHPUnit\Framework\TestCase;
 
 final class McEventTest extends TestCase
 {
-    public function testEntityTypeId(): void
+    public function test_entity_type_id(): void
     {
         $event = new McEvent(['source' => 'gmail', 'type' => 'message.received', 'payload' => '{}']);
         self::assertSame('mc_event', $event->getEntityTypeId());
     }
 
-    public function testSourceAndType(): void
+    public function test_source_and_type(): void
     {
         $event = new McEvent(['source' => 'gmail', 'type' => 'message.received', 'payload' => '{}']);
         self::assertSame('gmail', $event->get('source'));
@@ -24,7 +24,7 @@ final class McEventTest extends TestCase
 
     public function test_entity_keys_include_content_hash(): void
     {
-        $event = new McEvent();
+        $event = new McEvent;
         $keys = $event->getEntityKeys();
         $this->assertArrayHasKey('content_hash', $keys);
         $this->assertSame('content_hash', $keys['content_hash']);
@@ -32,13 +32,13 @@ final class McEventTest extends TestCase
 
     public function test_category_defaults_to_notification(): void
     {
-        $event = new McEvent();
+        $event = new McEvent;
         $this->assertSame('notification', $event->get('category'));
     }
 
     public function test_category_can_be_set(): void
     {
-        $event = new McEvent();
+        $event = new McEvent;
         $event->set('category', 'job_hunt');
         $this->assertSame('job_hunt', $event->get('category'));
     }

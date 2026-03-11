@@ -23,7 +23,7 @@ final class EventHandler
         $payload = $envelope->payload;
         $contentHash = ContentHasher::hash(array_merge($payload, [
             'source' => $envelope->source,
-            'type'   => $envelope->type,
+            'type' => $envelope->type,
         ]));
 
         $existing = $this->eventRepo->findBy(['content_hash' => $contentHash]);
@@ -36,14 +36,14 @@ final class EventHandler
         $category = EventCategorizer::categorize($envelope->source, $envelope->type, $payload);
 
         $event = new McEvent([
-            'source'       => $envelope->source,
-            'type'         => $envelope->type,
-            'payload'      => json_encode($payload, JSON_THROW_ON_ERROR),
+            'source' => $envelope->source,
+            'type' => $envelope->type,
+            'payload' => json_encode($payload, JSON_THROW_ON_ERROR),
             'content_hash' => $contentHash,
-            'category'     => $category,
-            'tenant_id'    => $envelope->tenantId,
-            'trace_id'     => $envelope->traceId,
-            'occurred'     => $envelope->timestamp,
+            'category' => $category,
+            'tenant_id' => $envelope->tenantId,
+            'trace_id' => $envelope->traceId,
+            'occurred' => $envelope->timestamp,
         ]);
         $this->eventRepo->save($event);
 
@@ -57,9 +57,9 @@ final class EventHandler
         }
         $tier = PersonTierClassifier::classify($email);
         $this->personRepo->save(new Person([
-            'email'     => $email,
-            'name'      => $name ?: $email,
-            'tier'      => $tier,
+            'email' => $email,
+            'name' => $name ?: $email,
+            'tier' => $tier,
             'tenant_id' => $tenantId,
         ]));
     }

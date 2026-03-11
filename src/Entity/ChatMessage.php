@@ -11,7 +11,7 @@ final class ChatMessage extends ContentEntityBase
     protected string $entityTypeId = 'chat_message';
 
     protected array $entityKeys = [
-        'id'   => 'cmid',
+        'id' => 'cmid',
         'uuid' => 'uuid',
     ];
 

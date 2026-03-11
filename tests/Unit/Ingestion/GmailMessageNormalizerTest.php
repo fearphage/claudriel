@@ -9,12 +9,12 @@ use PHPUnit\Framework\TestCase;
 
 final class GmailMessageNormalizerTest extends TestCase
 {
-    public function testNormalizesGmailMessage(): void
+    public function test_normalizes_gmail_message(): void
     {
         $raw = [
-            'id'       => 'msg123',
+            'id' => 'msg123',
             'threadId' => 'thread456',
-            'payload'  => [
+            'payload' => [
                 'headers' => [
                     ['name' => 'From',    'value' => 'Jane <jane@example.com>'],
                     ['name' => 'Subject', 'value' => 'Quick question'],
@@ -24,8 +24,8 @@ final class GmailMessageNormalizerTest extends TestCase
             ],
         ];
 
-        $normalizer = new GmailMessageNormalizer();
-        $envelope   = $normalizer->normalize($raw, tenantId: 'user-1');
+        $normalizer = new GmailMessageNormalizer;
+        $envelope = $normalizer->normalize($raw, tenantId: 'user-1');
 
         self::assertSame('gmail', $envelope->source);
         self::assertSame('message.received', $envelope->type);

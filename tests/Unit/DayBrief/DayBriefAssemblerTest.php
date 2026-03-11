@@ -5,40 +5,43 @@ declare(strict_types=1);
 namespace Claudriel\Tests\Unit\DayBrief;
 
 use Claudriel\Domain\DayBrief\Assembler\DayBriefAssembler;
-use Claudriel\Support\DriftDetector;
 use Claudriel\Entity\Commitment;
 use Claudriel\Entity\McEvent;
 use Claudriel\Entity\Person;
+use Claudriel\Support\DriftDetector;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\EntityStorage\Driver\InMemoryStorageDriver;
 use Waaseyaa\EntityStorage\EntityRepository;
-use PHPUnit\Framework\TestCase;
-use Symfony\Component\EventDispatcher\EventDispatcher;
 
 final class DayBriefAssemblerTest extends TestCase
 {
     private EntityRepository $eventRepo;
+
     private EntityRepository $commitmentRepo;
+
     private EntityRepository $personRepo;
+
     private DayBriefAssembler $assembler;
 
     protected function setUp(): void
     {
-        $dispatcher = new EventDispatcher();
+        $dispatcher = new EventDispatcher;
 
         $this->eventRepo = new EntityRepository(
             new EntityType(id: 'mc_event', label: 'Event', class: McEvent::class, keys: ['id' => 'eid', 'uuid' => 'uuid', 'content_hash' => 'content_hash']),
-            new InMemoryStorageDriver(),
+            new InMemoryStorageDriver,
             $dispatcher,
         );
         $this->commitmentRepo = new EntityRepository(
             new EntityType(id: 'commitment', label: 'Commitment', class: Commitment::class, keys: ['id' => 'cid', 'uuid' => 'uuid', 'label' => 'title']),
-            new InMemoryStorageDriver(),
+            new InMemoryStorageDriver,
             $dispatcher,
         );
         $this->personRepo = new EntityRepository(
             new EntityType(id: 'person', label: 'Person', class: Person::class, keys: ['id' => 'pid', 'uuid' => 'uuid', 'label' => 'name']),
-            new InMemoryStorageDriver(),
+            new InMemoryStorageDriver,
             $dispatcher,
         );
 

@@ -7,31 +7,33 @@ namespace Claudriel\Tests\Unit\Ingestion;
 use Claudriel\Entity\McEvent;
 use Claudriel\Entity\Person;
 use Claudriel\Ingestion\EventHandler;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\EntityStorage\Driver\InMemoryStorageDriver;
 use Waaseyaa\EntityStorage\EntityRepository;
 use Waaseyaa\Foundation\Ingestion\Envelope;
-use PHPUnit\Framework\TestCase;
-use Symfony\Component\EventDispatcher\EventDispatcher;
 
 final class EventHandlerTest extends TestCase
 {
     private EntityRepository $eventRepo;
+
     private EntityRepository $personRepo;
+
     private EventHandler $handler;
 
     protected function setUp(): void
     {
-        $dispatcher = new EventDispatcher();
+        $dispatcher = new EventDispatcher;
 
         $this->eventRepo = new EntityRepository(
             new EntityType(id: 'mc_event', label: 'Event', class: McEvent::class, keys: ['id' => 'eid', 'uuid' => 'uuid', 'content_hash' => 'content_hash']),
-            new InMemoryStorageDriver(),
+            new InMemoryStorageDriver,
             $dispatcher,
         );
         $this->personRepo = new EntityRepository(
             new EntityType(id: 'person', label: 'Person', class: Person::class, keys: ['id' => 'pid', 'uuid' => 'uuid', 'label' => 'name']),
-            new InMemoryStorageDriver(),
+            new InMemoryStorageDriver,
             $dispatcher,
         );
 

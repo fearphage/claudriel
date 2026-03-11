@@ -21,7 +21,7 @@ use Waaseyaa\EntityStorage\SqlSchemaHandler;
 
 final class DashboardControllerTest extends TestCase
 {
-    public function testShowReturnsJsonWhenNoTwig(): void
+    public function test_show_returns_json_when_no_twig(): void
     {
         $etm = $this->buildEntityTypeManager();
         $controller = new DashboardController($etm);
@@ -38,14 +38,16 @@ final class DashboardControllerTest extends TestCase
     private function buildEntityTypeManager(): EntityTypeManager
     {
         $db = PdoDatabase::createSqlite(':memory:');
-        $dispatcher = new EventDispatcher();
+        $dispatcher = new EventDispatcher;
         $etm = new EntityTypeManager($dispatcher, function ($def) use ($db, $dispatcher) {
             (new SqlSchemaHandler($def, $db))->ensureTable();
+
             return new SqlEntityStorage($def, $db, $dispatcher);
         });
         foreach ($this->entityTypes() as $type) {
             $etm->registerEntityType($type);
         }
+
         return $etm;
     }
 

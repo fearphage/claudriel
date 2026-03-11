@@ -6,12 +6,12 @@ namespace Claudriel\Tests\Unit\Command;
 
 use Claudriel\Command\SkillsCommand;
 use Claudriel\Entity\Skill;
-use Waaseyaa\Entity\EntityType;
-use Waaseyaa\EntityStorage\Driver\InMemoryStorageDriver;
-use Waaseyaa\EntityStorage\EntityRepository;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+use Waaseyaa\Entity\EntityType;
+use Waaseyaa\EntityStorage\Driver\InMemoryStorageDriver;
+use Waaseyaa\EntityStorage\EntityRepository;
 
 final class SkillsCommandTest extends TestCase
 {
@@ -21,12 +21,12 @@ final class SkillsCommandTest extends TestCase
     {
         $this->repo = new EntityRepository(
             new EntityType(id: 'skill', label: 'Skill', class: Skill::class, keys: ['id' => 'sid', 'uuid' => 'uuid', 'label' => 'name']),
-            new InMemoryStorageDriver(),
-            new EventDispatcher(),
+            new InMemoryStorageDriver,
+            new EventDispatcher,
         );
     }
 
-    public function testNoSkillsOutputsMessage(): void
+    public function test_no_skills_outputs_message(): void
     {
         $tester = new CommandTester(new SkillsCommand($this->repo));
         $tester->execute([]);
@@ -35,7 +35,7 @@ final class SkillsCommandTest extends TestCase
         self::assertStringContainsString('No skills found', $tester->getDisplay());
     }
 
-    public function testListsAllSkills(): void
+    public function test_lists_all_skills(): void
     {
         $skill = new Skill([
             'name' => 'brainstorming',
@@ -54,7 +54,7 @@ final class SkillsCommandTest extends TestCase
         self::assertStringContainsString('design, plan', $display);
     }
 
-    public function testFilterByKeyword(): void
+    public function test_filter_by_keyword(): void
     {
         $skill1 = new Skill([
             'name' => 'brainstorming',
@@ -78,7 +78,7 @@ final class SkillsCommandTest extends TestCase
         self::assertStringNotContainsString('brainstorming', $display);
     }
 
-    public function testKeywordFilterNoMatch(): void
+    public function test_keyword_filter_no_match(): void
     {
         $skill = new Skill([
             'name' => 'brainstorming',

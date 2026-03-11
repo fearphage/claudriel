@@ -11,8 +11,8 @@ final class Account extends ContentEntityBase
     protected string $entityTypeId = 'account';
 
     protected array $entityKeys = [
-        'id'    => 'aid',
-        'uuid'  => 'uuid',
+        'id' => 'aid',
+        'uuid' => 'uuid',
         'label' => 'name',
     ];
 

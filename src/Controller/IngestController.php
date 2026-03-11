@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Claudriel\Controller;
 
 use Claudriel\Ingestion\Handler\CommitmentIngestHandler;
-use Claudriel\Support\BriefSignal;
 use Claudriel\Ingestion\Handler\GenericEventHandler;
 use Claudriel\Ingestion\Handler\PersonIngestHandler;
 use Claudriel\Ingestion\IngestHandlerRegistry;
+use Claudriel\Support\BriefSignal;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Waaseyaa\Entity\EntityTypeManager;
@@ -39,21 +39,21 @@ final class IngestController
         $token = $this->extractBearerToken($httpRequest);
         $validKeys = $this->getValidApiKeys();
 
-        if ($token === null || $validKeys === [] || !in_array($token, $validKeys, true)) {
+        if ($token === null || $validKeys === [] || ! in_array($token, $validKeys, true)) {
             return new JsonResponse(['error' => 'Unauthorized'], 401);
         }
 
         $raw = $httpRequest instanceof Request ? $httpRequest->getContent() : '';
         $data = json_decode($raw, true);
 
-        if (!is_array($data) || !isset($data['source'], $data['type'], $data['payload'])) {
+        if (! is_array($data) || ! isset($data['source'], $data['type'], $data['payload'])) {
             return new JsonResponse([
-                'error'    => 'Invalid payload',
+                'error' => 'Invalid payload',
                 'required' => ['source', 'type', 'payload'],
             ], 422);
         }
 
-        if (!is_array($data['payload'])) {
+        if (! is_array($data['payload'])) {
             return new JsonResponse([
                 'error' => 'Invalid payload: "payload" must be an object',
             ], 422);
@@ -68,12 +68,12 @@ final class IngestController
 
     private function extractBearerToken(mixed $httpRequest): ?string
     {
-        if (!$httpRequest instanceof Request) {
+        if (! $httpRequest instanceof Request) {
             return null;
         }
 
         $header = $httpRequest->headers->get('Authorization', '');
-        if (!is_string($header) || !str_starts_with($header, 'Bearer ')) {
+        if (! is_string($header) || ! str_starts_with($header, 'Bearer ')) {
             return null;
         }
 
@@ -84,8 +84,8 @@ final class IngestController
 
     private function touchBriefSignal(): void
     {
-        $storageDir = getenv('CLAUDRIEL_STORAGE') ?: dirname(__DIR__, 2) . '/storage';
-        $signal = new BriefSignal($storageDir . '/brief-signal.txt');
+        $storageDir = getenv('CLAUDRIEL_STORAGE') ?: dirname(__DIR__, 2).'/storage';
+        $signal = new BriefSignal($storageDir.'/brief-signal.txt');
         $signal->touch();
     }
 

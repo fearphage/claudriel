@@ -10,26 +10,27 @@ use PHPUnit\Framework\TestCase;
 
 final class IngestHandlerRegistryTest extends TestCase
 {
-    public function testFallsBackToDefaultHandlerForUnknownType(): void
+    public function test_falls_back_to_default_handler_for_unknown_type(): void
     {
         $fallback = $this->createMockHandler(true, ['status' => 'fallback']);
         $registry = new IngestHandlerRegistry($fallback);
 
         $result = $registry->handle([
-            'source'  => 'test',
-            'type'    => 'unknown.type',
+            'source' => 'test',
+            'type' => 'unknown.type',
             'payload' => [],
         ]);
 
         self::assertSame('fallback', $result['status']);
     }
 
-    public function testRoutesToMatchingHandler(): void
+    public function test_routes_to_matching_handler(): void
     {
         $fallback = $this->createMockHandler(true, ['status' => 'fallback']);
         $registry = new IngestHandlerRegistry($fallback);
 
-        $specific = new class implements IngestHandlerInterface {
+        $specific = new class implements IngestHandlerInterface
+        {
             public function supports(string $type): bool
             {
                 return $type === 'test.event';
@@ -44,8 +45,8 @@ final class IngestHandlerRegistryTest extends TestCase
         $registry->addHandler($specific);
 
         $result = $registry->handle([
-            'source'  => 'test',
-            'type'    => 'test.event',
+            'source' => 'test',
+            'type' => 'test.event',
             'payload' => [],
         ]);
 
@@ -55,7 +56,8 @@ final class IngestHandlerRegistryTest extends TestCase
 
     private function createMockHandler(bool $supports, array $result): IngestHandlerInterface
     {
-        return new class($supports, $result) implements IngestHandlerInterface {
+        return new class($supports, $result) implements IngestHandlerInterface
+        {
             public function __construct(
                 private readonly bool $doesSupport,
                 private readonly array $result,

@@ -11,7 +11,7 @@ final class BriefSignal
     public function touch(): void
     {
         $dir = dirname($this->filePath);
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
         file_put_contents($this->filePath, (string) time());
@@ -20,16 +20,18 @@ final class BriefSignal
 
     public function lastModified(): int
     {
-        if (!file_exists($this->filePath)) {
+        if (! file_exists($this->filePath)) {
             return 0;
         }
         clearstatcache(true, $this->filePath);
+
         return (int) filemtime($this->filePath);
     }
 
     public function hasChangedSince(int $sinceTimestamp): bool
     {
         $mtime = $this->lastModified();
+
         return $mtime > 0 && $mtime > $sinceTimestamp;
     }
 }

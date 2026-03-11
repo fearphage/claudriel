@@ -18,7 +18,7 @@ final class ActionabilityStep implements PipelineStepInterface
     public function process(array $input, PipelineContext $context): StepResult
     {
         $text = strtolower(
-            ($input['subject'] ?? '') . ' ' . ($input['body'] ?? '')
+            ($input['subject'] ?? '').' '.($input['body'] ?? '')
         );
 
         $matched = [];

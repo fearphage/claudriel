@@ -29,7 +29,7 @@ final class BriefCommand extends Command
         $output->writeln('<info>Day Brief</info>');
         $output->writeln('');
 
-        if (!empty($brief['schedule'])) {
+        if (! empty($brief['schedule'])) {
             $output->writeln(sprintf('<comment>Schedule (%d)</comment>', count($brief['schedule'])));
             foreach ($brief['schedule'] as $item) {
                 $time = $item['start_time'] ?? '';
@@ -38,7 +38,7 @@ final class BriefCommand extends Command
             $output->writeln('');
         }
 
-        if (!empty($brief['job_hunt'])) {
+        if (! empty($brief['job_hunt'])) {
             $output->writeln(sprintf('<comment>Job Hunt (%d)</comment>', count($brief['job_hunt'])));
             foreach ($brief['job_hunt'] as $item) {
                 $output->writeln(sprintf('  • %s — %s', $item['title'], $item['source_name']));
@@ -46,7 +46,7 @@ final class BriefCommand extends Command
             $output->writeln('');
         }
 
-        if (!empty($brief['people'])) {
+        if (! empty($brief['people'])) {
             $output->writeln(sprintf('<comment>People (%d)</comment>', count($brief['people'])));
             foreach ($brief['people'] as $item) {
                 $output->writeln(sprintf('  • %s: %s', $item['person_name'], $item['summary']));
@@ -61,7 +61,7 @@ final class BriefCommand extends Command
         }
 
         $drifting = $brief['commitments']['drifting'] ?? [];
-        if (!empty($drifting)) {
+        if (! empty($drifting)) {
             $output->writeln('');
             $output->writeln('<error>Drifting (no activity 48h+)</error>');
             foreach ($drifting as $c) {
@@ -69,7 +69,7 @@ final class BriefCommand extends Command
             }
         }
 
-        if (!empty($brief['notifications'])) {
+        if (! empty($brief['notifications'])) {
             $output->writeln('');
             $output->writeln(sprintf('<comment>Notifications (%d)</comment>', count($brief['notifications'])));
             foreach ($brief['notifications'] as $item) {
@@ -77,7 +77,8 @@ final class BriefCommand extends Command
             }
         }
 
-        $this->sessionStore->recordBriefAt(new \DateTimeImmutable());
+        $this->sessionStore->recordBriefAt(new \DateTimeImmutable);
+
         return Command::SUCCESS;
     }
 }

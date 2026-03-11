@@ -13,7 +13,7 @@ final class BriefSignalTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->signalFile = sys_get_temp_dir() . '/brief_signal_' . uniqid('', true) . '.txt';
+        $this->signalFile = sys_get_temp_dir().'/brief_signal_'.uniqid('', true).'.txt';
     }
 
     protected function tearDown(): void
@@ -23,7 +23,7 @@ final class BriefSignalTest extends TestCase
         }
     }
 
-    public function testTouchCreatesFileAndReturnsCurrentTime(): void
+    public function test_touch_creates_file_and_returns_current_time(): void
     {
         $signal = new BriefSignal($this->signalFile);
         $before = time();
@@ -36,13 +36,13 @@ final class BriefSignalTest extends TestCase
         self::assertLessThanOrEqual($after, $mtime);
     }
 
-    public function testLastModifiedReturnsZeroWhenFileDoesNotExist(): void
+    public function test_last_modified_returns_zero_when_file_does_not_exist(): void
     {
         $signal = new BriefSignal($this->signalFile);
         self::assertSame(0, $signal->lastModified());
     }
 
-    public function testHasChangedSinceDetectsTouch(): void
+    public function test_has_changed_since_detects_touch(): void
     {
         $signal = new BriefSignal($this->signalFile);
         $signal->touch();
@@ -57,7 +57,7 @@ final class BriefSignalTest extends TestCase
         self::assertTrue($signal->hasChangedSince($baseline));
     }
 
-    public function testHasChangedSinceReturnsFalseWhenNoFile(): void
+    public function test_has_changed_since_returns_false_when_no_file(): void
     {
         $signal = new BriefSignal($this->signalFile);
         self::assertFalse($signal->hasChangedSince(0));

@@ -21,7 +21,7 @@ use Waaseyaa\EntityStorage\SqlSchemaHandler;
 
 final class ChatStreamControllerTest extends TestCase
 {
-    public function testReturns404ForNonexistentMessage(): void
+    public function test_returns404_for_nonexistent_message(): void
     {
         $etm = $this->buildEntityTypeManager();
         $controller = new ChatStreamController($etm);
@@ -36,7 +36,7 @@ final class ChatStreamControllerTest extends TestCase
         self::assertSame(404, $response->statusCode);
     }
 
-    public function testReturns503WhenApiKeyMissing(): void
+    public function test_returns503_when_api_key_missing(): void
     {
         $originalKey = getenv('ANTHROPIC_API_KEY');
         putenv('ANTHROPIC_API_KEY');
@@ -72,14 +72,16 @@ final class ChatStreamControllerTest extends TestCase
     private function buildEntityTypeManager(): EntityTypeManager
     {
         $db = PdoDatabase::createSqlite(':memory:');
-        $dispatcher = new EventDispatcher();
+        $dispatcher = new EventDispatcher;
         $etm = new EntityTypeManager($dispatcher, function ($def) use ($db, $dispatcher) {
             (new SqlSchemaHandler($def, $db))->ensureTable();
+
             return new SqlEntityStorage($def, $db, $dispatcher);
         });
         foreach ($this->entityTypes() as $type) {
             $etm->registerEntityType($type);
         }
+
         return $etm;
     }
 

@@ -11,7 +11,7 @@ use PHPUnit\Framework\TestCase;
 final class AnthropicChatClientTest extends TestCase
 {
     #[Test]
-    public function constructionSetsDefaults(): void
+    public function construction_sets_defaults(): void
     {
         $client = new AnthropicChatClient('test-key');
 
@@ -22,7 +22,7 @@ final class AnthropicChatClientTest extends TestCase
     }
 
     #[Test]
-    public function constructionAcceptsCustomModel(): void
+    public function construction_accepts_custom_model(): void
     {
         $client = new AnthropicChatClient(
             apiKey: 'test-key',

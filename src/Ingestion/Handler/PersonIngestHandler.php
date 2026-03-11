@@ -29,7 +29,7 @@ final class PersonIngestHandler implements IngestHandlerInterface
 
         if ($email === '') {
             return [
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Missing required field: email',
             ];
         }
@@ -53,23 +53,23 @@ final class PersonIngestHandler implements IngestHandlerInterface
                 }
 
                 return [
-                    'status'      => 'updated',
+                    'status' => 'updated',
                     'entity_type' => 'person',
-                    'uuid'        => $person->uuid(),
+                    'uuid' => $person->uuid(),
                 ];
             }
         }
 
         $person = new Person([
             'email' => $email,
-            'name'  => $payload['name'] ?? $email,
+            'name' => $payload['name'] ?? $email,
         ]);
         $storage->save($person);
 
         return [
-            'status'      => 'created',
+            'status' => 'created',
             'entity_type' => 'person',
-            'uuid'        => $person->uuid(),
+            'uuid' => $person->uuid(),
         ];
     }
 }

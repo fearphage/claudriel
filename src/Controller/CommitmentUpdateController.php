@@ -28,8 +28,8 @@ final class CommitmentUpdateController
         $uuid = $params['uuid'] ?? '';
 
         $storage = $this->entityTypeManager->getStorage('commitment');
-        $ids     = $storage->getQuery()->condition('uuid', $uuid)->execute();
-        $commitment = !empty($ids) ? $storage->load(reset($ids)) : null;
+        $ids = $storage->getQuery()->condition('uuid', $uuid)->execute();
+        $commitment = ! empty($ids) ? $storage->load(reset($ids)) : null;
 
         if ($commitment === null) {
             return new SsrResponse(
@@ -39,11 +39,11 @@ final class CommitmentUpdateController
             );
         }
 
-        $raw    = $httpRequest?->getContent() ?? '';
-        $body   = json_decode($raw, true) ?? [];
+        $raw = $httpRequest?->getContent() ?? '';
+        $body = json_decode($raw, true) ?? [];
         $status = $body['status'] ?? null;
 
-        if (!is_string($status) || !in_array($status, self::VALID_STATUSES, true)) {
+        if (! is_string($status) || ! in_array($status, self::VALID_STATUSES, true)) {
             return new SsrResponse(
                 content: json_encode(['error' => sprintf('Invalid status. Use: %s', implode(', ', self::VALID_STATUSES))]),
                 statusCode: 422,

@@ -34,19 +34,20 @@ class SidecarChatClient
 
         error_log("[Sidecar] Starting curl to {$this->sidecarUrl}/chat, session=$sessionId");
 
-        $ch = curl_init($this->sidecarUrl . '/chat');
+        $ch = curl_init($this->sidecarUrl.'/chat');
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $payload,
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/json',
-                'Authorization: Bearer ' . $this->sidecarKey,
+                'Authorization: Bearer '.$this->sidecarKey,
             ],
             CURLOPT_RETURNTRANSFER => false,
             CURLOPT_TIMEOUT => 300,
             CURLOPT_WRITEFUNCTION => function ($curlHandle, $data) use ($onToken, $onDone, $onError) {
-                error_log("[Sidecar] WRITEFUNCTION received " . strlen($data) . " bytes");
+                error_log('[Sidecar] WRITEFUNCTION received '.strlen($data).' bytes');
                 $this->handleSseChunk($data, $onToken, $onDone, $onError);
+
                 return strlen($data);
             },
         ]);
@@ -56,7 +57,7 @@ class SidecarChatClient
         $curlError = curl_error($ch);
         curl_close($ch);
 
-        error_log("[Sidecar] curl_exec done: result=" . var_export($result, true) . ", http=$httpCode, error=$curlError");
+        error_log('[Sidecar] curl_exec done: result='.var_export($result, true).", http=$httpCode, error=$curlError");
 
         if ($result === false || $httpCode >= 400) {
             $onError($curlError ?: "Sidecar returned HTTP $httpCode");
@@ -65,7 +66,7 @@ class SidecarChatClient
 
     public function isAvailable(): bool
     {
-        $ch = curl_init($this->sidecarUrl . '/health');
+        $ch = curl_init($this->sidecarUrl.'/health');
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => 2,
@@ -79,6 +80,7 @@ class SidecarChatClient
     }
 
     private string $sseBuffer = '';
+
     private ?string $currentEventType = null;
 
     private function handleSseChunk(
@@ -96,6 +98,7 @@ class SidecarChatClient
 
             if ($line === '') {
                 $this->currentEventType = null;
+
                 continue;
             }
 
@@ -105,6 +108,7 @@ class SidecarChatClient
 
             if (str_starts_with($line, 'event: ')) {
                 $this->currentEventType = substr($line, 7);
+
                 continue;
             }
 

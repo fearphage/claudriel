@@ -53,19 +53,19 @@ final class ContextController
         ));
 
         $brief = [
-            'recent_events'        => array_map(fn ($e) => $e->toArray(), $recentEvents),
-            'pending_commitments'  => array_map(fn ($c) => $c->toArray(), $pendingCommitments),
+            'recent_events' => array_map(fn ($e) => $e->toArray(), $recentEvents),
+            'pending_commitments' => array_map(fn ($c) => $c->toArray(), $pendingCommitments),
             'drifting_commitments' => array_map(fn ($c) => $c->toArray(), $driftingCommitments),
         ];
 
         $contextFiles = [
-            'me'          => $this->readContextFile($projectRoot . '/context/me.md'),
-            'commitments' => $this->readContextFile($projectRoot . '/context/commitments.md'),
-            'patterns'    => $this->readContextFile($projectRoot . '/context/patterns.md'),
+            'me' => $this->readContextFile($projectRoot.'/context/me.md'),
+            'commitments' => $this->readContextFile($projectRoot.'/context/commitments.md'),
+            'patterns' => $this->readContextFile($projectRoot.'/context/patterns.md'),
         ];
 
         $payload = [
-            'brief'         => $brief,
+            'brief' => $brief,
             'context_files' => $contextFiles,
         ];
 
@@ -78,7 +78,7 @@ final class ContextController
 
     private function readContextFile(string $path): ?string
     {
-        if (!is_file($path) || !is_readable($path)) {
+        if (! is_file($path) || ! is_readable($path)) {
             return null;
         }
 

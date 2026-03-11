@@ -20,16 +20,17 @@ use Waaseyaa\EntityStorage\SqlSchemaHandler;
 
 final class BriefStreamControllerTest extends TestCase
 {
-    public function testStreamEmitsBriefDataOnSignalChange(): void
+    public function test_stream_emits_brief_data_on_signal_change(): void
     {
-        $signalFile = sys_get_temp_dir() . '/brief_signal_stream_' . uniqid('', true) . '.txt';
+        $signalFile = sys_get_temp_dir().'/brief_signal_stream_'.uniqid('', true).'.txt';
         $signal = new BriefSignal($signalFile);
         $signal->touch();
 
         $db = PdoDatabase::createSqlite(':memory:');
-        $dispatcher = new EventDispatcher();
+        $dispatcher = new EventDispatcher;
         $etm = new EntityTypeManager($dispatcher, function ($def) use ($db, $dispatcher) {
             (new SqlSchemaHandler($def, $db))->ensureTable();
+
             return new SqlEntityStorage($def, $db, $dispatcher);
         });
 
@@ -50,6 +51,7 @@ final class BriefStreamControllerTest extends TestCase
             flushCallback: function (): void {},
             shouldStop: function () use (&$iterations): bool {
                 $iterations++;
+
                 return $iterations > 1;
             },
             sleepCallback: function (): void {},
