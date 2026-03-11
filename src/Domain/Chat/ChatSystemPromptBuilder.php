@@ -13,7 +13,7 @@ final class ChatSystemPromptBuilder
         private readonly string $projectRoot,
     ) {}
 
-    public function build(string $tenantId = 'default'): string
+    public function build(string $tenantId = 'default', bool $hasToolAccess = false): string
     {
         $parts = [];
 
@@ -34,7 +34,7 @@ final class ChatSystemPromptBuilder
         $parts[] = $this->formatBriefContext($brief);
 
         // Chat instructions
-        $parts[] = $this->buildInstructions();
+        $parts[] = $this->buildInstructions($hasToolAccess);
 
         return implode("\n\n---\n\n", array_filter($parts));
     }
@@ -112,15 +112,29 @@ final class ChatSystemPromptBuilder
      *
      * @param array{recent_events: array, pending_commitments: array, drifting_commitments: array, people: array<string,string>} $brief
      */
-    private function buildInstructions(): string
+    private function buildInstructions(bool $hasToolAccess): string
     {
-        $ingestUrl = getenv('CLAUDRIEL_INGEST_URL') ?: 'http://caddy/api/ingest';
-        $apiKey = $_ENV['CLAUDRIEL_API_KEY'] ?? getenv('CLAUDRIEL_API_KEY') ?: '';
-
-        return <<<INSTRUCTIONS
+        $base = <<<'INSTRUCTIONS'
 # Instructions
 
 You are Claudriel, an AI personal operations assistant. You are responding via the Claudriel web dashboard. Be warm, concise, and proactive. You have access to the user's commitments, events, and personal context shown above. Help them stay on track.
+INSTRUCTIONS;
+
+        if (!$hasToolAccess) {
+            $base .= <<<'NO_TOOLS'
+
+
+## Capabilities
+
+You can see the user's current context (commitments, events, people) shown above, and you can have a helpful conversation based on that context. You do NOT have access to Gmail, Calendar, or any external data sources in this mode. If the user asks you to check email or calendar, let them know that external data access requires the sidecar service to be running.
+NO_TOOLS;
+            return $base;
+        }
+
+        $ingestUrl = getenv('CLAUDRIEL_INGEST_URL') ?: 'http://caddy/api/ingest';
+        $apiKey = $_ENV['CLAUDRIEL_API_KEY'] ?? getenv('CLAUDRIEL_API_KEY') ?: '';
+
+        $base .= <<<TOOLS
 
 ## Data Ingestion
 
@@ -154,7 +168,9 @@ curl -s -X POST "{$ingestUrl}" \\
 ```
 
 Always ingest data silently (don't show curl output to the user), then summarize what you found in a friendly way. After ingesting, the Day Brief on the dashboard will update automatically.
-INSTRUCTIONS;
+TOOLS;
+
+        return $base;
     }
 
     private function formatBriefContext(array $brief): string

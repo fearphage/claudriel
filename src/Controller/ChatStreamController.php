@@ -93,11 +93,6 @@ final class ChatStreamController
             $sessionMessages,
         );
 
-        // Build system prompt
-        $projectRoot = $this->resolveProjectRoot();
-        $promptBuilder = $this->buildPromptBuilder($projectRoot);
-        $systemPrompt = $promptBuilder->build();
-
         // Try sidecar first (provides Gmail/Calendar via Claude Code MCP)
         $sidecarUrl = $_ENV['SIDECAR_URL'] ?? getenv('SIDECAR_URL') ?: '';
         $sidecarKey = $_ENV['CLAUDRIEL_SIDECAR_KEY'] ?? getenv('CLAUDRIEL_SIDECAR_KEY') ?: '';
@@ -108,6 +103,11 @@ final class ChatStreamController
             $sidecarClient = new SidecarChatClient($sidecarUrl, $sidecarKey);
             $useSidecar = $sidecarClient->isAvailable();
         }
+
+        // Build system prompt (tool instructions only when sidecar is available)
+        $projectRoot = $this->resolveProjectRoot();
+        $promptBuilder = $this->buildPromptBuilder($projectRoot);
+        $systemPrompt = $promptBuilder->build(hasToolAccess: $useSidecar);
 
         $onToken = function (string $token): void {
             $data = json_encode(['token' => $token], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
