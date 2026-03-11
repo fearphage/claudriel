@@ -133,6 +133,44 @@
         .counter-card.due_today .counter-value { color: var(--accent-red); }
         .counter-card.drifting .counter-value { color: #f87171; }
 
+        /* Workspace cards */
+        .workspace-card {
+            background: var(--bg-elevated);
+            border-radius: var(--radius-md);
+            padding: 0.6rem 0.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s, border-color 0.2s;
+            border: 2px solid var(--border-subtle);
+        }
+        .workspace-card:hover {
+            background: var(--bg-hover);
+            transform: translateY(-1px);
+        }
+        .workspace-card.selected {
+            border-color: var(--accent-teal);
+            background: rgba(45, 212, 191, 0.08);
+        }
+        .workspace-card .workspace-name {
+            font-family: var(--font-display);
+            font-size: 0.85rem;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+        .workspace-card .workspace-activity {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            letter-spacing: 0.02em;
+        }
+        .panel-item.drifting {
+            border-left-color: var(--accent-red) !important;
+        }
+        .drifting-label {
+            color: var(--accent-red);
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+
         /* Panel items */
         .panel-item {
             padding: 0.45rem 0.65rem;
@@ -446,26 +484,20 @@
 
         {# ── Context Panel ── #}
         <aside class="context-panel" id="contextPanel">
-            {# At-a-glance counters #}
-            <div class="panel-section" id="panelCounters">
-                <div class="panel-section-title">At a Glance</div>
-                <div class="counter-grid">
-                    <div class="counter-card job_hunt" data-chat="Show me today's job listings">
-                        <div class="counter-value" id="countJobs">{{ counts.job_alerts|default(0) }}</div>
-                        <div class="counter-label">Job Alerts</div>
-                    </div>
-                    <div class="counter-card messages" data-chat="What messages did I get today?">
-                        <div class="counter-value" id="countMessages">{{ counts.messages|default(0) }}</div>
-                        <div class="counter-label">Messages</div>
-                    </div>
-                    <div class="counter-card due_today" data-chat="What's due today?">
-                        <div class="counter-value" id="countDueToday">{{ counts.due_today|default(0) }}</div>
-                        <div class="counter-label">Due Today</div>
-                    </div>
-                    <div class="counter-card drifting" data-chat="Which commitments are drifting?">
-                        <div class="counter-value" id="countDrifting">{{ counts.drifting|default(0) }}</div>
-                        <div class="counter-label">Drifting</div>
-                    </div>
+            {# Workspaces #}
+            <div class="panel-section" id="panelWorkspaces">
+                <div class="panel-section-title">Workspaces <span class="badge" id="workspaceCount">{{ workspaces|default([])|length }}</span></div>
+                <div class="counter-grid" id="workspaceGrid">
+                    {% if workspaces|default([])|length > 0 %}
+                        {% for ws in workspaces|default([]) %}
+                            <div class="workspace-card" data-workspace-uuid="{{ ws.uuid }}" data-workspace-name="{{ ws.name }}">
+                                <div class="workspace-name">{{ ws.name }}</div>
+                                <div class="workspace-activity">{{ ws.activity_count|default(0) }} events</div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="panel-empty" style="grid-column: 1/-1;">No workspaces yet.</div>
+                    {% endif %}
                 </div>
             </div>
 
@@ -486,10 +518,18 @@
                 </div>
             </div>
 
-            {# Commitments #}
+            {# Commitments (includes drifting) #}
             <div class="panel-section" id="panelCommitments">
-                <div class="panel-section-title">Commitments <span class="badge" id="commitmentCount">{{ pending_commitments|length }}</span></div>
+                <div class="panel-section-title">Commitments <span class="badge" id="commitmentCount">{{ pending_commitments|length + drifting_commitments|length }}</span></div>
                 <div id="commitmentItems">
+                    {% if drifting_commitments|length > 0 %}
+                        {% for c in drifting_commitments %}
+                            <div class="panel-item commitment drifting" data-chat="What happened with {{ c.title }}?">
+                                {{ c.title|default('(untitled)') }} <span class="drifting-label">(drifting)</span>
+                                {% if c.updated_at %}<span class="item-meta">Last: {{ c.updated_at }}</span>{% endif %}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
                     {% if pending_commitments|length > 0 %}
                         {% for c in pending_commitments %}
                             <div class="panel-item commitment" data-chat="Update me on {{ c.title }}">
@@ -498,25 +538,12 @@
                             </div>
                         {% endfor %}
                     {% else %}
-                        <div class="panel-empty">No pending commitments.</div>
+                        {% if drifting_commitments|length == 0 %}
+                            <div class="panel-empty">No pending commitments.</div>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>
-
-            {# Drifting #}
-            {% if drifting_commitments|length > 0 %}
-            <div class="panel-section" id="panelDrifting">
-                <div class="panel-section-title" style="color: var(--accent-red);">Drifting <span class="badge" style="background:rgba(239,68,68,0.15);color:var(--accent-red);">{{ drifting_commitments|length }}</span></div>
-                <div id="driftingItems">
-                    {% for c in drifting_commitments %}
-                        <div class="panel-item commitment" style="border-left-color:var(--accent-red);" data-chat="What happened with {{ c.title }}?">
-                            {{ c.title|default('(untitled)') }}
-                            {% if c.updated_at %}<span class="item-meta">Last: {{ c.updated_at }}</span>{% endif %}
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
 
             {# People #}
             <div class="panel-section" id="panelPeople">
@@ -629,6 +656,43 @@
                 }
             });
         });
+
+        // ── Workspace Selection ──
+        var workspaceKey = 'claudriel_workspace';
+        var selectedWorkspace = localStorage.getItem(workspaceKey);
+
+        function updateWorkspaceSelection() {
+            document.querySelectorAll('.workspace-card').forEach(function(card) {
+                var uuid = card.getAttribute('data-workspace-uuid');
+                if (uuid === selectedWorkspace) {
+                    card.classList.add('selected');
+                } else {
+                    card.classList.remove('selected');
+                }
+            });
+        }
+
+        document.querySelectorAll('.workspace-card').forEach(function(card) {
+            card.addEventListener('click', function() {
+                var uuid = this.getAttribute('data-workspace-uuid');
+                var wsName = this.getAttribute('data-workspace-name');
+                if (selectedWorkspace === uuid) {
+                    selectedWorkspace = null;
+                    localStorage.removeItem(workspaceKey);
+                } else {
+                    selectedWorkspace = uuid;
+                    localStorage.setItem(workspaceKey, uuid);
+                    if (inputEl && !inputEl.disabled) {
+                        inputEl.value = 'Show me everything for ' + wsName + '.';
+                        inputEl.focus();
+                        inputEl.dispatchEvent(new Event('input'));
+                    }
+                }
+                updateWorkspaceSelection();
+            });
+        });
+
+        updateWorkspaceSelection();
 
         // ── Escape helper ──
         function esc(str) { var d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
