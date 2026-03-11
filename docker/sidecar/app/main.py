@@ -4,17 +4,16 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.auth import verify_api_key
-from app.claude_client import stream_chat, TokenEvent, DoneEvent, ErrorEvent
+from app.claude_client import DoneEvent, ErrorEvent, TokenEvent, stream_chat
 from app.session_manager import SessionManager
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 session_manager: SessionManager | None = None
 

@@ -1,5 +1,6 @@
 import time
-from app.session_manager import SessionManager, Session
+
+from app.session_manager import SessionManager
 
 
 def test_get_or_create_new_session():

@@ -3,7 +3,7 @@ import os
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
-from claude_agent_sdk import query, ClaudeAgentOptions, AssistantMessage, ResultMessage, TextBlock
+from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, ResultMessage, TextBlock, query
 
 logger = logging.getLogger(__name__)
 
