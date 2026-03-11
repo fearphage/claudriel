@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9b29339676243bfa5f89c5345a4df883",
+    "content-hash": "65fe1224dfff2fa9c3e96c866a9fbf30",
     "packages": [
         {
             "name": "doctrine/dbal",
@@ -2385,7 +2385,7 @@
         },
         {
             "name": "waaseyaa/access",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/access",
@@ -2423,7 +2423,7 @@
         },
         {
             "name": "waaseyaa/ai-pipeline",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/ai-pipeline",
@@ -2466,7 +2466,7 @@
         },
         {
             "name": "waaseyaa/ai-vector",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/ai-vector",
@@ -2504,7 +2504,7 @@
         },
         {
             "name": "waaseyaa/api",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/api",
@@ -2541,7 +2541,7 @@
         },
         {
             "name": "waaseyaa/cache",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/cache",
@@ -2580,7 +2580,7 @@
         },
         {
             "name": "waaseyaa/cli",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/cli",
@@ -2619,7 +2619,7 @@
         },
         {
             "name": "waaseyaa/config",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/config",
@@ -2654,7 +2654,7 @@
         },
         {
             "name": "waaseyaa/database-legacy",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/database-legacy",
@@ -2687,7 +2687,7 @@
         },
         {
             "name": "waaseyaa/entity",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/entity",
@@ -2727,7 +2727,7 @@
         },
         {
             "name": "waaseyaa/entity-storage",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/entity-storage",
@@ -2765,7 +2765,7 @@
         },
         {
             "name": "waaseyaa/field",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/field",
@@ -2801,7 +2801,7 @@
         },
         {
             "name": "waaseyaa/foundation",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/foundation",
@@ -2842,7 +2842,7 @@
         },
         {
             "name": "waaseyaa/i18n",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/i18n",
@@ -2875,7 +2875,7 @@
         },
         {
             "name": "waaseyaa/path",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/path",
@@ -2916,7 +2916,7 @@
         },
         {
             "name": "waaseyaa/plugin",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/plugin",
@@ -2950,7 +2950,7 @@
         },
         {
             "name": "waaseyaa/queue",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/queue",
@@ -2984,7 +2984,7 @@
         },
         {
             "name": "waaseyaa/routing",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/routing",
@@ -3067,7 +3067,7 @@
         },
         {
             "name": "waaseyaa/typed-data",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/typed-data",
@@ -3101,7 +3101,7 @@
         },
         {
             "name": "waaseyaa/user",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/user",
@@ -3145,7 +3145,7 @@
         },
         {
             "name": "waaseyaa/workflows",
-            "version": "dev-main",
+            "version": "dev-feat/onboarding-guardrail",
             "dist": {
                 "type": "path",
                 "url": "/home/jones/dev/waaseyaa/packages/workflows",
@@ -3187,6 +3187,60 @@
         }
     ],
     "packages-dev": [
+        {
+            "name": "deployer/deployer",
+            "version": "v7.5.12",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/deployphp/deployer.git",
+                "reference": "efc71dac9ccc86b3f9946e75d50cb106b775aae2"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/deployphp/deployer/zipball/efc71dac9ccc86b3f9946e75d50cb106b775aae2",
+                "reference": "efc71dac9ccc86b3f9946e75d50cb106b775aae2",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "php": "^8.0|^7.3"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.64",
+                "pestphp/pest": "^3.3",
+                "phpstan/phpstan": "^1.4",
+                "phpunit/php-code-coverage": "^11.0",
+                "phpunit/phpunit": "^11.4"
+            },
+            "bin": [
+                "bin/dep"
+            ],
+            "type": "library",
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Anton Medvedev",
+                    "email": "anton@medv.io"
+                }
+            ],
+            "description": "Deployment Tool",
+            "homepage": "https://deployer.org",
+            "support": {
+                "docs": "https://deployer.org/docs",
+                "issues": "https://github.com/deployphp/deployer/issues",
+                "source": "https://github.com/deployphp/deployer"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/sponsors/antonmedv",
+                    "type": "github"
+                }
+            ],
+            "time": "2025-02-19T16:45:27+00:00"
+        },
         {
             "name": "myclabs/deep-copy",
             "version": "1.13.4",
