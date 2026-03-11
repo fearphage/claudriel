@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Check GitHub milestone/issue health for jonesrussell/myclaudia.
+# Check GitHub milestone/issue health for jonesrussell/claudriel.
 # Used as a SessionStart hook to surface triage gaps at conversation start.
 # Always exits 0 — output is a warning surface only, not a CI gate.
 
-REPO="jonesrussell/myclaudia"
+REPO="jonesrussell/claudriel"
 
-echo "=== MyClaudia Milestone Check ==="
+echo "=== Claudriel Milestone Check ==="
 
 # Open issues with no milestone
 NO_MILESTONE=$(gh api "repos/${REPO}/issues?state=open&per_page=50" \

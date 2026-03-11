@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# mc-ingest: Send an event to MyClaudia ingestion API
+# mc-ingest: Send an event to Claudriel ingestion API
 # Usage: mc-ingest <type> <json-payload>
 # Example: mc-ingest commitment.detected '{"title":"Send proposal","confidence":0.85}'
 #
@@ -31,7 +31,7 @@ PAYLOAD="${2:?Usage: mc-ingest <type> <json-payload>}"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$MC_API_URL/api/ingest" \
   -H "Authorization: Bearer $CLAUDRIEL_API_KEY" \
   -H "Content-Type: application/json" \
-  -d "$(printf '{"source":"claudia","type":"%s","occurred":"%s","payload":%s}' \
+  -d "$(printf '{"source":"claudriel","type":"%s","occurred":"%s","payload":%s}' \
     "$EVENT_TYPE" \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     "$PAYLOAD"

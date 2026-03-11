@@ -45,7 +45,7 @@ final class ChatSystemPromptBuilderTest extends TestCase
     #[Test]
     public function buildReadsClaudeMdWhenPresent(): void
     {
-        $tmpDir = sys_get_temp_dir() . '/myclaudia-test-' . uniqid();
+        $tmpDir = sys_get_temp_dir() . '/claudriel-test-' . uniqid();
         mkdir($tmpDir, 0755, true);
         file_put_contents($tmpDir . '/CLAUDE.md', "## Who I Am\n\nI am a test personality.\n");
 
@@ -62,7 +62,7 @@ final class ChatSystemPromptBuilderTest extends TestCase
     #[Test]
     public function buildReadsUserContextWhenPresent(): void
     {
-        $tmpDir = sys_get_temp_dir() . '/myclaudia-test-' . uniqid();
+        $tmpDir = sys_get_temp_dir() . '/claudriel-test-' . uniqid();
         mkdir($tmpDir . '/context', 0755, true);
         file_put_contents($tmpDir . '/context/me.md', "# Russell\nSoftware developer.\n");
 
@@ -80,7 +80,7 @@ final class ChatSystemPromptBuilderTest extends TestCase
     #[Test]
     public function buildPrefersClaudeUserMdOverClaudeMd(): void
     {
-        $tmpDir = sys_get_temp_dir() . '/myclaudia-test-' . uniqid();
+        $tmpDir = sys_get_temp_dir() . '/claudriel-test-' . uniqid();
         mkdir($tmpDir, 0755, true);
         file_put_contents($tmpDir . '/CLAUDE.md', "## Who I Am\n\nGeneric personality.\n");
         file_put_contents($tmpDir . '/CLAUDE.user.md', "## Who I Am\n\nCustom personality from user md.\n");

@@ -1,9 +1,9 @@
 #!/bin/bash
 # Quick health check at session start
 # Runs `claudia system-health` and returns JSON with additionalContext
-# Falls back gracefully if claudia CLI is not installed
+# Falls back gracefully if Claudriel CLI is not installed
 
-# Try claudia CLI first
+# Try Claudriel CLI first
 if command -v claudia &>/dev/null; then
   HEALTH_JSON=$(claudia system-health --project-dir "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null)
   EXIT_CODE=$?
@@ -42,7 +42,7 @@ except Exception:
   fi
 fi
 
-# claudia CLI not available or failed -- provide guidance
+# Claudriel CLI not available or failed -- provide guidance
 emit_with_profile() {
   local MSG="$1"
   local PROFILE=""
@@ -50,10 +50,10 @@ emit_with_profile() {
     PROFILE=$(head -c 2000 "${CLAUDE_PROJECT_DIR}/context/me.md" 2>/dev/null || true)
   fi
   if [ -n "$PROFILE" ] && command -v python3 &>/dev/null; then
-    CLAUDIA_MSG="$MSG" CLAUDIA_PROFILE="$PROFILE" python3 -c "
+    CLAUDRIEL_MSG="$MSG" CLAUDRIEL_PROFILE="$PROFILE" python3 -c "
 import json, os
-msg = os.environ.get('CLAUDIA_MSG', '')
-profile = os.environ.get('CLAUDIA_PROFILE', '')
+msg = os.environ.get('CLAUDRIEL_MSG', '')
+profile = os.environ.get('CLAUDRIEL_PROFILE', '')
 if profile:
     msg = msg + '\n\nUser profile (from context/me.md):\n' + profile
 print(json.dumps({'additionalContext': msg}))"
@@ -63,16 +63,16 @@ print(json.dumps({'additionalContext': msg}))"
   fi
 }
 
-# Check if claudia is installed at all
+# Check if Claudriel CLI is installed at all
 if ! command -v claudia &>/dev/null; then
   # Check if it's a local install (npx get-claudia puts it in node_modules/.bin)
   if [ -f "${CLAUDE_PROJECT_DIR:-}/node_modules/.bin/claudia" ]; then
     emit_with_profile "Memory CLI found at node_modules/.bin/claudia but not on PATH. Run: export PATH=\"\$PWD/node_modules/.bin:\$PATH\" or use npx claudia."
   else
-    emit_with_profile "Claudia CLI not found. Memory system unavailable. Install with: npm install -g get-claudia && claudia setup. Reading context/ files as fallback."
+    emit_with_profile "Claudriel CLI not found. Memory system unavailable. Install with: npm install -g get-claudia && claudia setup. Reading context/ files as fallback."
   fi
 else
-  emit_with_profile "Claudia CLI found but system-health check failed. Try: claudia setup --project-dir \"${CLAUDE_PROJECT_DIR:-.}\" to diagnose. Reading context/ files as fallback."
+  emit_with_profile "Claudriel CLI found but system-health check failed. Try: claudia setup --project-dir \"${CLAUDE_PROJECT_DIR:-.}\" to diagnose. Reading context/ files as fallback."
 fi
 
 exit 0

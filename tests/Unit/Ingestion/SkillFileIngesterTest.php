@@ -55,7 +55,7 @@ MD;
 
     public function testIngestDirectory(): void
     {
-        $tmpDir = sys_get_temp_dir() . '/myclaudia_skill_test_' . uniqid();
+        $tmpDir = sys_get_temp_dir() . '/claudriel_skill_test_' . uniqid();
         mkdir($tmpDir, 0755, true);
 
         file_put_contents($tmpDir . '/brainstorming.md', <<<'MD'

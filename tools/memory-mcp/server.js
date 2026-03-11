@@ -2,7 +2,7 @@
 /**
  * Claudriel Memory MCP server.
  *
- * Wraps the Claudriel HTTP API as memory.* tools so Claudia skills
+ * Wraps the Claudriel HTTP API as memory.* tools so Claudriel skills
  * can read/write the dashboard's entity storage as their memory backend.
  *
  * Required env vars:
@@ -183,7 +183,7 @@ server.tool(
     try {
       const payload = { content, ...(metadata || {}) };
       const result = await apiPost('/api/ingest', {
-        source: source || 'claudia-memory',
+        source: source || 'claudriel-memory',
         type,
         payload,
       });
@@ -362,7 +362,7 @@ server.tool(
   async ({ summary, observations }) => {
     try {
       await apiPost('/api/ingest', {
-        source: 'claudia-session',
+        source: 'claudriel-session',
         type: 'session_summary',
         payload: { summary, observations: observations || [], ended_at: new Date().toISOString() },
       });
@@ -510,7 +510,7 @@ server.tool(
   async ({ subject, relation, object, notes }) => {
     try {
       await apiPost('/api/ingest', {
-        source: 'claudia-memory',
+        source: 'claudriel-memory',
         type: 'relationship',
         payload: { subject, relation, object, notes: notes || '' },
       });
@@ -537,7 +537,7 @@ server.tool(
     for (const item of items) {
       try {
         await apiPost('/api/ingest', {
-          source: item.source || 'claudia-memory',
+          source: item.source || 'claudriel-memory',
           type: item.type,
           payload: { content: item.content },
         });
@@ -562,7 +562,7 @@ server.tool(
   async ({ role, content, session_id }) => {
     try {
       await apiPost('/api/ingest', {
-        source: 'claudia-session',
+        source: 'claudriel-session',
         type: 'conversation_turn',
         payload: { role, content, session_id: session_id || 'unknown' },
       });
@@ -585,7 +585,7 @@ server.tool(
   async ({ original, correction, reason }) => {
     try {
       await apiPost('/api/ingest', {
-        source: 'claudia-memory',
+        source: 'claudriel-memory',
         type: 'correction',
         payload: { original, correction, reason: reason || '' },
       });
@@ -607,7 +607,7 @@ server.tool(
   async ({ description, reason }) => {
     try {
       await apiPost('/api/ingest', {
-        source: 'claudia-memory',
+        source: 'claudriel-memory',
         type: 'invalidation',
         payload: { description, reason: reason || '' },
       });
