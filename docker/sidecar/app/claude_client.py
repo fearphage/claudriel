@@ -2,7 +2,6 @@ import logging
 import os
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-
 from pathlib import Path
 
 from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, ResultMessage, TextBlock, query
