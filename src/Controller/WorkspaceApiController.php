@@ -30,7 +30,7 @@ final class WorkspaceApiController
             fn ($workspace): bool => $workspace instanceof Workspace && $resolver->tenantMatches($workspace, $scope->tenantId),
         ));
 
-        $workspaces = array_map(fn ($ws) => $this->serialize($ws), array_values($entities));
+        $workspaces = array_map(fn ($ws) => $this->serialize($ws), $entities);
 
         return $this->json(['workspaces' => $workspaces]);
     }

@@ -179,7 +179,7 @@ final class DayBriefAssembler
         $normalizer = new SchedulePayloadNormalizer;
         $scheduleEntries = array_values(array_filter(
             $this->scheduleRepo->findBy([]),
-            function ($entry) use ($tenantId, $today): bool {
+            function ($entry) use ($tenantId, $today, $workspaceUuid): bool {
                 if (($this->getEntityValue($entry, 'status') ?? 'active') !== 'active') {
                     return false;
                 }
