@@ -1,6 +1,6 @@
 ---
 name: codex-repo-workflow
-description: "Use for normal Claudriel repo work: branch naming, committing, syncing with main, local checks, pushing, and PR flow."
+description: Use for standard Claudriel repository workflow guidance, including branches, commits, checks, and PR flow outside production hotfix work.
 version: 1.0.0
 ---
 

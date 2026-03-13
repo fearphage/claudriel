@@ -1,6 +1,7 @@
 vendor/
 .env
 *.cache
+.phpstan-cache/
 var/
 storage/framework/cache/
 storage/framework/entity-audit.jsonl
