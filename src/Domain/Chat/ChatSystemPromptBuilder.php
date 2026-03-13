@@ -172,7 +172,7 @@ curl -s -X POST "{$ingestUrl}" \\
 
 **Calendar events** (source: "google-calendar", type: "calendar.event"):
 ```json
-{"source":"google-calendar","type":"calendar.event","payload":{"subject":"<event title>","from_name":"<organizer>","from_email":"<organizer email>","body":"<description or location>"}}
+{"source":"google-calendar","type":"calendar.event","payload":{"event_id":"<stable event id>","calendar_id":"<calendar id>","title":"<event title>","start_time":"2026-03-13T09:00:00-04:00","end_time":"2026-03-13T10:00:00-04:00","from_name":"<organizer>","from_email":"<organizer email>","body":"<description or location>"}}
 ```
 
 **Commitment detection** (source: "claude-sidecar", type: "commitment.detected"):

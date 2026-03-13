@@ -9,17 +9,40 @@ use PHPUnit\Framework\TestCase;
 
 final class ContentHasherTest extends TestCase
 {
-    public function test_hashes_calendar_event_by_title_start_time_calendar_id(): void
+    public function test_hashes_calendar_event_by_title_start_time_end_time_calendar_id(): void
     {
         $payload = [
             'source' => 'google-calendar',
             'title' => 'Job Applications',
             'start_time' => '2026-03-10T08:00:00',
+            'end_time' => '2026-03-10T08:30:00',
             'calendar_id' => 'primary',
         ];
         $hash = ContentHasher::hash($payload);
         $this->assertSame(64, strlen($hash));
         $this->assertSame($hash, ContentHasher::hash($payload));
+    }
+
+    public function test_hashes_calendar_event_by_stable_event_identifier_when_present(): void
+    {
+        $payloadA = [
+            'source' => 'google-calendar',
+            'event_id' => 'gcal-123',
+            'title' => 'Old title',
+            'start_time' => '2026-03-10T08:00:00',
+            'end_time' => '2026-03-10T08:30:00',
+            'calendar_id' => 'primary',
+        ];
+        $payloadB = [
+            'source' => 'google-calendar',
+            'event_id' => 'gcal-123',
+            'title' => 'New title',
+            'start_time' => '2026-03-10T09:00:00',
+            'end_time' => '2026-03-10T09:30:00',
+            'calendar_id' => 'primary',
+        ];
+
+        $this->assertSame(ContentHasher::hash($payloadA), ContentHasher::hash($payloadB));
     }
 
     public function test_hashes_gmail_message_by_message_id(): void

@@ -80,11 +80,20 @@ final class DayBriefController
             // person entity type may not be registered in tests
         }
 
+        $scheduleRepo = null;
+        try {
+            $scheduleRepo = new StorageRepositoryAdapter($this->entityTypeManager->getStorage('schedule_entry'));
+        } catch (\Throwable) {
+            // schedule entity type may not be registered in tests
+        }
+
         return new DayBriefAssembler(
             $eventRepo,
             $commitmentRepo,
             new DriftDetector($commitmentRepo),
             $personRepo,
+            null,
+            $scheduleRepo,
         );
     }
 }

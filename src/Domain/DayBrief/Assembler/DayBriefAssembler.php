@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Claudriel\Domain\DayBrief\Assembler;
 
 use Claudriel\Support\DriftDetector;
+use Claudriel\Support\SchedulePayloadNormalizer;
 use Waaseyaa\Entity\Repository\EntityRepositoryInterface;
 
 final class DayBriefAssembler
@@ -15,6 +16,7 @@ final class DayBriefAssembler
         private readonly DriftDetector $driftDetector,
         private readonly ?EntityRepositoryInterface $personRepo = null,
         private readonly ?EntityRepositoryInterface $skillRepo = null,
+        private readonly ?EntityRepositoryInterface $scheduleRepo = null,
         private readonly ?EntityRepositoryInterface $workspaceRepo = null,
     ) {}
 
@@ -75,7 +77,9 @@ final class DayBriefAssembler
             };
         }
 
-        $schedule = $this->deduplicateSchedule($schedule);
+        $schedule = $this->scheduleRepo !== null
+            ? $this->buildNormalizedSchedule($tenantId)
+            : $this->prepareSchedule($schedule);
 
         $allCommitments = $this->commitmentRepo->findBy([]);
         $pending = array_values(array_filter(
@@ -115,11 +119,30 @@ final class DayBriefAssembler
      * @param  list<array{title: mixed, start_time: mixed, end_time: mixed, source: mixed}>  $schedule
      * @return list<array{title: mixed, start_time: mixed, end_time: mixed, source: mixed}>
      */
-    private function deduplicateSchedule(array $schedule): array
+    private function prepareSchedule(array $schedule): array
     {
-        $unique = [];
+        $today = (new \DateTimeImmutable)->format('Y-m-d');
+        $filtered = [];
 
         foreach ($schedule as $item) {
+            $start = $this->parseDateTime($item['start_time'] ?? null);
+            if ($start === null || $start->format('Y-m-d') !== $today) {
+                continue;
+            }
+
+            $filtered[] = $item;
+        }
+
+        usort($filtered, function (array $a, array $b): int {
+            $left = $this->parseDateTime($a['start_time'] ?? null)?->getTimestamp() ?? PHP_INT_MAX;
+            $right = $this->parseDateTime($b['start_time'] ?? null)?->getTimestamp() ?? PHP_INT_MAX;
+
+            return $left <=> $right;
+        });
+
+        $unique = [];
+
+        foreach ($filtered as $item) {
             $fingerprint = implode('|', [
                 mb_strtolower(trim((string) ($item['title'] ?? ''))),
                 trim((string) ($item['start_time'] ?? '')),
@@ -135,6 +158,90 @@ final class DayBriefAssembler
         }
 
         return array_values($unique);
+    }
+
+    /**
+     * @return list<array{title: string, start_time: string, end_time: string, source: string}>
+     */
+    private function buildNormalizedSchedule(string $tenantId): array
+    {
+        $today = (new \DateTimeImmutable('today'))->format('Y-m-d');
+        $normalizer = new SchedulePayloadNormalizer;
+        $scheduleEntries = array_values(array_filter(
+            $this->scheduleRepo->findBy([]),
+            function ($entry) use ($tenantId, $today): bool {
+                if (($this->getEntityValue($entry, 'status') ?? 'active') !== 'active') {
+                    return false;
+                }
+
+                $entryTenant = $this->getEntityValue($entry, 'tenant_id');
+                if (is_string($entryTenant) && $entryTenant !== '' && $entryTenant !== $tenantId) {
+                    return false;
+                }
+
+                return str_starts_with((string) ($this->getEntityValue($entry, 'starts_at') ?? ''), $today);
+            },
+        ));
+
+        usort($scheduleEntries, fn ($a, $b): int => ((string) $this->getEntityValue($a, 'starts_at')) <=> ((string) $this->getEntityValue($b, 'starts_at')));
+
+        if ($scheduleEntries !== []) {
+            return array_map(fn ($entry) => [
+                'title' => (string) ($this->getEntityValue($entry, 'title') ?? ''),
+                'start_time' => (string) ($this->getEntityValue($entry, 'starts_at') ?? ''),
+                'end_time' => (string) ($this->getEntityValue($entry, 'ends_at') ?? ''),
+                'source' => (string) ($this->getEntityValue($entry, 'source') ?? 'manual'),
+            ], $scheduleEntries);
+        }
+
+        $legacySchedule = [];
+        foreach ($this->eventRepo->findBy([]) as $event) {
+            if (($this->getEntityValue($event, 'category') ?? 'notification') !== 'schedule') {
+                continue;
+            }
+
+            $payload = json_decode((string) ($this->getEntityValue($event, 'payload') ?? '{}'), true) ?? [];
+            $source = $this->getEntityValue($event, 'source');
+            $occurred = $this->getEntityValue($event, 'occurred');
+            $normalized = $normalizer->normalize(
+                $payload + ['source' => is_string($source) ? $source : 'google-calendar'],
+                is_string($occurred) ? $occurred : null,
+            );
+            if ($normalized === null || ! str_starts_with($normalized['start_time'], $today)) {
+                continue;
+            }
+
+            $legacySchedule[] = [
+                'title' => $normalized['title'],
+                'start_time' => $normalized['start_time'],
+                'end_time' => $normalized['end_time'],
+                'source' => $normalized['source'],
+            ];
+        }
+
+        return $this->prepareSchedule($legacySchedule);
+    }
+
+    private function getEntityValue(mixed $entity, string $field): mixed
+    {
+        if (is_object($entity) && method_exists($entity, 'get')) {
+            return $entity->get($field);
+        }
+
+        return null;
+    }
+
+    private function parseDateTime(mixed $value): ?\DateTimeImmutable
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return new \DateTimeImmutable($value);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function buildWorkspaceData(array $recentEvents): array

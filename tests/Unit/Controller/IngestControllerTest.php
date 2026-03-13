@@ -8,6 +8,7 @@ use Claudriel\Controller\IngestController;
 use Claudriel\Entity\Commitment;
 use Claudriel\Entity\McEvent;
 use Claudriel\Entity\Person;
+use Claudriel\Entity\ScheduleEntry;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\Request;
@@ -165,6 +166,57 @@ final class IngestControllerTest extends TestCase
         self::assertNotEmpty($body['uuid']);
     }
 
+    public function test_calendar_event_ingest_upserts_today_schedule_entry(): void
+    {
+        $request = Request::create('/api/ingest', 'POST', [], [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer test-secret-key',
+        ], json_encode([
+            'source' => 'google-calendar',
+            'type' => 'calendar.event',
+            'timestamp' => '2026-03-12T21:26:21-04:00',
+            'payload' => [
+                'event_id' => 'gcal-123',
+                'calendar_id' => 'primary',
+                'title' => 'Morning Standup',
+                'start_time' => '2026-03-13T09:00:00-04:00',
+                'end_time' => '2026-03-13T09:30:00-04:00',
+            ],
+        ], JSON_THROW_ON_ERROR));
+
+        $response = $this->controller->handle([], [], null, $request);
+
+        self::assertSame(201, $response->getStatusCode());
+        $body = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('created', $body['status']);
+        self::assertNotEmpty($body['schedule_uuid']);
+
+        $scheduleStorage = $this->entityTypeManager->getStorage('schedule_entry');
+        $scheduleIds = $scheduleStorage->getQuery()->execute();
+        self::assertCount(1, $scheduleIds);
+
+        $updateRequest = Request::create('/api/ingest', 'POST', [], [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer test-secret-key',
+        ], json_encode([
+            'source' => 'google-calendar',
+            'type' => 'calendar.event',
+            'timestamp' => '2026-03-12T21:27:21-04:00',
+            'payload' => [
+                'event_id' => 'gcal-123',
+                'calendar_id' => 'primary',
+                'title' => 'Morning Standup Updated',
+                'start_time' => '2026-03-13T09:00:00-04:00',
+                'end_time' => '2026-03-13T10:00:00-04:00',
+            ],
+        ], JSON_THROW_ON_ERROR));
+        $this->controller->handle([], [], null, $updateRequest);
+
+        $scheduleIds = $scheduleStorage->getQuery()->execute();
+        self::assertCount(1, $scheduleIds);
+        $entry = $scheduleStorage->load(reset($scheduleIds));
+        self::assertSame('Morning Standup Updated', $entry->get('title'));
+        self::assertSame('2026-03-13T10:00:00-04:00', $entry->get('ends_at'));
+    }
+
     /** @return list<EntityType> */
     private function entityTypeDefinitions(): array
     {
@@ -173,7 +225,7 @@ final class IngestControllerTest extends TestCase
                 id: 'mc_event',
                 label: 'Event',
                 class: McEvent::class,
-                keys: ['id' => 'eid', 'uuid' => 'uuid'],
+                keys: ['id' => 'eid', 'uuid' => 'uuid', 'content_hash' => 'content_hash'],
             ),
             new EntityType(
                 id: 'commitment',
@@ -186,6 +238,12 @@ final class IngestControllerTest extends TestCase
                 label: 'Person',
                 class: Person::class,
                 keys: ['id' => 'pid', 'uuid' => 'uuid', 'label' => 'name'],
+            ),
+            new EntityType(
+                id: 'schedule_entry',
+                label: 'Schedule Entry',
+                class: ScheduleEntry::class,
+                keys: ['id' => 'seid', 'uuid' => 'uuid', 'label' => 'title'],
             ),
         ];
     }

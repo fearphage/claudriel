@@ -8,6 +8,7 @@ use Claudriel\Domain\DayBrief\Assembler\DayBriefAssembler;
 use Claudriel\Entity\Commitment;
 use Claudriel\Entity\McEvent;
 use Claudriel\Entity\Person;
+use Claudriel\Entity\ScheduleEntry;
 use Claudriel\Entity\Workspace;
 use Claudriel\Support\DriftDetector;
 use PHPUnit\Framework\TestCase;
@@ -23,6 +24,8 @@ final class DayBriefAssemblerTest extends TestCase
     private EntityRepository $commitmentRepo;
 
     private EntityRepository $personRepo;
+
+    private EntityRepository $scheduleRepo;
 
     private DayBriefAssembler $assembler;
 
@@ -45,12 +48,19 @@ final class DayBriefAssemblerTest extends TestCase
             new InMemoryStorageDriver,
             $dispatcher,
         );
+        $this->scheduleRepo = new EntityRepository(
+            new EntityType(id: 'schedule_entry', label: 'Schedule Entry', class: ScheduleEntry::class, keys: ['id' => 'seid', 'uuid' => 'uuid', 'label' => 'title']),
+            new InMemoryStorageDriver,
+            $dispatcher,
+        );
 
         $this->assembler = new DayBriefAssembler(
             $this->eventRepo,
             $this->commitmentRepo,
             new DriftDetector($this->commitmentRepo),
             $this->personRepo,
+            null,
+            $this->scheduleRepo,
         );
     }
 
@@ -78,15 +88,16 @@ final class DayBriefAssemblerTest extends TestCase
 
     public function test_groups_schedule_events(): void
     {
-        $event = new McEvent([
+        $today = (new \DateTimeImmutable)->format('Y-m-d');
+        $entry = new ScheduleEntry([
+            'seid' => 1,
+            'title' => 'Team standup',
+            'starts_at' => $today.'T09:00:00+00:00',
+            'ends_at' => $today.'T09:30:00+00:00',
             'source' => 'google-calendar',
-            'type' => 'calendar.event',
-            'category' => 'schedule',
-            'payload' => json_encode(['title' => 'Team standup', 'start_time' => '2026-03-10T09:00:00']),
-            'occurred' => (new \DateTimeImmutable('-1 hour'))->format('Y-m-d H:i:s'),
             'tenant_id' => 'user-1',
         ]);
-        $this->eventRepo->save($event);
+        $this->scheduleRepo->save($entry);
 
         $brief = $this->assembler->assemble('user-1', new \DateTimeImmutable('-24 hours'));
 
@@ -98,22 +109,15 @@ final class DayBriefAssemblerTest extends TestCase
 
     public function test_deduplicates_schedule_events_with_same_title_and_time(): void
     {
-        $payload = json_encode(['title' => 'Team standup', 'start_time' => '2026-03-10T09:00:00', 'end_time' => '2026-03-10T09:30:00']);
-
-        $this->eventRepo->save(new McEvent([
+        $today = (new \DateTimeImmutable)->format('Y-m-d');
+        $this->scheduleRepo->save(new ScheduleEntry([
+            'seid' => 1,
+            'uuid' => 'sched-1',
+            'title' => 'Team standup',
+            'starts_at' => $today.'T09:00:00+00:00',
+            'ends_at' => $today.'T09:30:00+00:00',
             'source' => 'google-calendar',
-            'type' => 'calendar.event',
-            'category' => 'schedule',
-            'payload' => $payload,
-            'occurred' => (new \DateTimeImmutable('-1 hour'))->format('Y-m-d H:i:s'),
-            'tenant_id' => 'user-1',
-        ]));
-        $this->eventRepo->save(new McEvent([
-            'source' => 'google-calendar',
-            'type' => 'calendar.event',
-            'category' => 'schedule',
-            'payload' => $payload,
-            'occurred' => (new \DateTimeImmutable('-50 minutes'))->format('Y-m-d H:i:s'),
+            'external_id' => 'gcal-123',
             'tenant_id' => 'user-1',
         ]));
 
@@ -121,7 +125,65 @@ final class DayBriefAssemblerTest extends TestCase
 
         self::assertCount(1, $brief['schedule']);
         self::assertSame('Team standup', $brief['schedule'][0]['title']);
-        self::assertSame('2026-03-10T09:00:00', $brief['schedule'][0]['start_time']);
+        self::assertStringStartsWith($today.'T09:00:00', $brief['schedule'][0]['start_time']);
+    }
+
+    public function test_schedule_only_includes_today_and_is_sorted(): void
+    {
+        $today = new \DateTimeImmutable('today');
+        $tomorrow = $today->modify('+1 day');
+
+        $this->scheduleRepo->save(new ScheduleEntry([
+            'seid' => 2,
+            'title' => 'Late Meeting',
+            'starts_at' => $today->format('Y-m-d').'T16:00:00+00:00',
+            'ends_at' => $today->format('Y-m-d').'T17:00:00+00:00',
+            'source' => 'google-calendar',
+            'tenant_id' => 'user-1',
+        ]));
+        $this->scheduleRepo->save(new ScheduleEntry([
+            'seid' => 3,
+            'title' => 'Morning Standup',
+            'starts_at' => $today->format('Y-m-d').'T09:00:00+00:00',
+            'ends_at' => $today->format('Y-m-d').'T09:30:00+00:00',
+            'source' => 'google-calendar',
+            'tenant_id' => 'user-1',
+        ]));
+        $this->scheduleRepo->save(new ScheduleEntry([
+            'seid' => 4,
+            'title' => 'Tomorrow Planning',
+            'starts_at' => $tomorrow->format('Y-m-d').'T10:00:00+00:00',
+            'ends_at' => $tomorrow->format('Y-m-d').'T11:00:00+00:00',
+            'source' => 'google-calendar',
+            'tenant_id' => 'user-1',
+        ]));
+
+        $brief = $this->assembler->assemble('user-1', new \DateTimeImmutable('-24 hours'));
+
+        self::assertCount(2, $brief['schedule']);
+        self::assertSame('Morning Standup', $brief['schedule'][0]['title']);
+        self::assertSame('Late Meeting', $brief['schedule'][1]['title']);
+    }
+
+    public function test_legacy_schedule_events_are_normalized_to_today_view_when_schedule_store_is_empty(): void
+    {
+        $occurred = new \DateTimeImmutable('yesterday 21:00:00');
+        $this->eventRepo->save(new McEvent([
+            'eid' => 1,
+            'content_hash' => 'legacy-hash-1',
+            'source' => 'google-calendar',
+            'type' => 'calendar.event',
+            'category' => 'schedule',
+            'payload' => json_encode(['subject' => 'Content Creation', 'body' => '11:30am - 2:00pm']),
+            'occurred' => $occurred->format('Y-m-d H:i:s'),
+            'tenant_id' => 'user-1',
+        ]));
+
+        $brief = $this->assembler->assemble('user-1', new \DateTimeImmutable('-48 hours'));
+
+        self::assertCount(1, $brief['schedule']);
+        self::assertSame('Content Creation', $brief['schedule'][0]['title']);
+        self::assertStringStartsWith((new \DateTimeImmutable('today'))->format('Y-m-d').'T11:30:00', $brief['schedule'][0]['start_time']);
     }
 
     public function test_groups_job_hunt_events(): void
@@ -245,6 +307,7 @@ final class DayBriefAssemblerTest extends TestCase
             new DriftDetector($this->commitmentRepo),
             $this->personRepo,
             null,
+            $this->scheduleRepo,
             $workspaceRepo,
         );
 

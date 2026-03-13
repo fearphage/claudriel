@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Claudriel\Controller;
 
 use Claudriel\Ingestion\EventCategorizer;
+use Claudriel\Ingestion\Handler\CalendarEventIngestHandler;
 use Claudriel\Ingestion\Handler\CommitmentIngestHandler;
 use Claudriel\Ingestion\Handler\GenericEventHandler;
 use Claudriel\Ingestion\Handler\PersonIngestHandler;
@@ -31,6 +32,7 @@ final class IngestController
     ) {
         $fallback = new GenericEventHandler($this->entityTypeManager, new EventCategorizer(new AutomatedSenderDetector));
         $this->registry = new IngestHandlerRegistry($fallback);
+        $this->registry->addHandler(new CalendarEventIngestHandler($this->entityTypeManager, new EventCategorizer(new AutomatedSenderDetector)));
         $this->registry->addHandler(new CommitmentIngestHandler($this->entityTypeManager));
         $this->registry->addHandler(new PersonIngestHandler($this->entityTypeManager));
     }
@@ -60,6 +62,12 @@ final class IngestController
                 'error' => 'Invalid payload: "payload" must be an object',
             ], 422);
         }
+
+        if (! isset($data['timestamp']) || ! is_string($data['timestamp']) || trim($data['timestamp']) === '') {
+            $data['timestamp'] = (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM);
+        }
+        $data['tenant_id'] = $data['tenant_id'] ?? null;
+        $data['trace_id'] = $data['trace_id'] ?? null;
 
         $result = $this->registry->handle($data);
 

@@ -17,7 +17,7 @@ interface IngestHandlerInterface
     /**
      * Process the ingestion payload and return a result array.
      *
-     * @param  array{source: string, type: string, payload: array<string, mixed>}  $data
+     * @param  array{source: string, type: string, payload: array<string, mixed>, timestamp?: string, tenant_id?: mixed, trace_id?: mixed}  $data
      * @return array<string, mixed>
      */
     public function handle(array $data): array;

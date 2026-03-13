@@ -51,7 +51,13 @@ final class DashboardController
         } catch (\Throwable) {
         }
 
-        $assembler = new DayBriefAssembler($eventRepo, $commitmentRepo, $driftDetector, $personRepo, $skillRepo, $workspaceRepo);
+        $scheduleRepo = null;
+        try {
+            $scheduleRepo = new StorageRepositoryAdapter($this->entityTypeManager->getStorage('schedule_entry'));
+        } catch (\Throwable) {
+        }
+
+        $assembler = new DayBriefAssembler($eventRepo, $commitmentRepo, $driftDetector, $personRepo, $skillRepo, $scheduleRepo, $workspaceRepo);
         $brief = $assembler->assemble('default', $since);
         $briefPayload = $this->buildBriefPayload($brief);
         $fallbackPayload = [

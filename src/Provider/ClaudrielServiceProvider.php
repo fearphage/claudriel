@@ -36,6 +36,7 @@ use Claudriel\Controller\Governance\CodifiedContextIntegrityController;
 use Claudriel\Controller\IngestController;
 use Claudriel\Controller\NotFoundController;
 use Claudriel\Controller\Platform\ObservabilityDashboardController;
+use Claudriel\Controller\ScheduleApiController;
 use Claudriel\Controller\WorkspaceApiController;
 use Claudriel\Domain\DayBrief\Assembler\DayBriefAssembler;
 use Claudriel\Domain\DayBrief\Service\BriefSessionStore;
@@ -49,6 +50,7 @@ use Claudriel\Entity\Integration;
 use Claudriel\Entity\McEvent;
 use Claudriel\Entity\Operation;
 use Claudriel\Entity\Person;
+use Claudriel\Entity\ScheduleEntry;
 use Claudriel\Entity\Skill;
 use Claudriel\Entity\Workspace;
 use Claudriel\Ingestion\EventCategorizer;
@@ -139,6 +141,13 @@ final class ClaudrielServiceProvider extends ServiceProvider
             label: 'Workspace',
             class: Workspace::class,
             keys: ['id' => 'wid', 'uuid' => 'uuid', 'label' => 'name'],
+        ));
+
+        $this->entityType(new EntityType(
+            id: 'schedule_entry',
+            label: 'Schedule Entry',
+            class: ScheduleEntry::class,
+            keys: ['id' => 'seid', 'uuid' => 'uuid', 'label' => 'title'],
         ));
 
         $this->entityType(new EntityType(
@@ -299,6 +308,48 @@ final class ClaudrielServiceProvider extends ServiceProvider
             ->build();
         $deleteRoute->setOption('_csrf', false);
         $router->addRoute('claudriel.api.workspaces.delete', $deleteRoute);
+
+        $router->addRoute(
+            'claudriel.api.schedule',
+            RouteBuilder::create('/api/schedule')
+                ->controller(ScheduleApiController::class.'::list')
+                ->allowAll()
+                ->methods('GET')
+                ->build(),
+        );
+
+        $createScheduleRoute = RouteBuilder::create('/api/schedule')
+            ->controller(ScheduleApiController::class.'::create')
+            ->allowAll()
+            ->methods('POST')
+            ->build();
+        $createScheduleRoute->setOption('_csrf', false);
+        $router->addRoute('claudriel.api.schedule.create', $createScheduleRoute);
+
+        $router->addRoute(
+            'claudriel.api.schedule.show',
+            RouteBuilder::create('/api/schedule/{uuid}')
+                ->controller(ScheduleApiController::class.'::show')
+                ->allowAll()
+                ->methods('GET')
+                ->build(),
+        );
+
+        $updateScheduleRoute = RouteBuilder::create('/api/schedule/{uuid}')
+            ->controller(ScheduleApiController::class.'::update')
+            ->allowAll()
+            ->methods('PATCH')
+            ->build();
+        $updateScheduleRoute->setOption('_csrf', false);
+        $router->addRoute('claudriel.api.schedule.update', $updateScheduleRoute);
+
+        $deleteScheduleRoute = RouteBuilder::create('/api/schedule/{uuid}')
+            ->controller(ScheduleApiController::class.'::delete')
+            ->allowAll()
+            ->methods('DELETE')
+            ->build();
+        $deleteScheduleRoute->setOption('_csrf', false);
+        $router->addRoute('claudriel.api.schedule.delete', $deleteScheduleRoute);
 
         $router->addRoute(
             'claudriel.ai.export.daily',
@@ -519,7 +570,7 @@ final class ClaudrielServiceProvider extends ServiceProvider
         EventDispatcherInterface $dispatcher,
     ): array {
         // Trigger getStorage() for each entity type so SqlSchemaHandler::ensureTable() runs.
-        foreach (['mc_event', 'commitment', 'commitment_extraction_log', 'person', 'account', 'integration', 'skill', 'chat_session', 'chat_message', 'workspace', 'artifact', 'operation'] as $typeId) {
+        foreach (['mc_event', 'commitment', 'commitment_extraction_log', 'person', 'account', 'integration', 'skill', 'chat_session', 'chat_message', 'workspace', 'schedule_entry', 'artifact', 'operation'] as $typeId) {
             try {
                 $entityTypeManager->getStorage($typeId);
             } catch (\Throwable) {
@@ -589,6 +640,18 @@ final class ClaudrielServiceProvider extends ServiceProvider
             $dispatcher,
         );
 
+        $scheduleType = new EntityType(
+            id: 'schedule_entry',
+            label: 'Schedule Entry',
+            class: ScheduleEntry::class,
+            keys: ['id' => 'seid', 'uuid' => 'uuid', 'label' => 'title'],
+        );
+        $scheduleRepo = new EntityRepository(
+            $scheduleType,
+            new SqlStorageDriver($resolver, 'seid'),
+            $dispatcher,
+        );
+
         $artifactType = new EntityType(
             id: 'artifact',
             label: 'Artifact',
@@ -618,7 +681,7 @@ final class ClaudrielServiceProvider extends ServiceProvider
         $gitOperator = new GitOperator;
         $this->ensureClaudrielSystemWorkspace($workspaceRepo, $artifactRepo, $gitRepositoryManager);
 
-        $assembler = new DayBriefAssembler($eventRepo, $commitmentRepo, new DriftDetector($commitmentRepo), $personRepo, $skillRepo, $workspaceRepo);
+        $assembler = new DayBriefAssembler($eventRepo, $commitmentRepo, new DriftDetector($commitmentRepo), $personRepo, $skillRepo, $scheduleRepo, $workspaceRepo);
         $sessionStore = new BriefSessionStore($this->projectRoot.'/storage/brief-session.txt');
 
         return [
