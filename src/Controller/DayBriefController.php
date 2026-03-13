@@ -87,6 +87,13 @@ final class DayBriefController
             // schedule entity type may not be registered in tests
         }
 
+        $triageRepo = null;
+        try {
+            $triageRepo = new StorageRepositoryAdapter($this->entityTypeManager->getStorage('triage_entry'));
+        } catch (\Throwable) {
+            // triage entity type may not be registered in tests
+        }
+
         return new DayBriefAssembler(
             $eventRepo,
             $commitmentRepo,
@@ -94,6 +101,8 @@ final class DayBriefController
             $personRepo,
             null,
             $scheduleRepo,
+            null,
+            $triageRepo,
         );
     }
 }

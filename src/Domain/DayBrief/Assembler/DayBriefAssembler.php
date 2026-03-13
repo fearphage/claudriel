@@ -18,6 +18,7 @@ final class DayBriefAssembler
         private readonly ?EntityRepositoryInterface $skillRepo = null,
         private readonly ?EntityRepositoryInterface $scheduleRepo = null,
         private readonly ?EntityRepositoryInterface $workspaceRepo = null,
+        private readonly ?EntityRepositoryInterface $triageRepo = null,
     ) {}
 
     /** @return array{schedule: array, job_hunt: array, people: array, triage: array, creators: array, notifications: array, commitments: array{pending: array, drifting: array}, counts: array{job_alerts: int, messages: int, triage: int, due_today: int, drifting: int}, generated_at: string, matched_skills: array, workspaces: array} */
@@ -80,6 +81,14 @@ final class DayBriefAssembler
         $schedule = $this->scheduleRepo !== null
             ? $this->buildNormalizedSchedule($tenantId)
             : $this->prepareSchedule($schedule);
+        $normalizedPeople = $this->personRepo !== null
+            ? $this->buildNormalizedPeople($tenantId, $since)
+            : [];
+        $normalizedTriage = $this->triageRepo !== null
+            ? $this->buildNormalizedTriage($tenantId, $since)
+            : [];
+        $people = $normalizedPeople !== [] ? $normalizedPeople : $peopleEvents;
+        $triage = $normalizedTriage !== [] ? $normalizedTriage : $triage;
 
         $allCommitments = $this->commitmentRepo->findBy([]);
         $pending = array_values(array_filter(
@@ -94,7 +103,7 @@ final class DayBriefAssembler
         return [
             'schedule' => $schedule,
             'job_hunt' => $jobHunt,
-            'people' => $peopleEvents,
+            'people' => $people,
             'triage' => $triage,
             'creators' => $creators,
             'notifications' => $notifications,
@@ -104,7 +113,7 @@ final class DayBriefAssembler
             ],
             'counts' => [
                 'job_alerts' => count($jobHunt),
-                'messages' => count($peopleEvents),
+                'messages' => count($people),
                 'triage' => count($triage),
                 'due_today' => $dueToday,
                 'drifting' => count($drifting),
@@ -386,6 +395,80 @@ final class DayBriefAssembler
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /**
+     * @return list<array{person_name: string, person_email: string, summary: string, occurred: string}>
+     */
+    private function buildNormalizedPeople(string $tenantId, \DateTimeImmutable $since): array
+    {
+        if ($this->personRepo === null) {
+            return [];
+        }
+
+        $people = array_values(array_filter(
+            $this->personRepo->findBy([]),
+            function ($person) use ($tenantId, $since): bool {
+                $tenant = (string) ($this->getEntityValue($person, 'tenant_id') ?? '');
+                if ($tenant !== '' && $tenant !== $tenantId) {
+                    return false;
+                }
+
+                if ((string) ($this->getEntityValue($person, 'last_inbox_category') ?? '') !== 'people') {
+                    return false;
+                }
+
+                $lastInteraction = $this->parseDateTime($this->getEntityValue($person, 'last_interaction_at'));
+
+                return $lastInteraction instanceof \DateTimeImmutable && $lastInteraction >= $since;
+            },
+        ));
+
+        usort($people, fn ($a, $b): int => ((string) $this->getEntityValue($b, 'last_interaction_at')) <=> ((string) $this->getEntityValue($a, 'last_interaction_at')));
+
+        return array_map(fn ($person): array => [
+            'person_name' => (string) ($this->getEntityValue($person, 'name') ?? $this->getEntityValue($person, 'email') ?? ''),
+            'person_email' => (string) ($this->getEntityValue($person, 'email') ?? ''),
+            'summary' => (string) ($this->getEntityValue($person, 'latest_summary') ?? ''),
+            'occurred' => (string) ($this->getEntityValue($person, 'last_interaction_at') ?? ''),
+        ], $people);
+    }
+
+    /**
+     * @return list<array{person_name: string, person_email: string, summary: string, occurred: string}>
+     */
+    private function buildNormalizedTriage(string $tenantId, \DateTimeImmutable $since): array
+    {
+        if ($this->triageRepo === null) {
+            return [];
+        }
+
+        $entries = array_values(array_filter(
+            $this->triageRepo->findBy([]),
+            function ($entry) use ($tenantId, $since): bool {
+                if ((string) ($this->getEntityValue($entry, 'status') ?? 'open') !== 'open') {
+                    return false;
+                }
+
+                $tenant = (string) ($this->getEntityValue($entry, 'tenant_id') ?? '');
+                if ($tenant !== '' && $tenant !== $tenantId) {
+                    return false;
+                }
+
+                $occurredAt = $this->parseDateTime($this->getEntityValue($entry, 'occurred_at'));
+
+                return $occurredAt instanceof \DateTimeImmutable && $occurredAt >= $since;
+            },
+        ));
+
+        usort($entries, fn ($a, $b): int => ((string) $this->getEntityValue($b, 'occurred_at')) <=> ((string) $this->getEntityValue($a, 'occurred_at')));
+
+        return array_map(fn ($entry): array => [
+            'person_name' => (string) ($this->getEntityValue($entry, 'sender_name') ?? 'Unknown sender'),
+            'person_email' => (string) ($this->getEntityValue($entry, 'sender_email') ?? ''),
+            'summary' => (string) ($this->getEntityValue($entry, 'summary') ?? ''),
+            'occurred' => (string) ($this->getEntityValue($entry, 'occurred_at') ?? ''),
+        ], $entries);
     }
 
     private function buildWorkspaceData(array $recentEvents): array

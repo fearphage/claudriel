@@ -30,9 +30,11 @@ final class IngestController
         private readonly EntityTypeManager $entityTypeManager,
         private readonly mixed $twig = null,
     ) {
-        $fallback = new GenericEventHandler($this->entityTypeManager, new EventCategorizer(new AutomatedSenderDetector));
+        $personRepo = new StorageRepositoryAdapter($this->entityTypeManager->getStorage('person'));
+        $categorizer = new EventCategorizer(new AutomatedSenderDetector, $personRepo);
+        $fallback = new GenericEventHandler($this->entityTypeManager, $categorizer);
         $this->registry = new IngestHandlerRegistry($fallback);
-        $this->registry->addHandler(new CalendarEventIngestHandler($this->entityTypeManager, new EventCategorizer(new AutomatedSenderDetector)));
+        $this->registry->addHandler(new CalendarEventIngestHandler($this->entityTypeManager, $categorizer));
         $this->registry->addHandler(new CommitmentIngestHandler($this->entityTypeManager));
         $this->registry->addHandler(new PersonIngestHandler($this->entityTypeManager));
     }

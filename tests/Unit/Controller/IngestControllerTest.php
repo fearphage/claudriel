@@ -9,6 +9,7 @@ use Claudriel\Entity\Commitment;
 use Claudriel\Entity\McEvent;
 use Claudriel\Entity\Person;
 use Claudriel\Entity\ScheduleEntry;
+use Claudriel\Entity\TriageEntry;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\Request;
@@ -117,6 +118,78 @@ final class IngestControllerTest extends TestCase
         self::assertSame('created', $body['status']);
         self::assertSame('mc_event', $body['entity_type']);
         self::assertNotEmpty($body['uuid']);
+    }
+
+    public function test_gmail_message_from_known_person_updates_person_projection(): void
+    {
+        $personStorage = $this->entityTypeManager->getStorage('person');
+        $personStorage->save(new Person([
+            'email' => 'jane@example.com',
+            'name' => 'Jane',
+            'tenant_id' => 'default',
+        ]));
+
+        $request = Request::create('/api/ingest', 'POST', [], [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer test-secret-key',
+        ], json_encode([
+            'source' => 'gmail',
+            'type' => 'message.received',
+            'timestamp' => '2026-03-13T09:30:00-04:00',
+            'tenant_id' => 'default',
+            'payload' => [
+                'from_email' => 'jane@example.com',
+                'from_name' => 'Jane',
+                'subject' => 'Lunch?',
+                'message_id' => 'gmail-123',
+            ],
+        ], JSON_THROW_ON_ERROR));
+
+        $response = $this->controller->handle([], [], null, $request);
+
+        self::assertSame(201, $response->getStatusCode());
+        $body = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame('mc_event', $body['entity_type']);
+        self::assertNotEmpty($body['person_uuid']);
+
+        $query = $personStorage->getQuery();
+        $query->condition('email', 'jane@example.com');
+        $personIds = $query->execute();
+        $person = $personStorage->load(reset($personIds));
+        self::assertSame('Lunch?', $person->get('latest_summary'));
+        self::assertSame('people', $person->get('last_inbox_category'));
+    }
+
+    public function test_gmail_message_from_unknown_sender_updates_triage_projection(): void
+    {
+        $request = Request::create('/api/ingest', 'POST', [], [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer test-secret-key',
+        ], json_encode([
+            'source' => 'gmail',
+            'type' => 'message.received',
+            'timestamp' => '2026-03-13T11:00:00-04:00',
+            'tenant_id' => 'default',
+            'payload' => [
+                'from_email' => 'unknown@example.com',
+                'from_name' => 'Unknown Sender',
+                'subject' => 'Partnership opportunity',
+                'message_id' => 'gmail-456',
+            ],
+        ], JSON_THROW_ON_ERROR));
+
+        $response = $this->controller->handle([], [], null, $request);
+
+        self::assertSame(201, $response->getStatusCode());
+        $body = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertNotEmpty($body['triage_uuid']);
+
+        $triageStorage = $this->entityTypeManager->getStorage('triage_entry');
+        $triageIds = $triageStorage->getQuery()->execute();
+        self::assertCount(1, $triageIds);
+
+        $triageEntry = $triageStorage->load(reset($triageIds));
+        self::assertSame('Unknown Sender', $triageEntry->get('sender_name'));
+        self::assertSame('Partnership opportunity', $triageEntry->get('summary'));
+        self::assertSame('open', $triageEntry->get('status'));
     }
 
     public function test_creates_commitment_for_commitment_detected_type(): void
@@ -244,6 +317,12 @@ final class IngestControllerTest extends TestCase
                 label: 'Schedule Entry',
                 class: ScheduleEntry::class,
                 keys: ['id' => 'seid', 'uuid' => 'uuid', 'label' => 'title'],
+            ),
+            new EntityType(
+                id: 'triage_entry',
+                label: 'Triage Entry',
+                class: TriageEntry::class,
+                keys: ['id' => 'teid', 'uuid' => 'uuid', 'label' => 'sender_name'],
             ),
         ];
     }

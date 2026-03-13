@@ -52,6 +52,7 @@ use Claudriel\Entity\Operation;
 use Claudriel\Entity\Person;
 use Claudriel\Entity\ScheduleEntry;
 use Claudriel\Entity\Skill;
+use Claudriel\Entity\TriageEntry;
 use Claudriel\Entity\Workspace;
 use Claudriel\Ingestion\EventCategorizer;
 use Claudriel\Layer2\GitRepositoryManager;
@@ -92,6 +93,13 @@ final class ClaudrielServiceProvider extends ServiceProvider
             label: 'Person',
             class: Person::class,
             keys: ['id' => 'pid', 'uuid' => 'uuid', 'label' => 'name'],
+        ));
+
+        $this->entityType(new EntityType(
+            id: 'triage_entry',
+            label: 'Triage Entry',
+            class: TriageEntry::class,
+            keys: ['id' => 'teid', 'uuid' => 'uuid', 'label' => 'sender_name'],
         ));
 
         $this->entityType(new EntityType(
@@ -652,6 +660,18 @@ final class ClaudrielServiceProvider extends ServiceProvider
             $dispatcher,
         );
 
+        $triageType = new EntityType(
+            id: 'triage_entry',
+            label: 'Triage Entry',
+            class: TriageEntry::class,
+            keys: ['id' => 'teid', 'uuid' => 'uuid', 'label' => 'sender_name'],
+        );
+        $triageRepo = new EntityRepository(
+            $triageType,
+            new SqlStorageDriver($resolver, 'teid'),
+            $dispatcher,
+        );
+
         $artifactType = new EntityType(
             id: 'artifact',
             label: 'Artifact',
@@ -681,7 +701,7 @@ final class ClaudrielServiceProvider extends ServiceProvider
         $gitOperator = new GitOperator;
         $this->ensureClaudrielSystemWorkspace($workspaceRepo, $artifactRepo, $gitRepositoryManager);
 
-        $assembler = new DayBriefAssembler($eventRepo, $commitmentRepo, new DriftDetector($commitmentRepo), $personRepo, $skillRepo, $scheduleRepo, $workspaceRepo);
+        $assembler = new DayBriefAssembler($eventRepo, $commitmentRepo, new DriftDetector($commitmentRepo), $personRepo, $skillRepo, $scheduleRepo, $workspaceRepo, $triageRepo);
         $sessionStore = new BriefSessionStore($this->projectRoot.'/storage/brief-session.txt');
 
         return [

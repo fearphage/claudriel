@@ -176,7 +176,13 @@ final class BriefStreamController
         } catch (\Throwable) {
         }
 
-        $assembler = new DayBriefAssembler($eventRepo, $commitmentRepo, $driftDetector, $personRepo, $skillRepo, $scheduleRepo, $workspaceRepo);
+        $triageRepo = null;
+        try {
+            $triageRepo = new StorageRepositoryAdapter($this->entityTypeManager->getStorage('triage_entry'));
+        } catch (\Throwable) {
+        }
+
+        $assembler = new DayBriefAssembler($eventRepo, $commitmentRepo, $driftDetector, $personRepo, $skillRepo, $scheduleRepo, $workspaceRepo, $triageRepo);
         $brief = $assembler->assemble('default', new \DateTimeImmutable('-24 hours'));
 
         $briefs = $brief;

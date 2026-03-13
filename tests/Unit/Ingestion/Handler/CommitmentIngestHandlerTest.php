@@ -99,4 +99,27 @@ final class CommitmentIngestHandlerTest extends TestCase
         // Different commitment UUIDs.
         self::assertNotSame($result1['uuid'], $result2['uuid']);
     }
+
+    public function test_updates_existing_commitment_instead_of_creating_duplicate(): void
+    {
+        $data = [
+            'source' => 'gmail',
+            'type' => 'commitment.detected',
+            'payload' => [
+                'title' => 'Follow up with Bob',
+                'due_date' => '2026-03-15',
+                'person_email' => 'bob@example.com',
+                'person_name' => 'Bob',
+            ],
+            'timestamp' => '2026-03-13T09:00:00-04:00',
+        ];
+
+        $result1 = $this->handler->handle($data);
+        $data['payload']['confidence'] = 0.92;
+        $data['timestamp'] = '2026-03-13T09:10:00-04:00';
+        $result2 = $this->handler->handle($data);
+
+        self::assertSame('updated', $result2['status']);
+        self::assertSame($result1['uuid'], $result2['uuid']);
+    }
 }

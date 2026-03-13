@@ -9,6 +9,7 @@ use Claudriel\Entity\Commitment;
 use Claudriel\Entity\McEvent;
 use Claudriel\Entity\Person;
 use Claudriel\Entity\ScheduleEntry;
+use Claudriel\Entity\TriageEntry;
 use Claudriel\Entity\Workspace;
 use Claudriel\Support\DriftDetector;
 use PHPUnit\Framework\TestCase;
@@ -26,6 +27,8 @@ final class DayBriefAssemblerTest extends TestCase
     private EntityRepository $personRepo;
 
     private EntityRepository $scheduleRepo;
+
+    private EntityRepository $triageRepo;
 
     private DayBriefAssembler $assembler;
 
@@ -53,6 +56,11 @@ final class DayBriefAssemblerTest extends TestCase
             new InMemoryStorageDriver,
             $dispatcher,
         );
+        $this->triageRepo = new EntityRepository(
+            new EntityType(id: 'triage_entry', label: 'Triage Entry', class: TriageEntry::class, keys: ['id' => 'teid', 'uuid' => 'uuid', 'label' => 'sender_name']),
+            new InMemoryStorageDriver,
+            $dispatcher,
+        );
 
         $this->assembler = new DayBriefAssembler(
             $this->eventRepo,
@@ -61,6 +69,8 @@ final class DayBriefAssemblerTest extends TestCase
             $this->personRepo,
             null,
             $this->scheduleRepo,
+            null,
+            $this->triageRepo,
         );
     }
 
@@ -241,15 +251,14 @@ final class DayBriefAssemblerTest extends TestCase
 
     public function test_groups_people_events(): void
     {
-        $event = new McEvent([
-            'source' => 'gmail',
-            'type' => 'message.received',
-            'category' => 'people',
-            'payload' => json_encode(['from_email' => 'jane@example.com', 'from_name' => 'Jane', 'subject' => 'Lunch?']),
-            'occurred' => (new \DateTimeImmutable('-1 hour'))->format('Y-m-d H:i:s'),
+        $this->personRepo->save(new Person([
+            'email' => 'jane@example.com',
+            'name' => 'Jane',
+            'latest_summary' => 'Lunch?',
+            'last_interaction_at' => (new \DateTimeImmutable('-1 hour'))->format(\DateTimeInterface::ATOM),
+            'last_inbox_category' => 'people',
             'tenant_id' => 'user-1',
-        ]);
-        $this->eventRepo->save($event);
+        ]));
 
         $brief = $this->assembler->assemble('user-1', new \DateTimeImmutable('-24 hours'));
 
@@ -261,15 +270,13 @@ final class DayBriefAssemblerTest extends TestCase
 
     public function test_groups_triage_events(): void
     {
-        $event = new McEvent([
-            'source' => 'gmail',
-            'type' => 'message.received',
-            'category' => 'triage',
-            'payload' => json_encode(['from_email' => 'unknown@company.com', 'from_name' => 'Unknown Sender', 'subject' => 'Partnership opportunity']),
-            'occurred' => (new \DateTimeImmutable('-1 hour'))->format('Y-m-d H:i:s'),
+        $this->triageRepo->save(new TriageEntry([
+            'sender_email' => 'unknown@company.com',
+            'sender_name' => 'Unknown Sender',
+            'summary' => 'Partnership opportunity',
+            'occurred_at' => (new \DateTimeImmutable('-1 hour'))->format(\DateTimeInterface::ATOM),
             'tenant_id' => 'user-1',
-        ]);
-        $this->eventRepo->save($event);
+        ]));
 
         $brief = $this->assembler->assemble('user-1', new \DateTimeImmutable('-24 hours'));
 
@@ -291,15 +298,14 @@ final class DayBriefAssemblerTest extends TestCase
 
     public function test_filters_old_events(): void
     {
-        $oldEvent = new McEvent([
-            'source' => 'gmail',
-            'type' => 'message.received',
-            'category' => 'people',
-            'payload' => '{}',
-            'occurred' => (new \DateTimeImmutable('-48 hours'))->format('Y-m-d H:i:s'),
+        $this->personRepo->save(new Person([
+            'email' => 'old@example.com',
+            'name' => 'Old Contact',
+            'latest_summary' => 'Old note',
+            'last_interaction_at' => (new \DateTimeImmutable('-48 hours'))->format(\DateTimeInterface::ATOM),
+            'last_inbox_category' => 'people',
             'tenant_id' => 'user-1',
-        ]);
-        $this->eventRepo->save($oldEvent);
+        ]));
 
         $brief = $this->assembler->assemble('user-1', new \DateTimeImmutable('-24 hours'));
 
@@ -343,6 +349,7 @@ final class DayBriefAssemblerTest extends TestCase
             null,
             $this->scheduleRepo,
             $workspaceRepo,
+            $this->triageRepo,
         );
 
         $wsUuid = 'test-workspace-uuid-1234';
