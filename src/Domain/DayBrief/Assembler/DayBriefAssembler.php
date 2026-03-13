@@ -125,7 +125,7 @@ final class DayBriefAssembler
         $filtered = [];
 
         foreach ($schedule as $item) {
-            $start = $this->parseDateTime($item['start_time'] ?? null);
+            $start = $this->parseDateTime($item['start_time']);
             if ($start === null || $start->format('Y-m-d') !== $today) {
                 continue;
             }
@@ -186,12 +186,11 @@ final class DayBriefAssembler
         usort($scheduleEntries, fn ($a, $b): int => ((string) $this->getEntityValue($a, 'starts_at')) <=> ((string) $this->getEntityValue($b, 'starts_at')));
 
         if ($scheduleEntries !== []) {
-            return array_map(fn ($entry) => [
-                'title' => (string) ($this->getEntityValue($entry, 'title') ?? ''),
-                'start_time' => (string) ($this->getEntityValue($entry, 'starts_at') ?? ''),
-                'end_time' => (string) ($this->getEntityValue($entry, 'ends_at') ?? ''),
-                'source' => (string) ($this->getEntityValue($entry, 'source') ?? 'manual'),
-            ], $scheduleEntries);
+            $normalizedEntries = array_map(function ($entry) use ($normalizer): array {
+                return $this->normalizeScheduleEntry($entry, $normalizer);
+            }, $scheduleEntries);
+
+            return $this->canonicalizeSchedule($normalizedEntries);
         }
 
         $legacySchedule = [];
@@ -219,7 +218,152 @@ final class DayBriefAssembler
             ];
         }
 
-        return $this->prepareSchedule($legacySchedule);
+        return $this->canonicalizeSchedule($legacySchedule);
+    }
+
+    /**
+     * @param  array{title: string, start_time: string, end_time: string, source: string, external_id?: string|null}  $entry
+     * @return array{title: string, start_time: string, end_time: string, source: string}
+     */
+    private function stripScheduleMeta(array $entry): array
+    {
+        return [
+            'title' => $entry['title'],
+            'start_time' => $entry['start_time'],
+            'end_time' => $entry['end_time'],
+            'source' => $entry['source'],
+        ];
+    }
+
+    /**
+     * @return array{title: string, start_time: string, end_time: string, source: string, external_id?: string|null}
+     */
+    private function normalizeScheduleEntry(mixed $entry, SchedulePayloadNormalizer $normalizer): array
+    {
+        $title = (string) ($this->getEntityValue($entry, 'title') ?? '');
+        $startTime = (string) ($this->getEntityValue($entry, 'starts_at') ?? '');
+        $endTime = (string) ($this->getEntityValue($entry, 'ends_at') ?? '');
+        $source = (string) ($this->getEntityValue($entry, 'source') ?? 'manual');
+        $externalId = $this->getEntityValue($entry, 'external_id');
+        $rawPayload = $this->getEntityValue($entry, 'raw_payload');
+
+        if ($source === 'google-calendar' && is_string($rawPayload) && $rawPayload !== '') {
+            $payload = json_decode($rawPayload, true);
+            $start = $this->parseDateTime($startTime);
+            if (is_array($payload) && $start instanceof \DateTimeImmutable) {
+                $normalized = $normalizer->normalizeForLocalDate($payload + ['source' => $source], $start);
+                if ($normalized !== null) {
+                    return [
+                        'title' => $normalized['title'],
+                        'start_time' => $normalized['start_time'],
+                        'end_time' => $normalized['end_time'],
+                        'source' => $normalized['source'],
+                        'external_id' => $normalized['external_id'],
+                    ];
+                }
+            }
+        }
+
+        return [
+            'title' => $title,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'source' => $source,
+            'external_id' => is_string($externalId) && $externalId !== '' ? $externalId : null,
+        ];
+    }
+
+    /**
+     * @param  list<array{title: string, start_time: string, end_time: string, source: string, external_id?: string|null}>  $schedule
+     * @return list<array{title: string, start_time: string, end_time: string, source: string}>
+     */
+    private function canonicalizeSchedule(array $schedule): array
+    {
+        $prepared = $this->prepareSchedule(array_map(fn (array $item): array => $this->stripScheduleMeta($item), $schedule));
+        $candidates = [];
+
+        foreach ($schedule as $item) {
+            $start = $this->parseDateTime($item['start_time']);
+            if ($start === null || $start->format('Y-m-d') !== (new \DateTimeImmutable)->format('Y-m-d')) {
+                continue;
+            }
+
+            $item['external_id'] = is_string($item['external_id'] ?? null) && $item['external_id'] !== '' ? $item['external_id'] : null;
+            $candidates[] = $item;
+        }
+
+        usort($candidates, function (array $a, array $b): int {
+            $aTs = $this->parseDateTime($a['start_time'])?->getTimestamp() ?? PHP_INT_MAX;
+            $bTs = $this->parseDateTime($b['start_time'])?->getTimestamp() ?? PHP_INT_MAX;
+
+            return $aTs <=> $bTs;
+        });
+
+        $canonical = [];
+        foreach ($candidates as $candidate) {
+            $merged = false;
+            foreach ($canonical as $index => $existing) {
+                if (! $this->shouldTreatAsShiftedVariant($existing, $candidate)) {
+                    continue;
+                }
+
+                $existingStart = $this->parseDateTime($existing['start_time']);
+                $candidateStart = $this->parseDateTime($candidate['start_time']);
+                if ($existingStart instanceof \DateTimeImmutable && $candidateStart instanceof \DateTimeImmutable && $candidateStart < $existingStart) {
+                    $canonical[$index] = $candidate;
+                }
+                $merged = true;
+                break;
+            }
+
+            if (! $merged) {
+                $canonical[] = $candidate;
+            }
+        }
+
+        $result = $canonical !== [] ? $canonical : array_map(
+            fn (array $item): array => $item + ['external_id' => null],
+            $prepared,
+        );
+
+        return array_map(fn (array $item): array => $this->stripScheduleMeta($item), $result);
+    }
+
+    /**
+     * @param  array{title: string, start_time: string, end_time: string, source: string, external_id?: string|null}  $left
+     * @param  array{title: string, start_time: string, end_time: string, source: string, external_id?: string|null}  $right
+     */
+    private function shouldTreatAsShiftedVariant(array $left, array $right): bool
+    {
+        if (mb_strtolower(trim($left['title'])) !== mb_strtolower(trim($right['title']))) {
+            return false;
+        }
+
+        if ($left['source'] !== 'google-calendar' || $right['source'] !== 'google-calendar') {
+            return false;
+        }
+
+        if (($left['external_id'] ?? null) !== null && ($right['external_id'] ?? null) !== null) {
+            return (string) $left['external_id'] === (string) $right['external_id'];
+        }
+
+        $leftStart = $this->parseDateTime($left['start_time']);
+        $leftEnd = $this->parseDateTime($left['end_time']);
+        $rightStart = $this->parseDateTime($right['start_time']);
+        $rightEnd = $this->parseDateTime($right['end_time']);
+
+        if (! $leftStart instanceof \DateTimeImmutable || ! $leftEnd instanceof \DateTimeImmutable || ! $rightStart instanceof \DateTimeImmutable || ! $rightEnd instanceof \DateTimeImmutable) {
+            return false;
+        }
+
+        if ($leftStart->format('Y-m-d') !== $rightStart->format('Y-m-d')) {
+            return false;
+        }
+
+        $durationDelta = abs(($leftEnd->getTimestamp() - $leftStart->getTimestamp()) - ($rightEnd->getTimestamp() - $rightStart->getTimestamp()));
+        $startDelta = abs($leftStart->getTimestamp() - $rightStart->getTimestamp());
+
+        return $durationDelta <= 900 && $startDelta <= 3600;
     }
 
     private function getEntityValue(mixed $entity, string $field): mixed

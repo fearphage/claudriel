@@ -184,6 +184,40 @@ final class DayBriefAssemblerTest extends TestCase
         self::assertCount(1, $brief['schedule']);
         self::assertSame('Content Creation', $brief['schedule'][0]['title']);
         self::assertStringStartsWith((new \DateTimeImmutable('today'))->format('Y-m-d').'T11:30:00', $brief['schedule'][0]['start_time']);
+        self::assertStringEndsWith('-04:00', $brief['schedule'][0]['start_time']);
+    }
+
+    public function test_shifted_legacy_schedule_entries_collapse_to_earliest_local_variant(): void
+    {
+        $today = (new \DateTimeImmutable('today'))->format('Y-m-d');
+
+        $this->scheduleRepo->save(new ScheduleEntry([
+            'seid' => 10,
+            'title' => 'SaaS & Dev Projects',
+            'starts_at' => $today.'T09:00:00+00:00',
+            'ends_at' => $today.'T10:00:00+00:00',
+            'source' => 'google-calendar',
+            'raw_payload' => json_encode(['subject' => 'SaaS & Dev Projects', 'body' => '9:00am - 10:00am']),
+            'tenant_id' => 'user-1',
+        ]));
+        $this->scheduleRepo->save(new ScheduleEntry([
+            'seid' => 11,
+            'title' => 'SaaS & Dev Projects',
+            'starts_at' => $today.'T10:00:00+00:00',
+            'ends_at' => $today.'T11:00:00+00:00',
+            'source' => 'google-calendar',
+            'raw_payload' => json_encode(['subject' => 'SaaS & Dev Projects', 'body' => '10:00am - 11:00am']),
+            'tenant_id' => 'user-1',
+        ]));
+
+        $brief = $this->assembler->assemble('user-1', new \DateTimeImmutable('-24 hours'));
+
+        self::assertCount(1, array_values(array_filter(
+            $brief['schedule'],
+            fn (array $item): bool => $item['title'] === 'SaaS & Dev Projects',
+        )));
+        self::assertSame('SaaS & Dev Projects', $brief['schedule'][0]['title']);
+        self::assertSame($today.'T09:00:00-04:00', $brief['schedule'][0]['start_time']);
     }
 
     public function test_groups_job_hunt_events(): void

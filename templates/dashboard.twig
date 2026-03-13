@@ -1100,7 +1100,9 @@
         var sseMaxRetryDelay = 300000;
         var briefTimeoutMs = 30000;
         var briefTimeout = null;
-        var usingFallbackTransport = false;
+        var usingFallbackTransport = true;
+        var fallbackPollIntervalMs = 30000;
+        var fallbackPollHandle = null;
 
         function clearBriefTimeout() {
             if (briefTimeout) {
@@ -1139,10 +1141,6 @@
         }
 
         function switchToFallbackTransport(reason) {
-            if (usingFallbackTransport) {
-                return;
-            }
-
             usingFallbackTransport = true;
             clearBriefTimeout();
 
@@ -1151,8 +1149,16 @@
                 briefSource = null;
             }
 
+            if (!fallbackPollHandle) {
+                fallbackPollHandle = setInterval(function() {
+                    loadFallbackPayload().catch(function() {});
+                }, fallbackPollIntervalMs);
+            }
+
             loadFallbackPayload().finally(function() {
-                console.warn('Brief stream switched to fallback transport:', reason);
+                if (reason !== 'default') {
+                    console.warn('Brief stream switched to fallback transport:', reason);
+                }
             });
         }
 
@@ -1191,20 +1197,12 @@
             loadFallbackPayload().catch(function() {});
         }
 
-        // Try SSE first, fall back to polling
-        if (typeof EventSource !== 'undefined') {
-            connectBriefSSE();
-            // Reconnect SSE when tab becomes visible again
-            document.addEventListener('visibilitychange', function() {
-                if (document.visibilityState === 'visible' && !briefSource && !usingFallbackTransport) {
-                    connectBriefSSE();
-                }
-            });
-        } else {
-            usingFallbackTransport = true;
-            pollBrief();
-            setInterval(pollBrief, 300000);
-        }
+        switchToFallbackTransport('default');
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') {
+                pollBrief();
+            }
+        });
 
         // ── Chat Functions ──
         function appendMessage(role, content) {
