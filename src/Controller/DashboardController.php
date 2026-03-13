@@ -68,13 +68,12 @@ final class DashboardController
         $sessionIds = $chatSessionStorage->getQuery()->execute();
         $allSessions = $chatSessionStorage->loadMultiple($sessionIds);
         usort($allSessions, fn ($a, $b) => ($b->get('created_at') ?? '') <=> ($a->get('created_at') ?? ''));
-        $sessions = array_slice($allSessions, 0, 10);
 
         $twigSessions = array_map(fn ($s) => [
             'uuid' => $s->get('uuid'),
             'title' => $s->get('title') ?? 'New Chat',
             'created_at' => $s->get('created_at'),
-        ], $sessions);
+        ], $allSessions);
 
         $apiKey = getenv('ANTHROPIC_API_KEY');
         $apiConfigured = is_string($apiKey) && $apiKey !== '';

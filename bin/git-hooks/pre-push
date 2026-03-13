@@ -8,5 +8,5 @@ cd "$repo_root"
 
 echo "Running pre-push checks..."
 composer lint
-composer analyse
+vendor/bin/phpstan analyse --debug --memory-limit=1G
 composer test

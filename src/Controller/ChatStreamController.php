@@ -10,6 +10,7 @@ use Claudriel\Domain\Chat\SidecarChatClient;
 use Claudriel\Domain\DayBrief\Assembler\DayBriefAssembler;
 use Claudriel\Entity\ChatMessage;
 use Claudriel\Entity\Workspace;
+use Claudriel\Support\BriefSignal;
 use Claudriel\Support\DriftDetector;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Waaseyaa\Entity\EntityTypeManager;
@@ -92,20 +93,21 @@ final class ChatStreamController
             $missing = [];
 
             foreach ($workspaceDeletes as $workspaceName) {
-                $existingIds = $workspaceStorage->getQuery()->condition('name', $workspaceName)->execute();
-                if ($existingIds === []) {
+                $workspace = $this->findWorkspaceByName($workspaceName);
+                if (! $workspace instanceof Workspace) {
                     $missing[] = $workspaceName;
+
                     continue;
                 }
 
-                $workspace = $workspaceStorage->load(reset($existingIds));
-                if ($workspace instanceof Workspace) {
-                    $workspaceStorage->delete([$workspace]);
-                    $deleted[] = (string) $workspace->get('name');
-                }
+                $workspaceStorage->delete([$workspace]);
+                $deleted[] = (string) $workspace->get('name');
             }
 
             $responseText = $this->buildWorkspaceDeletionResponse($deleted, $missing);
+            if ($deleted !== []) {
+                $this->touchBriefSignal();
+            }
 
             return $this->buildLocalActionResponse($userMsg, $msgStorage, $responseText);
         }
@@ -116,13 +118,11 @@ final class ChatStreamController
             return null;
         }
 
-        $existingIds = $workspaceStorage->getQuery()->condition('name', $workspaceName)->execute();
-
-        if ($existingIds !== []) {
-            $existing = $workspaceStorage->load(reset($existingIds));
+        $existing = $this->findWorkspaceByName($workspaceName);
+        if ($existing instanceof Workspace) {
             $responseText = sprintf(
                 'The workspace "%s" already exists.',
-                (string) (($existing instanceof Workspace ? $existing->get('name') : null) ?? $workspaceName),
+                (string) $existing->get('name'),
             );
         } else {
             $workspace = new Workspace([
@@ -130,6 +130,7 @@ final class ChatStreamController
                 'description' => '',
             ]);
             $workspaceStorage->save($workspace);
+            $this->touchBriefSignal();
 
             $responseText = sprintf(
                 'Created the Claudriel workspace "%s". Refresh the sidebar if it is not visible yet.',
@@ -171,12 +172,37 @@ final class ChatStreamController
         );
     }
 
+    private function findWorkspaceByName(string $workspaceName): ?Workspace
+    {
+        $workspaceStorage = $this->entityTypeManager->getStorage('workspace');
+        $ids = $workspaceStorage->getQuery()->execute();
+        $workspaces = $workspaceStorage->loadMultiple($ids);
+        $needle = mb_strtolower(trim($workspaceName));
+
+        foreach ($workspaces as $workspace) {
+            if (! $workspace instanceof Workspace) {
+                continue;
+            }
+
+            $candidate = mb_strtolower(trim((string) $workspace->get('name')));
+            if ($candidate === $needle) {
+                return $workspace;
+            }
+        }
+
+        return null;
+    }
+
     /**
      * @return list<string>
      */
     private function extractWorkspaceDeletionNames(string $message): array
     {
-        $normalized = str_replace(["\u{201C}", "\u{201D}", "\u{2018}", "\u{2019}"], ['"', '"', "'", "'"], $message);
+        $normalized = str_replace(
+            ["\u{201C}", "\u{201D}", "\u{2018}", "\u{2019}"],
+            ['"', '"', "'", "'"],
+            $message,
+        );
         $patterns = [
             '/\b(?:delete|remove)\b.*?\bworkspace\b(?:s)?\s+(.+)$/iu',
             '/\b(?:delete|remove)\b\s+(.+?)\s+\bworkspace\b(?:s)?$/iu',
@@ -209,8 +235,8 @@ final class ChatStreamController
     }
 
     /**
-     * @param list<string> $deleted
-     * @param list<string> $missing
+     * @param  list<string>  $deleted
+     * @param  list<string>  $missing
      */
     private function buildWorkspaceDeletionResponse(array $deleted, array $missing): string
     {
@@ -240,7 +266,7 @@ final class ChatStreamController
     }
 
     /**
-     * @param list<string> $names
+     * @param  list<string>  $names
      */
     private function formatWorkspaceNameList(array $names): string
     {
@@ -252,6 +278,13 @@ final class ChatStreamController
             2 => $quoted[0].' and '.$quoted[1],
             default => implode(', ', array_slice($quoted, 0, -1)).', and '.$quoted[array_key_last($quoted)],
         };
+    }
+
+    private function touchBriefSignal(): void
+    {
+        $storageDir = getenv('CLAUDRIEL_STORAGE') ?: dirname(__DIR__, 2).'/storage';
+        $signal = new BriefSignal($storageDir.'/brief-signal.txt');
+        $signal->touch();
     }
 
     private function streamTokens(string $sessionUuid, string $apiKey, mixed $msgStorage): void
@@ -414,7 +447,11 @@ final class ChatStreamController
 
     private function extractWorkspaceName(string $message): ?string
     {
-        $normalized = str_replace(["\u{201C}", "\u{201D}", "\u{2018}", "\u{2019}"], ['"', '"', "'", "'"], $message);
+        $normalized = str_replace(
+            ["\u{201C}", "\u{201D}", "\u{2018}", "\u{2019}"],
+            ['"', '"', "'", "'"],
+            $message,
+        );
         $patterns = [
             '/\bcreate\b.*?\bworkspace\b.*?\b(?:named|called)\s+["\']?([^"\']+)["\']?/iu',
             '/\bcreate\b.*?\bworkspace\b\s+["\']?([^"\']+)["\']?/iu',

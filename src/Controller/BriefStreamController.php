@@ -178,7 +178,7 @@ final class BriefStreamController
         $briefs['matched_skills'] = array_map(fn ($s) => $s->toArray(), $brief['matched_skills']);
 
         return [
-            'workspaces' => $briefs['workspaces'] ?? [],
+            'workspaces' => $briefs['workspaces'],
             'briefs' => $briefs,
             'updated_at' => (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
         ];

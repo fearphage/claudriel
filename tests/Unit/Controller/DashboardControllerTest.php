@@ -29,6 +29,8 @@ final class DashboardControllerTest extends TestCase
     {
         $etm = $this->buildEntityTypeManager();
         $this->seedWorkspace($etm, 'workspace-dashboard-1', 'Dashboard Workspace');
+        $this->seedSession($etm, 'sess-a', 'Session A', '2026-03-13T10:00:00+00:00');
+        $this->seedSession($etm, 'sess-b', 'Session B', '2026-03-13T11:00:00+00:00');
         $controller = new DashboardController($etm);
 
         $response = $controller->show();
@@ -43,6 +45,30 @@ final class DashboardControllerTest extends TestCase
         self::assertArrayHasKey('brief_fallback_url', $data);
         self::assertSame('Dashboard Workspace', $data['workspaces'][0]['name']);
         self::assertSame('Dashboard Workspace', $data['brief_fallback']['workspaces'][0]['name']);
+        self::assertCount(2, $data['sessions']);
+        self::assertSame('Session B', $data['sessions'][0]['title']);
+    }
+
+    public function test_show_returns_all_sessions_not_just_ten(): void
+    {
+        $etm = $this->buildEntityTypeManager();
+
+        for ($i = 1; $i <= 12; $i++) {
+            $this->seedSession(
+                $etm,
+                sprintf('sess-%02d', $i),
+                sprintf('Session %02d', $i),
+                sprintf('2026-03-13T%02d:00:00+00:00', min($i, 23)),
+            );
+        }
+
+        $controller = new DashboardController($etm);
+        $response = $controller->show();
+        $data = json_decode($response->content, true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertCount(12, $data['sessions']);
+        self::assertSame('Session 12', $data['sessions'][0]['title']);
+        self::assertSame('Session 01', $data['sessions'][11]['title']);
     }
 
     public function test_show_renders_fallback_bootstrap_into_dashboard_html(): void
@@ -52,7 +78,7 @@ final class DashboardControllerTest extends TestCase
 
         $controller = new DashboardController(
             $etm,
-            new Environment(new FilesystemLoader('/home/fsd42/dev/claudriel/templates')),
+            new Environment(new FilesystemLoader(dirname(__DIR__, 3).'/templates')),
         );
 
         $request = Request::create('/dashboard', 'GET', server: ['HTTP_X_REQUEST_ID' => 'dashboard-fallback-req']);
@@ -87,6 +113,15 @@ final class DashboardControllerTest extends TestCase
             'uuid' => $uuid,
             'name' => $name,
             'description' => 'Shows up in dashboard payload',
+        ]));
+    }
+
+    private function seedSession(EntityTypeManager $etm, string $uuid, string $title, string $createdAt): void
+    {
+        $etm->getStorage('chat_session')->save(new ChatSession([
+            'uuid' => $uuid,
+            'title' => $title,
+            'created_at' => $createdAt,
         ]));
     }
 
