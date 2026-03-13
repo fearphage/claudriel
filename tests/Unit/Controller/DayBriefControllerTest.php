@@ -74,6 +74,7 @@ final class DayBriefControllerTest extends TestCase
         self::assertArrayHasKey('commitments', $body);
         self::assertArrayHasKey('counts', $body);
         self::assertArrayHasKey('generated_at', $body);
+        self::assertArrayHasKey('time_snapshot', $body);
     }
 
     public function test_html_response_when_twig_provided(): void
@@ -186,6 +187,7 @@ final class DayBriefControllerTest extends TestCase
         $body = json_decode($response->content, true);
         self::assertCount(1, $body['people']);
         self::assertSame('Alice', $body['people'][0]['person_name']);
+        self::assertArrayHasKey('time_snapshot', $body);
     }
 
     public function test_json_filters_events_by_tenant_header(): void

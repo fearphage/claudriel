@@ -9,6 +9,7 @@ use Claudriel\Domain\DayBrief\Service\BriefSessionStore;
 use Claudriel\Routing\RequestScopeViolation;
 use Claudriel\Routing\TenantWorkspaceResolver;
 use Claudriel\Support\DriftDetector;
+use Claudriel\Temporal\TemporalContextFactory;
 use Symfony\Component\HttpFoundation\Request;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\SSR\SsrResponse;
@@ -42,9 +43,16 @@ final class DayBriefController
         $sessionStore = new BriefSessionStore($storageDir.'/brief-session.txt');
 
         $since = new \DateTimeImmutable('-24 hours');
+        $snapshot = (new TemporalContextFactory($this->entityTypeManager))->snapshotForInteraction(
+            scopeKey: 'brief:'.$this->resolveRequestId($httpRequest, $query),
+            tenantId: $scope->tenantId,
+            workspaceUuid: $scope->workspaceId(),
+            account: $account,
+            requestTimezone: $this->resolveRequestedTimezone($query, $httpRequest),
+        );
 
         $assembler = $this->buildAssembler();
-        $brief = $assembler->assemble($scope->tenantId, $since, $scope->workspaceId());
+        $brief = $assembler->assemble($scope->tenantId, $since, $scope->workspaceId(), $snapshot);
 
         $wantsJson = false;
         if ($httpRequest !== null) {
@@ -116,5 +124,32 @@ final class DayBriefController
             null,
             $triageRepo,
         );
+    }
+
+    private function resolveRequestId(?Request $httpRequest, array $query): string
+    {
+        $headerId = $httpRequest?->headers->get('X-Request-Id');
+        if (is_string($headerId) && $headerId !== '') {
+            return $headerId;
+        }
+
+        $queryId = $query['request_id'] ?? null;
+        if (is_string($queryId) && $queryId !== '') {
+            return $queryId;
+        }
+
+        return bin2hex(random_bytes(8));
+    }
+
+    private function resolveRequestedTimezone(array $query, ?Request $httpRequest): ?string
+    {
+        $queryTimezone = $query['timezone'] ?? null;
+        if (is_string($queryTimezone) && $queryTimezone !== '') {
+            return $queryTimezone;
+        }
+
+        $headerTimezone = $httpRequest?->headers->get('X-Timezone');
+
+        return is_string($headerTimezone) && $headerTimezone !== '' ? $headerTimezone : null;
     }
 }

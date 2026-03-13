@@ -9,6 +9,8 @@ use Claudriel\Routing\RequestScopeViolation;
 use Claudriel\Routing\TenantWorkspaceResolver;
 use Claudriel\Support\BriefSignal;
 use Claudriel\Support\DriftDetector;
+use Claudriel\Temporal\TemporalContextFactory;
+use Claudriel\Temporal\TimeSnapshot;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Waaseyaa\Entity\EntityTypeManager;
@@ -35,9 +37,16 @@ final class BriefStreamController
 
         $requestId = $this->resolveRequestId($httpRequest, $query);
         $userId = $this->resolveUserId($account);
+        $snapshot = (new TemporalContextFactory($this->entityTypeManager))->snapshotForInteraction(
+            scopeKey: 'brief-stream:'.$requestId,
+            tenantId: $scope->tenantId,
+            workspaceUuid: $scope->workspaceId(),
+            account: $account,
+            requestTimezone: $this->resolveRequestedTimezone($query, $httpRequest instanceof Request ? $httpRequest : null),
+        );
 
         if (($query['transport'] ?? null) === 'fallback') {
-            $payload = $this->buildFallbackPayload($scope->tenantId, $scope->workspaceId());
+            $payload = $this->buildFallbackPayload($scope->tenantId, $scope->workspaceId(), $snapshot);
             $this->logTransport('brief_stream_fallback', [
                 'request_id' => $requestId,
                 'user_id' => $userId,
@@ -55,22 +64,22 @@ final class BriefStreamController
         ];
 
         return new StreamedResponse(
-            function () use ($signalFile, $context, $scope): void {
+            function () use ($signalFile, $context, $scope, $snapshot): void {
                 if (session_status() === PHP_SESSION_ACTIVE) {
                     session_write_close();
                 }
 
                 try {
-                    $payload = $this->buildFallbackPayload($scope->tenantId, $scope->workspaceId());
+                    $payload = $this->buildFallbackPayload($scope->tenantId, $scope->workspaceId(), $snapshot);
                     $this->logTransport('brief_stream_start', $context + [
                         'workspace_count' => count($payload['workspaces']),
                     ]);
-                    $this->streamLoop($signalFile, initialPayload: $payload['briefs'], tenantId: $scope->tenantId, workspaceUuid: $scope->workspaceId());
+                    $this->streamLoop($signalFile, initialPayload: $payload['briefs'], tenantId: $scope->tenantId, workspaceUuid: $scope->workspaceId(), snapshot: $snapshot);
                     $this->logTransport('brief_stream_end', $context + [
                         'workspace_count' => count($payload['workspaces']),
                     ]);
                 } catch (\Throwable $e) {
-                    $fallbackPayload = $this->buildFallbackPayload($scope->tenantId, $scope->workspaceId());
+                    $fallbackPayload = $this->buildFallbackPayload($scope->tenantId, $scope->workspaceId(), $snapshot);
                     $this->logTransport('brief_stream_error', $context + [
                         'workspace_count' => count($fallbackPayload['workspaces']),
                         'error' => $e->getMessage(),
@@ -98,6 +107,7 @@ final class BriefStreamController
         ?array $initialPayload = null,
         string $tenantId = 'default',
         ?string $workspaceUuid = null,
+        ?TimeSnapshot $snapshot = null,
     ): void {
         $output = $outputCallback ?? static function (string $data): void {
             echo $data;
@@ -123,7 +133,7 @@ final class BriefStreamController
         $flush();
 
         // Emit initial brief immediately
-        $briefJson = json_encode($initialPayload ?? $this->buildFallbackPayload($tenantId, $workspaceUuid)['briefs'], JSON_THROW_ON_ERROR);
+        $briefJson = json_encode($initialPayload ?? $this->buildFallbackPayload($tenantId, $workspaceUuid, $snapshot)['briefs'], JSON_THROW_ON_ERROR);
         $output("event: brief-update\ndata: {$briefJson}\n\n");
         $flush();
         $lastMtime = $signal->lastModified();
@@ -132,7 +142,7 @@ final class BriefStreamController
             // Check for signal changes
             if ($signal->hasChangedSince($lastMtime)) {
                 $lastMtime = $signal->lastModified();
-                $briefJson = json_encode($this->buildFallbackPayload($tenantId, $workspaceUuid)['briefs'], JSON_THROW_ON_ERROR);
+                $briefJson = json_encode($this->buildFallbackPayload($tenantId, $workspaceUuid, $snapshot)['briefs'], JSON_THROW_ON_ERROR);
                 $output("event: brief-update\ndata: {$briefJson}\n\n");
                 $flush();
                 ($sleepCallback ?? static function (): void {
@@ -158,7 +168,7 @@ final class BriefStreamController
         }
     }
 
-    public function buildFallbackPayload(string $tenantId = 'default', ?string $workspaceUuid = null): array
+    public function buildFallbackPayload(string $tenantId = 'default', ?string $workspaceUuid = null, ?TimeSnapshot $snapshot = null): array
     {
         $eventStorage = $this->entityTypeManager->getStorage('mc_event');
         $commitmentStorage = $this->entityTypeManager->getStorage('commitment');
@@ -194,7 +204,12 @@ final class BriefStreamController
         }
 
         $assembler = new DayBriefAssembler($eventRepo, $commitmentRepo, $driftDetector, $personRepo, $skillRepo, $scheduleRepo, $workspaceRepo, $triageRepo);
-        $brief = $assembler->assemble($tenantId, new \DateTimeImmutable('-24 hours'), $workspaceUuid);
+        $snapshot ??= (new TemporalContextFactory($this->entityTypeManager))->snapshotForInteraction(
+            scopeKey: 'brief-stream:fallback:'.$tenantId.':'.($workspaceUuid ?? 'global'),
+            tenantId: $tenantId,
+            workspaceUuid: $workspaceUuid,
+        );
+        $brief = $assembler->assemble($tenantId, $snapshot->utc()->modify('-24 hours'), $workspaceUuid, $snapshot);
 
         $briefs = $brief;
         $briefs['commitments']['pending'] = array_map(fn ($c) => $c->toArray(), $brief['commitments']['pending']);
@@ -204,7 +219,7 @@ final class BriefStreamController
         return [
             'workspaces' => $briefs['workspaces'],
             'briefs' => $briefs,
-            'updated_at' => (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
+            'updated_at' => $snapshot->utc()->format(\DateTimeInterface::ATOM),
         ];
     }
 
@@ -251,6 +266,18 @@ final class BriefStreamController
             'channel' => 'brief_stream_transport',
             'context' => $context,
         ], JSON_THROW_ON_ERROR));
+    }
+
+    private function resolveRequestedTimezone(array $query, ?Request $httpRequest): ?string
+    {
+        $queryTimezone = $query['timezone'] ?? null;
+        if (is_string($queryTimezone) && $queryTimezone !== '') {
+            return $queryTimezone;
+        }
+
+        $headerTimezone = $httpRequest?->headers->get('X-Timezone');
+
+        return is_string($headerTimezone) && $headerTimezone !== '' ? $headerTimezone : null;
     }
 
     private function json(array $data, int $statusCode = 200): SsrResponse

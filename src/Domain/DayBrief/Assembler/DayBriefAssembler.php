@@ -6,6 +6,8 @@ namespace Claudriel\Domain\DayBrief\Assembler;
 
 use Claudriel\Support\DriftDetector;
 use Claudriel\Support\SchedulePayloadNormalizer;
+use Claudriel\Temporal\AtomicTimeService;
+use Claudriel\Temporal\TimeSnapshot;
 use Waaseyaa\Entity\Repository\EntityRepositoryInterface;
 
 final class DayBriefAssembler
@@ -19,11 +21,14 @@ final class DayBriefAssembler
         private readonly ?EntityRepositoryInterface $scheduleRepo = null,
         private readonly ?EntityRepositoryInterface $workspaceRepo = null,
         private readonly ?EntityRepositoryInterface $triageRepo = null,
+        private readonly ?AtomicTimeService $timeService = null,
     ) {}
 
-    /** @return array{schedule: array, job_hunt: array, people: array, triage: array, creators: array, notifications: array, commitments: array{pending: array, drifting: array}, counts: array{job_alerts: int, messages: int, triage: int, due_today: int, drifting: int}, generated_at: string, matched_skills: array, workspaces: array} */
-    public function assemble(string $tenantId, \DateTimeImmutable $since, ?string $workspaceUuid = null): array
+    /** @return array{schedule: array, job_hunt: array, people: array, triage: array, creators: array, notifications: array, commitments: array{pending: array, drifting: array}, counts: array{job_alerts: int, messages: int, triage: int, due_today: int, drifting: int}, generated_at: string, time_snapshot: array<string, int|string>, matched_skills: array, workspaces: array} */
+    public function assemble(string $tenantId, \DateTimeImmutable $since, ?string $workspaceUuid = null, ?TimeSnapshot $snapshot = null): array
     {
+        $snapshot ??= ($this->timeService ?? new AtomicTimeService)->now();
+
         $recentEvents = array_values(array_filter(
             $this->eventRepo->findBy([]),
             fn ($e) => $this->eventMatchesScope($e, $tenantId, $workspaceUuid)
@@ -80,8 +85,8 @@ final class DayBriefAssembler
         }
 
         $schedule = $this->scheduleRepo !== null
-            ? $this->buildNormalizedSchedule($tenantId, $workspaceUuid)
-            : $this->prepareSchedule($schedule);
+            ? $this->buildNormalizedSchedule($tenantId, $workspaceUuid, $snapshot)
+            : $this->prepareSchedule($schedule, $snapshot);
         $normalizedPeople = $this->personRepo !== null
             ? $this->buildNormalizedPeople($tenantId, $since)
             : [];
@@ -98,7 +103,7 @@ final class DayBriefAssembler
         ));
         $drifting = $this->driftDetector->findDrifting($tenantId);
 
-        $today = (new \DateTimeImmutable)->format('Y-m-d');
+        $today = $snapshot->local()->format('Y-m-d');
         $dueToday = count(array_filter($pending, fn ($c) => ($c->get('due_date') ?? '') === $today));
 
         return [
@@ -119,7 +124,8 @@ final class DayBriefAssembler
                 'due_today' => $dueToday,
                 'drifting' => count($drifting),
             ],
-            'generated_at' => (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
+            'generated_at' => $snapshot->utc()->format(\DateTimeInterface::ATOM),
+            'time_snapshot' => $snapshot->toArray(),
             'matched_skills' => $this->matchSkillsToEvents($recentEvents),
             'workspaces' => $this->buildWorkspaceData($recentEvents, $tenantId, $workspaceUuid),
         ];
@@ -129,9 +135,9 @@ final class DayBriefAssembler
      * @param  list<array{title: mixed, start_time: mixed, end_time: mixed, source: mixed}>  $schedule
      * @return list<array{title: mixed, start_time: mixed, end_time: mixed, source: mixed}>
      */
-    private function prepareSchedule(array $schedule): array
+    private function prepareSchedule(array $schedule, TimeSnapshot $snapshot): array
     {
-        $today = (new \DateTimeImmutable)->format('Y-m-d');
+        $today = $snapshot->local()->format('Y-m-d');
         $filtered = [];
 
         foreach ($schedule as $item) {
@@ -173,13 +179,14 @@ final class DayBriefAssembler
     /**
      * @return list<array{title: string, start_time: string, end_time: string, source: string}>
      */
-    private function buildNormalizedSchedule(string $tenantId, ?string $workspaceUuid = null): array
+    private function buildNormalizedSchedule(string $tenantId, ?string $workspaceUuid = null, ?TimeSnapshot $snapshot = null): array
     {
-        $today = (new \DateTimeImmutable('today'))->format('Y-m-d');
+        $snapshot ??= ($this->timeService ?? new AtomicTimeService)->now();
+        $today = $snapshot->local()->format('Y-m-d');
         $normalizer = new SchedulePayloadNormalizer;
         $scheduleEntries = array_values(array_filter(
             $this->scheduleRepo->findBy([]),
-            function ($entry) use ($tenantId, $today, $workspaceUuid): bool {
+            function ($entry) use ($tenantId, $today, $workspaceUuid, $snapshot): bool {
                 if (($this->getEntityValue($entry, 'status') ?? 'active') !== 'active') {
                     return false;
                 }
@@ -196,7 +203,10 @@ final class DayBriefAssembler
                     }
                 }
 
-                return str_starts_with((string) ($this->getEntityValue($entry, 'starts_at') ?? ''), $today);
+                $startsAt = $this->parseDateTime($this->getEntityValue($entry, 'starts_at'));
+
+                return $startsAt instanceof \DateTimeImmutable
+                    && $startsAt->setTimezone($snapshot->local()->getTimezone())->format('Y-m-d') === $today;
             },
         ));
 
@@ -207,7 +217,7 @@ final class DayBriefAssembler
                 return $this->normalizeScheduleEntry($entry, $normalizer);
             }, $scheduleEntries);
 
-            return $this->canonicalizeSchedule($normalizedEntries);
+            return $this->canonicalizeSchedule($normalizedEntries, $snapshot);
         }
 
         $legacySchedule = [];
@@ -227,7 +237,8 @@ final class DayBriefAssembler
                 $payload + ['source' => is_string($source) ? $source : 'google-calendar'],
                 is_string($occurred) ? $occurred : null,
             );
-            if ($normalized === null || ! str_starts_with($normalized['start_time'], $today)) {
+            $normalizedStart = $this->parseDateTime($normalized['start_time'])?->setTimezone($snapshot->local()->getTimezone());
+            if ($normalized === null || ! $normalizedStart instanceof \DateTimeImmutable || $normalizedStart->format('Y-m-d') !== $today) {
                 continue;
             }
 
@@ -239,7 +250,7 @@ final class DayBriefAssembler
             ];
         }
 
-        return $this->canonicalizeSchedule($legacySchedule);
+        return $this->canonicalizeSchedule($legacySchedule, $snapshot);
     }
 
     /**
@@ -298,14 +309,17 @@ final class DayBriefAssembler
      * @param  list<array{title: string, start_time: string, end_time: string, source: string, external_id?: string|null}>  $schedule
      * @return list<array{title: string, start_time: string, end_time: string, source: string}>
      */
-    private function canonicalizeSchedule(array $schedule): array
+    private function canonicalizeSchedule(array $schedule, TimeSnapshot $snapshot): array
     {
-        $prepared = $this->prepareSchedule(array_map(fn (array $item): array => $this->stripScheduleMeta($item), $schedule));
+        $prepared = $this->prepareSchedule(
+            array_map(fn (array $item): array => $this->stripScheduleMeta($item), $schedule),
+            $snapshot,
+        );
         $candidates = [];
 
         foreach ($schedule as $item) {
-            $start = $this->parseDateTime($item['start_time']);
-            if ($start === null || $start->format('Y-m-d') !== (new \DateTimeImmutable)->format('Y-m-d')) {
+            $start = $this->parseDateTime($item['start_time'])?->setTimezone($snapshot->local()->getTimezone());
+            if ($start === null || $start->format('Y-m-d') !== $snapshot->local()->format('Y-m-d')) {
                 continue;
             }
 

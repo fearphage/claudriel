@@ -43,6 +43,7 @@ final class ChatSystemPromptBuilderTest extends TestCase
         $prompt = $builder->build();
 
         $this->assertStringContainsString('Pending commitments: 0', $prompt);
+        $this->assertStringContainsString('Current Time Snapshot', $prompt);
     }
 
     #[Test]

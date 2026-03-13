@@ -9,6 +9,7 @@ use Claudriel\Domain\DayBrief\Service\BriefSessionStore;
 use Claudriel\Routing\RequestScopeViolation;
 use Claudriel\Routing\TenantWorkspaceResolver;
 use Claudriel\Support\DriftDetector;
+use Claudriel\Temporal\TemporalContextFactory;
 use Symfony\Component\HttpFoundation\Request;
 use Twig\Environment;
 use Waaseyaa\Entity\EntityTypeManager;
@@ -41,6 +42,14 @@ final class DashboardController
         // Always show last 24h for Day Brief. The session cursor is preserved
         // for future "new items" indicators but doesn't gate the main display.
         $since = new \DateTimeImmutable('-24 hours');
+        $requestId = $this->resolveRequestId($httpRequest, $query);
+        $snapshot = (new TemporalContextFactory($this->entityTypeManager))->snapshotForInteraction(
+            scopeKey: 'dashboard:'.$requestId,
+            tenantId: $scope->tenantId,
+            workspaceUuid: $scope->workspaceId(),
+            account: $account,
+            requestTimezone: $this->resolveRequestedTimezone($httpRequest, $query),
+        );
 
         // Assemble brief data
         $eventStorage = $this->entityTypeManager->getStorage('mc_event');
@@ -77,14 +86,13 @@ final class DashboardController
         }
 
         $assembler = new DayBriefAssembler($eventRepo, $commitmentRepo, $driftDetector, $personRepo, $skillRepo, $scheduleRepo, $workspaceRepo, $triageRepo);
-        $brief = $assembler->assemble($scope->tenantId, $since, $scope->workspaceId());
+        $brief = $assembler->assemble($scope->tenantId, $since, $scope->workspaceId(), $snapshot);
         $briefPayload = $this->buildBriefPayload($brief);
         $fallbackPayload = [
             'workspaces' => $briefPayload['workspaces'] ?? [],
             'briefs' => $briefPayload,
-            'updated_at' => (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
+            'updated_at' => $snapshot->utc()->format(\DateTimeInterface::ATOM),
         ];
-        $requestId = $this->resolveRequestId($httpRequest, $query);
 
         $sessionStore->recordBriefAt(new \DateTimeImmutable);
 
@@ -179,5 +187,22 @@ final class DashboardController
         }
 
         return bin2hex(random_bytes(8));
+    }
+
+    private function resolveRequestedTimezone(mixed $httpRequest, array $query): ?string
+    {
+        $queryTimezone = $query['timezone'] ?? null;
+        if (is_string($queryTimezone) && $queryTimezone !== '') {
+            return $queryTimezone;
+        }
+
+        if ($httpRequest instanceof Request) {
+            $headerTimezone = $httpRequest->headers->get('X-Timezone');
+            if (is_string($headerTimezone) && $headerTimezone !== '') {
+                return $headerTimezone;
+            }
+        }
+
+        return null;
     }
 }

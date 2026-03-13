@@ -28,6 +28,7 @@ class SidecarChatClient
         ?Closure $onProgress = null,
         ?string $tenantId = null,
         ?string $workspaceId = null,
+        ?array $timeSnapshot = null,
     ): void {
         $payload = json_encode([
             'session_id' => $sessionId ?? 'default',
@@ -35,6 +36,7 @@ class SidecarChatClient
             'messages' => $messages,
             'tenant_id' => $tenantId,
             'workspace_id' => $workspaceId,
+            'time_snapshot' => $timeSnapshot,
         ]);
 
         error_log("[Sidecar] Starting curl to {$this->sidecarUrl}/chat, session=$sessionId");

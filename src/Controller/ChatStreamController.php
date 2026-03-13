@@ -14,6 +14,8 @@ use Claudriel\Routing\RequestScopeViolation;
 use Claudriel\Routing\TenantWorkspaceResolver;
 use Claudriel\Support\BriefSignal;
 use Claudriel\Support\DriftDetector;
+use Claudriel\Temporal\TemporalContextFactory;
+use Claudriel\Temporal\TimeSnapshot;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Waaseyaa\Entity\EntityTypeManager;
@@ -88,12 +90,21 @@ final class ChatStreamController
             );
         }
 
+        $requestId = $this->resolveRequestId($httpRequest instanceof Request ? $httpRequest : null, $query, (string) $messageId);
+        $snapshot = (new TemporalContextFactory($this->entityTypeManager))->snapshotForInteraction(
+            scopeKey: 'chat-stream:'.$requestId,
+            tenantId: $tenantId,
+            workspaceUuid: $workspaceId,
+            account: $account,
+            requestTimezone: $this->resolveRequestedTimezone($httpRequest instanceof Request ? $httpRequest : null, $query),
+        );
+
         return new StreamedResponse(
-            function () use ($sessionUuid, $apiKey, $msgStorage, $tenantId, $workspaceId): void {
+            function () use ($sessionUuid, $apiKey, $msgStorage, $tenantId, $workspaceId, $snapshot): void {
                 if (session_status() === PHP_SESSION_ACTIVE) {
                     session_write_close();
                 }
-                $this->streamTokens($sessionUuid, $apiKey, $msgStorage, $tenantId, $workspaceId);
+                $this->streamTokens($sessionUuid, $apiKey, $msgStorage, $tenantId, $workspaceId, $snapshot);
             },
             200,
             [
@@ -291,8 +302,13 @@ final class ChatStreamController
         $signal->touch();
     }
 
-    private function streamTokens(string $sessionUuid, string $apiKey, mixed $msgStorage, string $tenantId, ?string $workspaceUuid = null): void
+    private function streamTokens(string $sessionUuid, string $apiKey, mixed $msgStorage, string $tenantId, ?string $workspaceUuid = null, ?TimeSnapshot $snapshot = null): void
     {
+        $snapshot ??= (new TemporalContextFactory($this->entityTypeManager))->snapshotForInteraction(
+            scopeKey: 'chat-stream:'.$sessionUuid,
+            tenantId: $tenantId,
+            workspaceUuid: $workspaceUuid,
+        );
         echo "retry: 3000\n\n";
         if (ob_get_level() > 0) {
             ob_flush();
@@ -330,19 +346,19 @@ final class ChatStreamController
         $projectRoot = $this->resolveProjectRoot();
         $promptBuilder = $this->buildPromptBuilder($projectRoot);
         $activeWorkspace = $workspaceUuid !== null ? $this->findWorkspaceByUuid($workspaceUuid, $tenantId)?->get('name') : null;
-        $systemPrompt = $promptBuilder->build($tenantId, hasToolAccess: $useSidecar, activeWorkspace: is_string($activeWorkspace) ? $activeWorkspace : null);
+        $systemPrompt = $promptBuilder->build($tenantId, hasToolAccess: $useSidecar, activeWorkspace: is_string($activeWorkspace) ? $activeWorkspace : null, snapshot: $snapshot);
 
         $onToken = function (string $token): void {
             $this->emitSseEvent('chat-token', ['token' => $token]);
         };
 
-        $onDone = function (string $fullResponse) use ($sessionUuid, $msgStorage, $tenantId, $workspaceUuid): void {
+        $onDone = function (string $fullResponse) use ($sessionUuid, $msgStorage, $tenantId, $workspaceUuid, $snapshot): void {
             $assistantMsg = new ChatMessage([
                 'uuid' => $this->generateUuid(),
                 'session_uuid' => $sessionUuid,
                 'role' => 'assistant',
                 'content' => $fullResponse,
-                'created_at' => (new \DateTimeImmutable)->format('c'),
+                'created_at' => $snapshot->utc()->format('c'),
                 'tenant_id' => $tenantId,
                 'workspace_id' => $workspaceUuid,
             ]);
@@ -380,6 +396,7 @@ final class ChatStreamController
                 onProgress: $onProgress,
                 tenantId: $tenantId,
                 workspaceId: $workspaceUuid,
+                timeSnapshot: $snapshot->toArray(),
             );
         } else {
             // Fallback: direct Anthropic API (no Gmail/Calendar)
@@ -567,5 +584,32 @@ final class ChatStreamController
             statusCode: $statusCode,
             headers: ['Content-Type' => 'application/json'],
         );
+    }
+
+    private function resolveRequestId(?Request $httpRequest, array $query, string $fallback): string
+    {
+        $headerId = $httpRequest?->headers->get('X-Request-Id');
+        if (is_string($headerId) && $headerId !== '') {
+            return $headerId;
+        }
+
+        $queryId = $query['request_id'] ?? null;
+        if (is_string($queryId) && $queryId !== '') {
+            return $queryId;
+        }
+
+        return $fallback;
+    }
+
+    private function resolveRequestedTimezone(?Request $httpRequest, array $query): ?string
+    {
+        $queryTimezone = $query['timezone'] ?? null;
+        if (is_string($queryTimezone) && $queryTimezone !== '') {
+            return $queryTimezone;
+        }
+
+        $headerTimezone = $httpRequest?->headers->get('X-Timezone');
+
+        return is_string($headerTimezone) && $headerTimezone !== '' ? $headerTimezone : null;
     }
 }

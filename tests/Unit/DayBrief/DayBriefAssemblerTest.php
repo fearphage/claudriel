@@ -87,6 +87,7 @@ final class DayBriefAssemblerTest extends TestCase
         self::assertArrayHasKey('commitments', $brief);
         self::assertArrayHasKey('counts', $brief);
         self::assertArrayHasKey('generated_at', $brief);
+        self::assertArrayHasKey('time_snapshot', $brief);
         self::assertArrayHasKey('pending', $brief['commitments']);
         self::assertArrayHasKey('drifting', $brief['commitments']);
         self::assertArrayHasKey('job_alerts', $brief['counts']);
@@ -94,6 +95,22 @@ final class DayBriefAssemblerTest extends TestCase
         self::assertArrayHasKey('triage', $brief['counts']);
         self::assertArrayHasKey('due_today', $brief['counts']);
         self::assertArrayHasKey('drifting', $brief['counts']);
+    }
+
+    public function test_uses_injected_snapshot_for_generated_metadata(): void
+    {
+        $snapshot = new \Claudriel\Temporal\TimeSnapshot(
+            new \DateTimeImmutable('2026-03-14T12:00:00+00:00'),
+            new \DateTimeImmutable('2026-03-14T08:00:00-04:00'),
+            1234,
+            'America/Toronto',
+        );
+
+        $brief = $this->assembler->assemble('user-1', new \DateTimeImmutable('-24 hours'), snapshot: $snapshot);
+
+        self::assertSame('2026-03-14T12:00:00+00:00', $brief['generated_at']);
+        self::assertSame('America/Toronto', $brief['time_snapshot']['timezone']);
+        self::assertSame(1234, $brief['time_snapshot']['monotonic_ns']);
     }
 
     public function test_groups_schedule_events(): void

@@ -305,7 +305,12 @@ final class ChatStreamControllerTest extends TestCase
                     ?\Closure $onProgress = null,
                     ?string $tenantId = null,
                     ?string $workspaceId = null,
+                    ?array $timeSnapshot = null,
                 ): void {
+                    TestCase::assertIsArray($timeSnapshot);
+                    TestCase::assertArrayHasKey('timezone', $timeSnapshot);
+                    TestCase::assertArrayHasKey('utc', $timeSnapshot);
+
                     if ($onProgress !== null) {
                         $onProgress([
                             'phase' => 'tool',

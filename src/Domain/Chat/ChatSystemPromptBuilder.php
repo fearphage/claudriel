@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Claudriel\Domain\Chat;
 
 use Claudriel\Domain\DayBrief\Assembler\DayBriefAssembler;
+use Claudriel\Temporal\TimeSnapshot;
 
 final class ChatSystemPromptBuilder
 {
@@ -13,7 +14,7 @@ final class ChatSystemPromptBuilder
         private readonly string $projectRoot,
     ) {}
 
-    public function build(string $tenantId = 'default', bool $hasToolAccess = false, ?string $activeWorkspace = null): string
+    public function build(string $tenantId = 'default', bool $hasToolAccess = false, ?string $activeWorkspace = null, ?TimeSnapshot $snapshot = null): string
     {
         $parts = [];
 
@@ -30,8 +31,20 @@ final class ChatSystemPromptBuilder
         }
 
         // Brief summary
-        $brief = $this->assembler->assemble($tenantId, new \DateTimeImmutable('-24 hours'));
+        $snapshot ??= new TimeSnapshot(
+            new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
+            new \DateTimeImmutable,
+            hrtime(true),
+            date_default_timezone_get(),
+        );
+        $brief = $this->assembler->assemble($tenantId, $snapshot->utc()->modify('-24 hours'), snapshot: $snapshot);
         $parts[] = $this->formatBriefContext($brief);
+        $parts[] = sprintf(
+            "## Current Time Snapshot\nUTC: %s\nLocal: %s\nTimezone: %s",
+            $snapshot->utc()->format(\DateTimeInterface::ATOM),
+            $snapshot->local()->format(\DateTimeInterface::ATOM),
+            $snapshot->timezone(),
+        );
 
         // Active workspace context
         if ($activeWorkspace !== null) {

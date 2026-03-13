@@ -79,6 +79,7 @@ final class BriefStreamControllerTest extends TestCase
             httpRequest: $request,
         );
 
+        self::assertInstanceOf(\Waaseyaa\SSR\SsrResponse::class, $response);
         self::assertSame(200, $response->statusCode);
         self::assertSame('application/json', $response->headers['Content-Type']);
 
@@ -86,6 +87,7 @@ final class BriefStreamControllerTest extends TestCase
         self::assertArrayHasKey('workspaces', $payload);
         self::assertArrayHasKey('briefs', $payload);
         self::assertArrayHasKey('updated_at', $payload);
+        self::assertArrayHasKey('time_snapshot', $payload['briefs']);
         self::assertSame('Fallback Workspace', $payload['workspaces'][0]['name']);
         self::assertSame('Fallback Workspace', $payload['briefs']['workspaces'][0]['name']);
     }
