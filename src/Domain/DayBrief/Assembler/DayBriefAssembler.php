@@ -27,7 +27,7 @@ final class DayBriefAssembler
         private readonly ?AtomicTimeService $timeService = null,
     ) {}
 
-    /** @return array{schedule: array, schedule_summary: string, temporal_awareness: array<string, mixed>, temporal_suggestions: list<array{type: string, title: string, summary: string}>, job_hunt: array, people: array, triage: array, creators: array, notifications: array, commitments: array{pending: array, drifting: array}, counts: array{job_alerts: int, messages: int, triage: int, due_today: int, drifting: int}, generated_at: string, time_snapshot: array<string, int|string>, matched_skills: array, workspaces: array} */
+    /** @return array{schedule: array, schedule_timeline: array, schedule_summary: string, temporal_awareness: array<string, mixed>, temporal_suggestions: list<array{type: string, title: string, summary: string}>, job_hunt: array, people: array, triage: array, creators: array, notifications: array, commitments: array{pending: array, drifting: array}, counts: array{job_alerts: int, messages: int, triage: int, due_today: int, drifting: int}, generated_at: string, time_snapshot: array<string, int|string>, matched_skills: array, workspaces: array} */
     public function assemble(string $tenantId, \DateTimeImmutable $since, ?string $workspaceUuid = null, ?TimeSnapshot $snapshot = null): array
     {
         $snapshot ??= ($this->timeService ?? new AtomicTimeService)->now();
@@ -114,6 +114,7 @@ final class DayBriefAssembler
 
         return [
             'schedule' => $relativeSchedule['schedule'],
+            'schedule_timeline' => $schedule,
             'schedule_summary' => $relativeSchedule['schedule_summary'],
             'temporal_awareness' => $temporalAwareness,
             'temporal_suggestions' => $temporalSuggestions,

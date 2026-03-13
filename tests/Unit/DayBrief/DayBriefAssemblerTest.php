@@ -102,6 +102,7 @@ final class DayBriefAssemblerTest extends TestCase
         $brief = $this->assembler->assemble('user-1', new \DateTimeImmutable('-24 hours'));
 
         self::assertArrayHasKey('schedule', $brief);
+        self::assertArrayHasKey('schedule_timeline', $brief);
         self::assertArrayHasKey('schedule_summary', $brief);
         self::assertArrayHasKey('temporal_awareness', $brief);
         self::assertArrayHasKey('temporal_suggestions', $brief);

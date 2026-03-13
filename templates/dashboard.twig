@@ -233,6 +233,104 @@
             font-size: 0.82rem;
             padding: 0.25rem 0;
         }
+        .schedule-timeline {
+            position: relative;
+            padding-left: 1.1rem;
+            border-left: 1px solid rgba(107, 155, 255, 0.18);
+        }
+        .schedule-now-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            margin: 0 0 0.75rem -1.1rem;
+            color: var(--accent-blue);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .schedule-now-indicator::before {
+            content: '';
+            width: 0.7rem;
+            height: 0.7rem;
+            border-radius: 999px;
+            background: var(--accent-blue);
+            box-shadow: 0 0 0 4px rgba(107, 155, 255, 0.14);
+        }
+        .timeline-event {
+            position: relative;
+            margin-bottom: 0.65rem;
+            padding: 0.75rem 0.85rem 0.75rem 1rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-subtle);
+            background: rgba(21, 28, 42, 0.72);
+            transition: transform 0.18s ease, background 0.18s ease, opacity 0.18s ease, border-color 0.18s ease;
+        }
+        .timeline-event::before {
+            content: '';
+            position: absolute;
+            left: -1.48rem;
+            top: 1rem;
+            width: 0.65rem;
+            height: 0.65rem;
+            border-radius: 999px;
+            background: rgba(107, 155, 255, 0.6);
+            border: 2px solid var(--bg-surface);
+        }
+        .timeline-event:hover {
+            transform: translateY(-1px);
+            background: rgba(28, 37, 56, 0.92);
+        }
+        .timeline-event--past {
+            opacity: 0.52;
+            background: rgba(21, 28, 42, 0.4);
+        }
+        .timeline-event--current {
+            border-color: rgba(107, 155, 255, 0.55);
+            background: rgba(38, 60, 101, 0.46);
+            box-shadow: 0 12px 26px rgba(34, 82, 162, 0.18);
+        }
+        .timeline-event--current::before {
+            background: var(--accent-blue);
+            box-shadow: 0 0 0 4px rgba(107, 155, 255, 0.18);
+        }
+        .timeline-event--future .timeline-event-body {
+            display: none;
+        }
+        .timeline-event--future:hover .timeline-event-body,
+        .timeline-event--future.is-expanded .timeline-event-body {
+            display: block;
+        }
+        .timeline-event-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 0.75rem;
+        }
+        .timeline-event-title {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .timeline-event-time {
+            color: var(--text-secondary);
+            font-size: 0.74rem;
+            white-space: nowrap;
+        }
+        .timeline-event-body {
+            margin-top: 0.45rem;
+            color: var(--text-secondary);
+            font-size: 0.76rem;
+        }
+        .timeline-event-state {
+            display: inline-flex;
+            margin-top: 0.45rem;
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+        .timeline-event-state.current { color: var(--accent-blue); }
+        .timeline-event-state.future { color: var(--accent-teal); }
 
         /* ── Chat Area ── */
         .chat-area {
@@ -621,17 +719,29 @@
 
             {# Schedule #}
             <div class="panel-section" id="panelSchedule">
-                <div class="panel-section-title">Schedule <span class="badge" id="scheduleCount">{{ schedule|length }}</span></div>
+                {% set timeline = schedule_timeline|default(schedule) %}
+                {% set now_ts = time_snapshot.local|date('U') %}
+                <div class="panel-section-title">Schedule <span class="badge" id="scheduleCount">{{ timeline|length }}</span></div>
                 <div id="scheduleItems">
-                    {% if schedule|length > 0 %}
-                        {% for item in schedule %}
-                            <div class="panel-item schedule" data-chat="Tell me about {{ item.title }}">
-                                {{ item.title }}
-                                <span class="item-meta">
-                                    {{ item.start_time|date('g:i A') }}{% if item.end_time %} - {{ item.end_time|date('g:i A') }}{% endif %}
-                                </span>
-                            </div>
-                        {% endfor %}
+                    {% if timeline|length > 0 %}
+                        <div class="schedule-timeline">
+                            <div class="schedule-now-indicator">Now · {{ time_snapshot.local|date('g:i A') }}</div>
+                            {% for item in timeline %}
+                                {% set start_ts = item.start_time|date('U') %}
+                                {% set end_ts = item.end_time|date('U') %}
+                                {% set state = end_ts <= now_ts ? 'past' : (start_ts <= now_ts and end_ts > now_ts ? 'current' : 'future') %}
+                                <div class="timeline-event timeline-event--{{ state }}{% if state == 'future' and loop.first %} is-expanded{% endif %}" data-chat="Tell me about {{ item.title }}">
+                                    <div class="timeline-event-head">
+                                        <div class="timeline-event-title">{{ item.title }}</div>
+                                        <div class="timeline-event-time">{{ item.start_time|date('g:i A') }}{% if item.end_time %} - {{ item.end_time|date('g:i A') }}{% endif %}</div>
+                                    </div>
+                                    <div class="timeline-event-body">
+                                        <div>{{ item.source|default('manual')|replace({'-': ' '})|title }}</div>
+                                        <div class="timeline-event-state {{ state }}">{{ state == 'current' ? 'Current block' : (state == 'future' ? 'Upcoming block' : 'Past block') }}</div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
                     {% else %}
                         <div class="panel-empty">{{ schedule_summary|default('Your day is clear') }}</div>
                     {% endif %}
@@ -1121,6 +1231,20 @@
             return label + ' - ' + end.toLocaleTimeString([], options);
         }
 
+        function formatClock(date) {
+            try {
+                return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            } catch (error) {
+                return '';
+            }
+        }
+
+        function formatSourceLabel(source) {
+            return String(source || 'manual').replace(/-/g, ' ').replace(/\b\w/g, function(match) {
+                return match.toUpperCase();
+            });
+        }
+
         // ── Sidebar Rebuild from Brief Data ──
         function rebuildSidebar(data) {
             data = normalizeBriefPayload(data);
@@ -1131,14 +1255,23 @@
             // Schedule
             var scheduleCount = document.getElementById('scheduleCount');
             var scheduleItems = document.getElementById('scheduleItems');
-            if (scheduleCount && scheduleItems && data.schedule) {
-                scheduleCount.textContent = data.schedule.length;
-                if (data.schedule.length > 0) {
-                    scheduleItems.innerHTML = data.schedule.map(function(item) {
-                        return '<div class="panel-item schedule" data-chat="Tell me about ' + esc(item.title) + '">'
-                            + esc(item.title)
-                            + '<span class="item-meta">' + esc(formatScheduleTime(item.start_time || '', item.end_time || '')) + '</span></div>';
-                    }).join('');
+            var scheduleTimeline = data.schedule_timeline || data.schedule || [];
+            if (scheduleCount && scheduleItems) {
+                scheduleCount.textContent = scheduleTimeline.length;
+                if (scheduleTimeline.length > 0) {
+                    var nowLocal = data.time_snapshot && data.time_snapshot.local ? new Date(data.time_snapshot.local) : new Date();
+                    scheduleItems.innerHTML = '<div class="schedule-timeline"><div class="schedule-now-indicator">Now · ' + esc(formatClock(nowLocal)) + '</div>'
+                        + scheduleTimeline.map(function(item, index) {
+                            var start = new Date(item.start_time || '');
+                            var end = new Date(item.end_time || '');
+                            var state = end <= nowLocal ? 'past' : (start <= nowLocal && end > nowLocal ? 'current' : 'future');
+                            var expanded = state !== 'future' || index === 0 ? ' is-expanded' : '';
+                            return '<div class="timeline-event timeline-event--' + state + expanded + '" data-chat="Tell me about ' + esc(item.title) + '">'
+                                + '<div class="timeline-event-head"><div class="timeline-event-title">' + esc(item.title) + '</div>'
+                                + '<div class="timeline-event-time">' + esc(formatScheduleTime(item.start_time || '', item.end_time || '')) + '</div></div>'
+                                + '<div class="timeline-event-body"><div>' + esc(formatSourceLabel(item.source || 'manual')) + '</div>'
+                                + '<div class="timeline-event-state ' + state + '">' + esc(state === 'current' ? 'Current block' : (state === 'future' ? 'Upcoming block' : 'Past block')) + '</div></div></div>';
+                        }).join('') + '</div>';
                 } else {
                     scheduleItems.innerHTML = '<div class="panel-empty">' + esc(data.schedule_summary || 'Your day is clear') + '</div>';
                 }
