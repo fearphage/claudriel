@@ -24,13 +24,15 @@ require 'recipe/common.php';
 set('application', 'claudriel');
 set('keep_releases', 5);
 set('allow_anonymous_stats', false);
+set('repository', 'git@github.com:jonesrussell/claudriel.git');
 
 // ---------------------------------------------------------------------------
 // Shared filesystem
 // ---------------------------------------------------------------------------
 
-set('shared_files', ['.env', 'waaseyaa.sqlite']);
-set('shared_dirs', ['context', 'storage']);
+set('shared_files', ['.env']);
+set('shared_dirs', ['storage', 'logs']);
+set('writable_dirs', ['storage', 'logs', 'cache']);
 
 // ---------------------------------------------------------------------------
 // Hosts
@@ -63,6 +65,13 @@ task('deploy:sidecar_dir', function (): void {
     run('mkdir -p {{deploy_path}}/sidecar');
 });
 
+desc('Ensure shared runtime directories exist');
+task('deploy:runtime_dirs', function (): void {
+    run('mkdir -p {{deploy_path}}/shared/storage');
+    run('mkdir -p {{deploy_path}}/shared/logs');
+    run('mkdir -p {{release_path}}/cache');
+});
+
 desc('Reload Caddy to pick up config changes');
 task('caddy:reload', function (): void {
     run('sudo systemctl reload caddy || true');
@@ -71,6 +80,16 @@ task('caddy:reload', function (): void {
 desc('Reload PHP-FPM to pick up new release');
 task('php-fpm:reload', function (): void {
     run('sudo systemctl reload php8.4-fpm');
+});
+
+desc('Deploy sidecar container');
+task('sidecar:deploy', function (): void {
+    run('mkdir -p {{deploy_path}}/sidecar');
+    run('cp {{release_path}}/docker-compose.sidecar.yml {{deploy_path}}/sidecar/');
+    run('rm -rf {{deploy_path}}/sidecar/docker-context');
+    run('cp -r {{release_path}}/docker/sidecar {{deploy_path}}/sidecar/docker-context');
+    run('grep -E "^(CLAUDRIEL_|ANTHROPIC_|CLAUDE_|SIDECAR_|GITHUB_)" {{deploy_path}}/shared/.env > {{deploy_path}}/sidecar/.env || true');
+    run('cd {{deploy_path}}/sidecar && docker compose -f docker-compose.sidecar.yml --env-file .env up -d --build');
 });
 
 // ---------------------------------------------------------------------------
@@ -85,13 +104,16 @@ task('deploy', [
     'deploy:lock',
     'deploy:release',
     'deploy:upload',
+    'deploy:runtime_dirs',
     'deploy:shared',
+    'deploy:writable',
     'deploy:copy_caddyfile',
     'deploy:symlink',
-    'deploy:unlock',
-    'deploy:cleanup',
+    'sidecar:deploy',
     'caddy:reload',
     'php-fpm:reload',
+    'deploy:unlock',
+    'deploy:cleanup',
 ]);
 
 after('deploy:failed', 'deploy:unlock');

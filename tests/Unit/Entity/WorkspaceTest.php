@@ -32,4 +32,16 @@ final class WorkspaceTest extends TestCase
         $workspace = new Workspace(['name' => 'Beemok Project']);
         self::assertSame('Beemok Project', $workspace->get('name'));
     }
+
+    public function test_self_iteration_fields_have_defaults(): void
+    {
+        $workspace = new Workspace;
+
+        self::assertNull($workspace->get('repo_path'));
+        self::assertNull($workspace->get('repo_url'));
+        self::assertSame('main', $workspace->get('branch'));
+        self::assertSame('gpt-4o-codex', $workspace->get('codex_model'));
+        self::assertNull($workspace->get('last_commit_hash'));
+        self::assertNull($workspace->get('ci_status'));
+    }
 }

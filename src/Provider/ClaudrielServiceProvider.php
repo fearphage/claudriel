@@ -4,12 +4,21 @@ declare(strict_types=1);
 
 namespace Claudriel\Provider;
 
+use Claudriel\AI\PromptBuilder;
+use Claudriel\CLI\WorkspaceIterateCommand;
+use Claudriel\CLI\WorkspaceLinkRepoCommand;
+use Claudriel\CLI\WorkspaceOpsCommand;
+use Claudriel\CLI\WorkspaceRunLoopCommand;
+use Claudriel\CLI\WorkspaceStatusCommand;
+use Claudriel\CLI\WorkspaceVerifyCommand;
 use Claudriel\Command\BriefCommand;
 use Claudriel\Command\CommitmentsCommand;
 use Claudriel\Command\CommitmentUpdateCommand;
 use Claudriel\Command\RecategorizeEventsCommand;
 use Claudriel\Command\SkillsCommand;
+use Claudriel\Command\WorkspaceCloneCommand;
 use Claudriel\Command\WorkspaceCreateCommand;
+use Claudriel\Command\WorkspacePullCommand;
 use Claudriel\Command\WorkspacesCommand;
 use Claudriel\Controller\Ai\ExtractionImprovementSuggestionController;
 use Claudriel\Controller\Ai\ExtractionSelfAssessmentController;
@@ -31,16 +40,20 @@ use Claudriel\Controller\WorkspaceApiController;
 use Claudriel\Domain\DayBrief\Assembler\DayBriefAssembler;
 use Claudriel\Domain\DayBrief\Service\BriefSessionStore;
 use Claudriel\Entity\Account;
+use Claudriel\Entity\Artifact;
 use Claudriel\Entity\ChatMessage;
 use Claudriel\Entity\ChatSession;
 use Claudriel\Entity\Commitment;
 use Claudriel\Entity\CommitmentExtractionLog;
 use Claudriel\Entity\Integration;
 use Claudriel\Entity\McEvent;
+use Claudriel\Entity\Operation;
 use Claudriel\Entity\Person;
 use Claudriel\Entity\Skill;
 use Claudriel\Entity\Workspace;
 use Claudriel\Ingestion\EventCategorizer;
+use Claudriel\Layer2\GitRepositoryManager;
+use Claudriel\Service\GitOperator;
 use Claudriel\Support\AutomatedSenderDetector;
 use Claudriel\Support\DriftDetector;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -126,6 +139,20 @@ final class ClaudrielServiceProvider extends ServiceProvider
             label: 'Workspace',
             class: Workspace::class,
             keys: ['id' => 'wid', 'uuid' => 'uuid', 'label' => 'name'],
+        ));
+
+        $this->entityType(new EntityType(
+            id: 'artifact',
+            label: 'Artifact',
+            class: Artifact::class,
+            keys: ['id' => 'artid', 'uuid' => 'uuid', 'label' => 'name'],
+        ));
+
+        $this->entityType(new EntityType(
+            id: 'operation',
+            label: 'Operation',
+            class: Operation::class,
+            keys: ['id' => 'opid', 'uuid' => 'uuid'],
         ));
     }
 
@@ -492,7 +519,7 @@ final class ClaudrielServiceProvider extends ServiceProvider
         EventDispatcherInterface $dispatcher,
     ): array {
         // Trigger getStorage() for each entity type so SqlSchemaHandler::ensureTable() runs.
-        foreach (['mc_event', 'commitment', 'commitment_extraction_log', 'person', 'account', 'integration', 'skill', 'chat_session', 'chat_message', 'workspace'] as $typeId) {
+        foreach (['mc_event', 'commitment', 'commitment_extraction_log', 'person', 'account', 'integration', 'skill', 'chat_session', 'chat_message', 'workspace', 'artifact', 'operation'] as $typeId) {
             try {
                 $entityTypeManager->getStorage($typeId);
             } catch (\Throwable) {
@@ -562,6 +589,35 @@ final class ClaudrielServiceProvider extends ServiceProvider
             $dispatcher,
         );
 
+        $artifactType = new EntityType(
+            id: 'artifact',
+            label: 'Artifact',
+            class: Artifact::class,
+            keys: ['id' => 'artid', 'uuid' => 'uuid', 'label' => 'name'],
+        );
+        $artifactRepo = new EntityRepository(
+            $artifactType,
+            new SqlStorageDriver($resolver, 'artid'),
+            $dispatcher,
+        );
+
+        $operationType = new EntityType(
+            id: 'operation',
+            label: 'Operation',
+            class: Operation::class,
+            keys: ['id' => 'opid', 'uuid' => 'uuid'],
+        );
+        $operationRepo = new EntityRepository(
+            $operationType,
+            new SqlStorageDriver($resolver, 'opid'),
+            $dispatcher,
+        );
+
+        $gitRepositoryManager = new GitRepositoryManager;
+        $promptBuilder = new PromptBuilder;
+        $gitOperator = new GitOperator;
+        $this->ensureClaudrielSystemWorkspace($workspaceRepo, $artifactRepo, $gitRepositoryManager);
+
         $assembler = new DayBriefAssembler($eventRepo, $commitmentRepo, new DriftDetector($commitmentRepo), $personRepo, $skillRepo, $workspaceRepo);
         $sessionStore = new BriefSessionStore($this->projectRoot.'/storage/brief-session.txt');
 
@@ -572,7 +628,78 @@ final class ClaudrielServiceProvider extends ServiceProvider
             new SkillsCommand($skillRepo),
             new WorkspacesCommand($workspaceRepo),
             new WorkspaceCreateCommand($workspaceRepo),
+            new WorkspaceCloneCommand($workspaceRepo, $artifactRepo, $gitRepositoryManager),
+            new WorkspacePullCommand($workspaceRepo, $artifactRepo, $gitRepositoryManager),
+            new WorkspaceIterateCommand($workspaceRepo, $operationRepo, $promptBuilder, $gitOperator),
+            new WorkspaceStatusCommand($workspaceRepo),
+            new WorkspaceLinkRepoCommand($workspaceRepo),
+            new WorkspaceRunLoopCommand($workspaceRepo, $operationRepo, $promptBuilder, $gitOperator),
+            new WorkspaceOpsCommand($workspaceRepo, $operationRepo),
+            new WorkspaceVerifyCommand($workspaceRepo),
             new RecategorizeEventsCommand($entityTypeManager, new EventCategorizer(new AutomatedSenderDetector, $personRepo)),
         ];
+    }
+
+    private function ensureClaudrielSystemWorkspace(
+        EntityRepository $workspaceRepo,
+        EntityRepository $artifactRepo,
+        GitRepositoryManager $gitRepositoryManager,
+    ): void {
+        $workspace = $this->findWorkspaceByName($workspaceRepo, 'Claudriel System');
+
+        if (! $workspace instanceof Workspace) {
+            $workspace = new Workspace([
+                'name' => 'Claudriel System',
+                'description' => 'System workspace for the Claudriel repository.',
+            ]);
+            $workspaceRepo->save($workspace);
+        }
+
+        $workspaceUuid = (string) $workspace->get('uuid');
+        $artifact = $this->findRepoArtifact($artifactRepo, $workspaceUuid);
+
+        if (! $artifact instanceof Artifact) {
+            $artifact = new Artifact([
+                'name' => 'Claudriel Repository',
+                'workspace_uuid' => $workspaceUuid,
+                'type' => 'repo',
+            ]);
+        }
+
+        $artifact->set('workspace_uuid', $workspaceUuid);
+        $artifact->set('type', 'repo');
+        $artifact->set('repo_url', $this->detectClaudrielRepositoryUrl());
+        $artifact->set('branch', 'main');
+        $artifact->set('local_path', $gitRepositoryManager->buildWorkspaceRepoPath($workspaceUuid));
+
+        $artifactRepo->save($artifact);
+    }
+
+    private function findWorkspaceByName(EntityRepository $workspaceRepo, string $name): ?Workspace
+    {
+        $results = $workspaceRepo->findBy(['name' => $name]);
+        $workspace = $results[0] ?? null;
+
+        return $workspace instanceof Workspace ? $workspace : null;
+    }
+
+    private function findRepoArtifact(EntityRepository $artifactRepo, string $workspaceUuid): ?Artifact
+    {
+        $results = $artifactRepo->findBy(['workspace_uuid' => $workspaceUuid, 'type' => 'repo']);
+        $artifact = $results[0] ?? null;
+
+        return $artifact instanceof Artifact ? $artifact : null;
+    }
+
+    private function detectClaudrielRepositoryUrl(): string
+    {
+        $output = shell_exec(sprintf(
+            'git -C %s remote get-url origin 2>/dev/null',
+            escapeshellarg($this->projectRoot),
+        ));
+
+        $repoUrl = trim((string) $output);
+
+        return $repoUrl !== '' ? $repoUrl : 'git@github.com:jonesrussell/claudriel.git';
     }
 }

@@ -10,19 +10,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Build & Deploy
+  verify:
+    name: Verify
     runs-on: ubuntu-latest
-    environment: production
 
     steps:
-      # -------------------------------------------------------------------
-      # Checkout
-      #
-      # Both repos are needed side-by-side because composer.json uses path
-      # repositories pointing to ../waaseyaa/packages/*.
-      # -------------------------------------------------------------------
-
       - name: Checkout claudriel
         uses: actions/checkout@v4
         with:
@@ -45,9 +37,56 @@ jobs:
           extensions: pdo_sqlite, sqlite3, mbstring, xml
           coverage: none
 
-      # -------------------------------------------------------------------
-      # Build
-      # -------------------------------------------------------------------
+      - name: Rewrite Composer path repositories for CI
+        working-directory: claudriel
+        run: |
+          php -r "
+            \$c = json_decode(file_get_contents('composer.json'), true);
+            \$c['repositories'] = [['type' => 'path', 'url' => '../waaseyaa/packages/*']];
+            file_put_contents('composer.json', json_encode(\$c, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . \"\\n\");
+          "
+          rm -f composer.lock
+
+      - name: Install Composer dependencies
+        working-directory: claudriel
+        run: |
+          composer install \
+            --no-interaction \
+            --optimize-autoloader \
+            --prefer-dist
+
+      - name: Run phpstan
+        working-directory: claudriel
+        run: composer analyse
+
+      - name: Run tests
+        working-directory: claudriel
+        run: composer test
+
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    environment: production
+    needs: verify
+
+    steps:
+      - name: Checkout claudriel
+        uses: actions/checkout@v4
+        with:
+          path: claudriel
+
+      - name: Checkout waaseyaa framework
+        uses: actions/checkout@v4
+        with:
+          repository: waaseyaa/framework
+          path: waaseyaa
+
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, sqlite3, mbstring, xml
+          coverage: none
 
       - name: Rewrite Composer path repositories for CI
         working-directory: claudriel
@@ -68,10 +107,6 @@ jobs:
             --optimize-autoloader \
             --prefer-dist
 
-      # -------------------------------------------------------------------
-      # Assemble build artifact
-      # -------------------------------------------------------------------
-
       - name: Assemble build artifact
         run: |
           mkdir -p claudriel/.build
@@ -84,10 +119,6 @@ jobs:
             --exclude='.env' \
             --exclude='*.sqlite' \
             claudriel/ claudriel/.build/
-
-      # -------------------------------------------------------------------
-      # Deploy via PHP Deployer
-      # -------------------------------------------------------------------
 
       - name: Install PHP Deployer
         run: composer global require deployer/deployer --no-interaction
@@ -105,16 +136,3 @@ jobs:
       - name: Deploy
         working-directory: claudriel
         run: dep deploy production --no-interaction
-
-      - name: Deploy sidecar container
-        run: |
-          ssh deployer@claudriel.northcloud.one '
-            cd /home/deployer/claudriel
-            mkdir -p sidecar
-            cp current/docker-compose.sidecar.yml sidecar/
-            rm -rf sidecar/docker-context
-            cp -r current/docker/sidecar sidecar/docker-context
-            grep -E "^(CLAUDRIEL_|ANTHROPIC_|CLAUDE_MODEL|SIDECAR_)" shared/.env > sidecar/.env
-            cd sidecar
-            docker compose -f docker-compose.sidecar.yml --env-file .env up -d --build
-          '
