@@ -6,6 +6,8 @@ namespace Claudriel\Controller;
 
 use Claudriel\Domain\DayBrief\Assembler\DayBriefAssembler;
 use Claudriel\Domain\DayBrief\Service\BriefSessionStore;
+use Claudriel\Routing\RequestScopeViolation;
+use Claudriel\Routing\TenantWorkspaceResolver;
 use Claudriel\Support\DriftDetector;
 use Symfony\Component\HttpFoundation\Request;
 use Waaseyaa\Entity\EntityTypeManager;
@@ -26,13 +28,23 @@ final class DayBriefController
 
     public function show(array $params = [], array $query = [], mixed $account = null, ?Request $httpRequest = null): SsrResponse
     {
+        try {
+            $scope = (new TenantWorkspaceResolver($this->entityTypeManager))->resolve($query, $account, $httpRequest);
+        } catch (RequestScopeViolation $exception) {
+            return new SsrResponse(
+                content: json_encode(['error' => $exception->getMessage()], JSON_THROW_ON_ERROR),
+                statusCode: $exception->statusCode(),
+                headers: ['Content-Type' => 'application/json'],
+            );
+        }
+
         $storageDir = getenv('CLAUDRIEL_STORAGE') ?: dirname(__DIR__, 2).'/storage';
         $sessionStore = new BriefSessionStore($storageDir.'/brief-session.txt');
 
         $since = new \DateTimeImmutable('-24 hours');
 
         $assembler = $this->buildAssembler();
-        $brief = $assembler->assemble('default', $since);
+        $brief = $assembler->assemble($scope->tenantId, $since, $scope->workspaceId());
 
         $wantsJson = false;
         if ($httpRequest !== null) {

@@ -79,6 +79,8 @@ final class CodexExecutionPipelineTest extends TestCase
                 \Closure $onError,
                 ?string $sessionId = null,
                 ?\Closure $onProgress = null,
+                ?string $tenantId = null,
+                ?string $workspaceId = null,
             ): void {
                 $onDone("--- a/file.txt\n+++ b/file.txt\n@@ -0,0 +1 @@\n+patched\n");
             }

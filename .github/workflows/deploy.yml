@@ -63,6 +63,23 @@ jobs:
         working-directory: claudriel
         run: composer test
 
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install sidecar dependencies
+        working-directory: claudriel/docker/sidecar
+        run: pip install -r requirements.txt
+
+      - name: Run sidecar lint
+        working-directory: claudriel/docker/sidecar
+        run: ruff check app/
+
+      - name: Run sidecar tests
+        working-directory: claudriel/docker/sidecar
+        run: pytest
+
   deploy:
     name: Build & Deploy
     runs-on: ubuntu-latest
@@ -135,4 +152,4 @@ jobs:
 
       - name: Deploy
         working-directory: claudriel
-        run: dep deploy production --no-interaction
+        run: dep deploy production --no-interaction -vv

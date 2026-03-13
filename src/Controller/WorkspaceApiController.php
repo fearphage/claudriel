@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Claudriel\Controller;
 
 use Claudriel\Entity\Workspace;
+use Claudriel\Routing\RequestScopeViolation;
+use Claudriel\Routing\TenantWorkspaceResolver;
 use Symfony\Component\HttpFoundation\Request;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\SSR\SsrResponse;
@@ -18,15 +20,15 @@ final class WorkspaceApiController
 
     public function list(array $params = [], array $query = [], mixed $account = null): SsrResponse
     {
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        $scope = $resolver->resolve($query, $account);
         $storage = $this->entityTypeManager->getStorage('workspace');
         $entityQuery = $storage->getQuery();
-
-        if (isset($query['account_id'])) {
-            $entityQuery->condition('account_id', $query['account_id']);
-        }
-
         $ids = $entityQuery->execute();
-        $entities = $storage->loadMultiple($ids);
+        $entities = array_values(array_filter(
+            $storage->loadMultiple($ids),
+            fn ($workspace): bool => $workspace instanceof Workspace && $resolver->tenantMatches($workspace, $scope->tenantId),
+        ));
 
         $workspaces = array_map(fn ($ws) => $this->serialize($ws), array_values($entities));
 
@@ -37,6 +39,13 @@ final class WorkspaceApiController
     {
         $raw = $httpRequest?->getContent() ?? '';
         $body = json_decode($raw, true) ?? [];
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        try {
+            $scope = $resolver->resolve($query, $account, $httpRequest, $body);
+            $resolver->assertPayloadTenantMatchesContext($body, $scope->tenantId);
+        } catch (RequestScopeViolation $exception) {
+            return $this->json(['error' => $exception->getMessage()], $exception->statusCode());
+        }
 
         $name = $body['name'] ?? null;
         if (! is_string($name) || trim($name) === '') {
@@ -46,6 +55,7 @@ final class WorkspaceApiController
         $workspace = new Workspace([
             'name' => trim($name),
             'account_id' => $body['account_id'] ?? null,
+            'tenant_id' => $scope->tenantId,
             'description' => $body['description'] ?? '',
             'metadata' => json_encode($body['metadata'] ?? new \stdClass, JSON_THROW_ON_ERROR),
         ]);
@@ -58,7 +68,9 @@ final class WorkspaceApiController
 
     public function show(array $params = [], array $query = [], mixed $account = null): SsrResponse
     {
-        $workspace = $this->findByUuid($params['uuid'] ?? '');
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        $scope = $resolver->resolve($query, $account);
+        $workspace = $this->findByUuid($params['uuid'] ?? '', $scope->tenantId);
         if ($workspace === null) {
             return $this->json(['error' => 'Workspace not found.'], 404);
         }
@@ -68,13 +80,19 @@ final class WorkspaceApiController
 
     public function update(array $params = [], array $query = [], mixed $account = null, ?Request $httpRequest = null): SsrResponse
     {
-        $workspace = $this->findByUuid($params['uuid'] ?? '');
+        $body = json_decode($httpRequest?->getContent() ?? '', true) ?? [];
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        try {
+            $scope = $resolver->resolve($query, $account, $httpRequest, $body, (string) ($params['uuid'] ?? ''), true);
+            $resolver->assertPayloadTenantMatchesContext($body, $scope->tenantId);
+        } catch (RequestScopeViolation $exception) {
+            return $this->json(['error' => $exception->getMessage()], $exception->statusCode());
+        }
+
+        $workspace = $scope->workspace;
         if ($workspace === null) {
             return $this->json(['error' => 'Workspace not found.'], 404);
         }
-
-        $raw = $httpRequest?->getContent() ?? '';
-        $body = json_decode($raw, true) ?? [];
 
         $allowedFields = ['name', 'description', 'metadata', 'account_id'];
         foreach ($allowedFields as $field) {
@@ -100,7 +118,14 @@ final class WorkspaceApiController
 
     public function delete(array $params = [], array $query = [], mixed $account = null): SsrResponse
     {
-        $workspace = $this->findByUuid($params['uuid'] ?? '');
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        try {
+            $scope = $resolver->resolve($query, $account, null, null, (string) ($params['uuid'] ?? ''), true);
+        } catch (RequestScopeViolation $exception) {
+            return $this->json(['error' => $exception->getMessage()], $exception->statusCode());
+        }
+
+        $workspace = $scope->workspace;
         if ($workspace === null) {
             return $this->json(['error' => 'Workspace not found.'], 404);
         }
@@ -111,22 +136,9 @@ final class WorkspaceApiController
         return $this->json(['deleted' => true], 200);
     }
 
-    private function findByUuid(string $uuid): ?Workspace
+    private function findByUuid(string $uuid, string $tenantId): ?Workspace
     {
-        if ($uuid === '') {
-            return null;
-        }
-
-        $storage = $this->entityTypeManager->getStorage('workspace');
-        $ids = $storage->getQuery()->condition('uuid', $uuid)->execute();
-
-        if (empty($ids)) {
-            return null;
-        }
-
-        $entity = $storage->load(reset($ids));
-
-        return $entity instanceof Workspace ? $entity : null;
+        return (new TenantWorkspaceResolver($this->entityTypeManager))->findWorkspaceByUuidForTenant($uuid, $tenantId);
     }
 
     /**
@@ -140,6 +152,7 @@ final class WorkspaceApiController
         return [
             'uuid' => $workspace->get('uuid'),
             'account_id' => $workspace->get('account_id'),
+            'tenant_id' => $workspace->get('tenant_id'),
             'name' => $workspace->get('name'),
             'description' => $workspace->get('description') ?? '',
             'metadata' => $decoded ?? new \stdClass,

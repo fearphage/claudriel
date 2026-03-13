@@ -23,6 +23,9 @@ final class Workspace extends ContentEntityBase
         if ($this->get('account_id') === null) {
             $this->set('account_id', null);
         }
+        if ($this->get('tenant_id') === null) {
+            $this->set('tenant_id', $_ENV['CLAUDRIEL_DEFAULT_TENANT'] ?? getenv('CLAUDRIEL_DEFAULT_TENANT') ?: 'default');
+        }
         if ($this->get('description') === null) {
             $this->set('description', '');
         }

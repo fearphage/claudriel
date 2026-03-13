@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Claudriel\Controller;
 
 use Claudriel\Entity\ScheduleEntry;
+use Claudriel\Routing\RequestScopeViolation;
+use Claudriel\Routing\TenantWorkspaceResolver;
 use Symfony\Component\HttpFoundation\Request;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\SSR\SsrResponse;
@@ -22,9 +24,14 @@ final class ScheduleApiController
 
     public function list(array $params = [], array $query = [], mixed $account = null): SsrResponse
     {
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        $scope = $resolver->resolve($query, $account);
         $entries = array_values(array_filter(
             $this->loadAll(),
-            function (ScheduleEntry $entry) use ($query): bool {
+            function (ScheduleEntry $entry) use ($query, $resolver, $scope): bool {
+                if (! $resolver->tenantMatches($entry, $scope->tenantId)) {
+                    return false;
+                }
                 if (($entry->get('status') ?? 'active') !== 'active') {
                     return false;
                 }
@@ -53,6 +60,13 @@ final class ScheduleApiController
     public function create(array $params = [], array $query = [], mixed $account = null, ?Request $httpRequest = null): SsrResponse
     {
         $body = json_decode($httpRequest?->getContent() ?? '', true) ?? [];
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        try {
+            $scope = $resolver->resolve($query, $account, $httpRequest, $body);
+            $resolver->assertPayloadTenantMatchesContext($body, $scope->tenantId);
+        } catch (RequestScopeViolation $exception) {
+            return $this->json(['error' => $exception->getMessage()], $exception->statusCode());
+        }
 
         [$title, $startsAt] = $this->validateRequiredFields($body);
         if ($title === null || $startsAt === null) {
@@ -66,7 +80,7 @@ final class ScheduleApiController
             'source' => 'manual',
             'notes' => is_string($body['notes'] ?? null) ? trim($body['notes']) : '',
             'status' => 'active',
-            'tenant_id' => $body['tenant_id'] ?? null,
+            'tenant_id' => $scope->tenantId,
             'recurring_series_id' => is_string($body['recurring_series_id'] ?? null) ? $body['recurring_series_id'] : null,
         ]);
 
@@ -77,7 +91,9 @@ final class ScheduleApiController
 
     public function show(array $params = [], array $query = [], mixed $account = null): SsrResponse
     {
-        $entry = $this->findByUuid((string) ($params['uuid'] ?? ''));
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        $scope = $resolver->resolve($query, $account);
+        $entry = $this->findByUuid((string) ($params['uuid'] ?? ''), $scope->tenantId);
         if ($entry === null) {
             return $this->json(['error' => 'Schedule entry not found.'], 404);
         }
@@ -87,16 +103,24 @@ final class ScheduleApiController
 
     public function update(array $params = [], array $query = [], mixed $account = null, ?Request $httpRequest = null): SsrResponse
     {
-        $entry = $this->findByUuid((string) ($params['uuid'] ?? ''));
+        $body = json_decode($httpRequest?->getContent() ?? '', true) ?? [];
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        try {
+            $requestScope = $resolver->resolve($query, $account, $httpRequest, $body);
+            $resolver->assertPayloadTenantMatchesContext($body, $requestScope->tenantId);
+        } catch (RequestScopeViolation $exception) {
+            return $this->json(['error' => $exception->getMessage()], $exception->statusCode());
+        }
+
+        $entry = $this->findByUuid((string) ($params['uuid'] ?? ''), $requestScope->tenantId);
         if ($entry === null) {
             return $this->json(['error' => 'Schedule entry not found.'], 404);
         }
 
-        $body = json_decode($httpRequest?->getContent() ?? '', true) ?? [];
-        $scope = $this->normalizeScope($query['scope'] ?? $body['scope'] ?? null);
-        $targets = $this->resolveTargets($entry, $scope);
+        $updateScope = $this->normalizeScope($query['scope'] ?? $body['scope'] ?? null);
+        $targets = $this->resolveTargets($entry, $updateScope, $requestScope->tenantId);
 
-        foreach (['title', 'notes', 'tenant_id', 'recurring_series_id'] as $field) {
+        foreach (['title', 'notes', 'recurring_series_id'] as $field) {
             if (! array_key_exists($field, $body)) {
                 continue;
             }
@@ -148,14 +172,16 @@ final class ScheduleApiController
 
         return $this->json([
             'schedule' => $this->serialize($entry),
-            'scope' => $scope,
+            'scope' => $updateScope,
             'affected_count' => count($targets),
         ]);
     }
 
     public function delete(array $params = [], array $query = [], mixed $account = null): SsrResponse
     {
-        $entry = $this->findByUuid((string) ($params['uuid'] ?? ''));
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        $requestScope = $resolver->resolve($query, $account);
+        $entry = $this->findByUuid((string) ($params['uuid'] ?? ''), $requestScope->tenantId);
         if ($entry === null) {
             return $this->json(['error' => 'Schedule entry not found.'], 404);
         }
@@ -174,7 +200,7 @@ final class ScheduleApiController
             ]);
         }
 
-        $targets = $this->resolveTargets($entry, $scope);
+        $targets = $this->resolveTargets($entry, $scope, $requestScope->tenantId);
         $storage->delete($targets);
 
         return $this->json([
@@ -195,7 +221,7 @@ final class ScheduleApiController
         return array_values(array_filter($entries, fn ($entry): bool => $entry instanceof ScheduleEntry));
     }
 
-    private function findByUuid(string $uuid): ?ScheduleEntry
+    private function findByUuid(string $uuid, string $tenantId): ?ScheduleEntry
     {
         if ($uuid === '') {
             return null;
@@ -209,7 +235,7 @@ final class ScheduleApiController
 
         $entry = $storage->load(reset($ids));
 
-        return $entry instanceof ScheduleEntry ? $entry : null;
+        return $entry instanceof ScheduleEntry && (new TenantWorkspaceResolver($this->entityTypeManager))->tenantMatches($entry, $tenantId) ? $entry : null;
     }
 
     /**
@@ -263,7 +289,7 @@ final class ScheduleApiController
     /**
      * @return list<ScheduleEntry>
      */
-    private function resolveTargets(ScheduleEntry $entry, string $scope): array
+    private function resolveTargets(ScheduleEntry $entry, string $scope, string $tenantId): array
     {
         if ($scope !== 'series') {
             return [$entry];
@@ -278,7 +304,10 @@ final class ScheduleApiController
         $ids = $storage->getQuery()->condition('recurring_series_id', $seriesId)->execute();
         $entries = $storage->loadMultiple($ids);
 
-        return array_values(array_filter($entries, fn ($candidate): bool => $candidate instanceof ScheduleEntry));
+        return array_values(array_filter(
+            $entries,
+            fn ($candidate): bool => $candidate instanceof ScheduleEntry && (new TenantWorkspaceResolver($this->entityTypeManager))->tenantMatches($candidate, $tenantId),
+        ));
     }
 
     /**

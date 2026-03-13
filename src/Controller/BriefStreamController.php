@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Claudriel\Controller;
 
 use Claudriel\Domain\DayBrief\Assembler\DayBriefAssembler;
+use Claudriel\Routing\RequestScopeViolation;
+use Claudriel\Routing\TenantWorkspaceResolver;
 use Claudriel\Support\BriefSignal;
 use Claudriel\Support\DriftDetector;
 use Symfony\Component\HttpFoundation\Request;
@@ -24,11 +26,18 @@ final class BriefStreamController
      */
     public function stream(array $params = [], array $query = [], mixed $account = null, mixed $httpRequest = null): StreamedResponse|SsrResponse
     {
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        try {
+            $scope = $resolver->resolve($query, $account, $httpRequest instanceof Request ? $httpRequest : null);
+        } catch (RequestScopeViolation $exception) {
+            return $this->json(['error' => $exception->getMessage()], $exception->statusCode());
+        }
+
         $requestId = $this->resolveRequestId($httpRequest, $query);
         $userId = $this->resolveUserId($account);
 
         if (($query['transport'] ?? null) === 'fallback') {
-            $payload = $this->buildFallbackPayload();
+            $payload = $this->buildFallbackPayload($scope->tenantId, $scope->workspaceId());
             $this->logTransport('brief_stream_fallback', [
                 'request_id' => $requestId,
                 'user_id' => $userId,
@@ -46,22 +55,22 @@ final class BriefStreamController
         ];
 
         return new StreamedResponse(
-            function () use ($signalFile, $context): void {
+            function () use ($signalFile, $context, $scope): void {
                 if (session_status() === PHP_SESSION_ACTIVE) {
                     session_write_close();
                 }
 
                 try {
-                    $payload = $this->buildFallbackPayload();
+                    $payload = $this->buildFallbackPayload($scope->tenantId, $scope->workspaceId());
                     $this->logTransport('brief_stream_start', $context + [
                         'workspace_count' => count($payload['workspaces']),
                     ]);
-                    $this->streamLoop($signalFile, initialPayload: $payload['briefs']);
+                    $this->streamLoop($signalFile, initialPayload: $payload['briefs'], tenantId: $scope->tenantId, workspaceUuid: $scope->workspaceId());
                     $this->logTransport('brief_stream_end', $context + [
                         'workspace_count' => count($payload['workspaces']),
                     ]);
                 } catch (\Throwable $e) {
-                    $fallbackPayload = $this->buildFallbackPayload();
+                    $fallbackPayload = $this->buildFallbackPayload($scope->tenantId, $scope->workspaceId());
                     $this->logTransport('brief_stream_error', $context + [
                         'workspace_count' => count($fallbackPayload['workspaces']),
                         'error' => $e->getMessage(),
@@ -87,6 +96,8 @@ final class BriefStreamController
         ?\Closure $shouldStop = null,
         ?\Closure $sleepCallback = null,
         ?array $initialPayload = null,
+        string $tenantId = 'default',
+        ?string $workspaceUuid = null,
     ): void {
         $output = $outputCallback ?? static function (string $data): void {
             echo $data;
@@ -112,7 +123,7 @@ final class BriefStreamController
         $flush();
 
         // Emit initial brief immediately
-        $briefJson = json_encode($initialPayload ?? $this->buildFallbackPayload()['briefs'], JSON_THROW_ON_ERROR);
+        $briefJson = json_encode($initialPayload ?? $this->buildFallbackPayload($tenantId, $workspaceUuid)['briefs'], JSON_THROW_ON_ERROR);
         $output("event: brief-update\ndata: {$briefJson}\n\n");
         $flush();
         $lastMtime = $signal->lastModified();
@@ -121,7 +132,7 @@ final class BriefStreamController
             // Check for signal changes
             if ($signal->hasChangedSince($lastMtime)) {
                 $lastMtime = $signal->lastModified();
-                $briefJson = json_encode($this->buildFallbackPayload()['briefs'], JSON_THROW_ON_ERROR);
+                $briefJson = json_encode($this->buildFallbackPayload($tenantId, $workspaceUuid)['briefs'], JSON_THROW_ON_ERROR);
                 $output("event: brief-update\ndata: {$briefJson}\n\n");
                 $flush();
                 ($sleepCallback ?? static function (): void {
@@ -147,7 +158,7 @@ final class BriefStreamController
         }
     }
 
-    public function buildFallbackPayload(): array
+    public function buildFallbackPayload(string $tenantId = 'default', ?string $workspaceUuid = null): array
     {
         $eventStorage = $this->entityTypeManager->getStorage('mc_event');
         $commitmentStorage = $this->entityTypeManager->getStorage('commitment');
@@ -183,7 +194,7 @@ final class BriefStreamController
         }
 
         $assembler = new DayBriefAssembler($eventRepo, $commitmentRepo, $driftDetector, $personRepo, $skillRepo, $scheduleRepo, $workspaceRepo, $triageRepo);
-        $brief = $assembler->assemble('default', new \DateTimeImmutable('-24 hours'));
+        $brief = $assembler->assemble($tenantId, new \DateTimeImmutable('-24 hours'), $workspaceUuid);
 
         $briefs = $brief;
         $briefs['commitments']['pending'] = array_map(fn ($c) => $c->toArray(), $brief['commitments']['pending']);

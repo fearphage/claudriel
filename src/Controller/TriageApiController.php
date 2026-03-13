@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Claudriel\Controller;
 
 use Claudriel\Entity\TriageEntry;
+use Claudriel\Routing\RequestScopeViolation;
+use Claudriel\Routing\TenantWorkspaceResolver;
 use Symfony\Component\HttpFoundation\Request;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\SSR\SsrResponse;
@@ -22,10 +24,15 @@ final class TriageApiController
 
     public function list(array $params = [], array $query = [], mixed $account = null): SsrResponse
     {
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        $scope = $resolver->resolve($query, $account);
         $statusFilter = $query['status'] ?? 'open';
         $entries = array_values(array_filter(
             $this->loadAll(),
-            function (TriageEntry $entry) use ($query, $statusFilter): bool {
+            function (TriageEntry $entry) use ($query, $statusFilter, $resolver, $scope): bool {
+                if (! $resolver->tenantMatches($entry, $scope->tenantId)) {
+                    return false;
+                }
                 if (is_string($statusFilter) && $statusFilter !== 'all' && $statusFilter !== (string) ($entry->get('status') ?? 'open')) {
                     return false;
                 }
@@ -47,6 +54,13 @@ final class TriageApiController
     public function create(array $params = [], array $query = [], mixed $account = null, ?Request $httpRequest = null): SsrResponse
     {
         $body = json_decode($httpRequest?->getContent() ?? '', true) ?? [];
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        try {
+            $scope = $resolver->resolve($query, $account, $httpRequest, $body);
+            $resolver->assertPayloadTenantMatchesContext($body, $scope->tenantId);
+        } catch (RequestScopeViolation $exception) {
+            return $this->json(['error' => $exception->getMessage()], $exception->statusCode());
+        }
         $status = $this->normalizeStatus($body['status'] ?? 'open');
         if ($status === null) {
             return $this->json(['error' => 'Field "status" is invalid.'], 422);
@@ -58,7 +72,7 @@ final class TriageApiController
             'summary' => is_string($body['summary'] ?? null) ? trim($body['summary']) : '',
             'status' => $status,
             'source' => is_string($body['source'] ?? null) ? $body['source'] : 'manual',
-            'tenant_id' => $body['tenant_id'] ?? null,
+            'tenant_id' => $scope->tenantId,
             'occurred_at' => $this->normalizeDateTime($body['occurred_at'] ?? null) ?? (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
             'external_id' => is_string($body['external_id'] ?? null) ? $body['external_id'] : null,
             'content_hash' => is_string($body['content_hash'] ?? null) ? $body['content_hash'] : null,
@@ -72,7 +86,9 @@ final class TriageApiController
 
     public function show(array $params = [], array $query = [], mixed $account = null): SsrResponse
     {
-        $entry = $this->findByUuid((string) ($params['uuid'] ?? ''));
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        $scope = $resolver->resolve($query, $account);
+        $entry = $this->findByUuid((string) ($params['uuid'] ?? ''), $scope->tenantId);
         if ($entry === null) {
             return $this->json(['error' => 'Triage entry not found.'], 404);
         }
@@ -82,13 +98,21 @@ final class TriageApiController
 
     public function update(array $params = [], array $query = [], mixed $account = null, ?Request $httpRequest = null): SsrResponse
     {
-        $entry = $this->findByUuid((string) ($params['uuid'] ?? ''));
+        $body = json_decode($httpRequest?->getContent() ?? '', true) ?? [];
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        try {
+            $scope = $resolver->resolve($query, $account, $httpRequest, $body);
+            $resolver->assertPayloadTenantMatchesContext($body, $scope->tenantId);
+        } catch (RequestScopeViolation $exception) {
+            return $this->json(['error' => $exception->getMessage()], $exception->statusCode());
+        }
+
+        $entry = $this->findByUuid((string) ($params['uuid'] ?? ''), $scope->tenantId);
         if ($entry === null) {
             return $this->json(['error' => 'Triage entry not found.'], 404);
         }
 
-        $body = json_decode($httpRequest?->getContent() ?? '', true) ?? [];
-        foreach (['sender_name', 'sender_email', 'summary', 'source', 'tenant_id', 'external_id', 'content_hash'] as $field) {
+        foreach (['sender_name', 'sender_email', 'summary', 'source', 'external_id', 'content_hash'] as $field) {
             if (array_key_exists($field, $body)) {
                 $entry->set($field, $body[$field]);
             }
@@ -121,7 +145,9 @@ final class TriageApiController
 
     public function delete(array $params = [], array $query = [], mixed $account = null): SsrResponse
     {
-        $entry = $this->findByUuid((string) ($params['uuid'] ?? ''));
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        $scope = $resolver->resolve($query, $account);
+        $entry = $this->findByUuid((string) ($params['uuid'] ?? ''), $scope->tenantId);
         if ($entry === null) {
             return $this->json(['error' => 'Triage entry not found.'], 404);
         }
@@ -142,7 +168,7 @@ final class TriageApiController
         return array_values(array_filter($entries, fn ($entry): bool => $entry instanceof TriageEntry));
     }
 
-    private function findByUuid(string $uuid): ?TriageEntry
+    private function findByUuid(string $uuid, string $tenantId): ?TriageEntry
     {
         if ($uuid === '') {
             return null;
@@ -156,7 +182,7 @@ final class TriageApiController
 
         $entry = $storage->load(reset($ids));
 
-        return $entry instanceof TriageEntry ? $entry : null;
+        return $entry instanceof TriageEntry && (new TenantWorkspaceResolver($this->entityTypeManager))->tenantMatches($entry, $tenantId) ? $entry : null;
     }
 
     private function normalizeStatus(mixed $value): ?string

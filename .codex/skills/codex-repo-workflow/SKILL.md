@@ -45,6 +45,12 @@ For sidecar changes under `docker/sidecar/`:
 - `ruff check app/`
 - `pytest`
 
+For workflow-sensitive v1.0 changes:
+
+- Re-run the smallest relevant surface from `/home/fsd42/dev/claudriel/tests/smoke/v1.0-smoke-matrix.md`
+- If routing or boundary behavior changes, verify the tenant/workspace rules in `/home/fsd42/dev/claudriel/docs/tenant-workspace-boundaries.md`
+- If deploy behavior changes, confirm the change still flows through `/home/fsd42/dev/claudriel/deploy.php`
+
 If checks are skipped, say exactly why.
 
 ## Push And Open PRs
@@ -59,3 +65,11 @@ If checks are skipped, say exactly why.
 - Do not include unrelated local modifications in the commit.
 - Do not amend commits unless the user explicitly asks.
 - Do not push directly to `main` unless the user explicitly requests it.
+- Do not modify milestones or close issues as part of normal implementation flow unless explicitly asked.
+- Prefer adding issue progress comments over changing issue bodies once implementation has started.
+
+## Sequencing Rules
+
+- Use `/home/fsd42/dev/claudriel/v1.0-plan.md` as the execution-order source of truth for v1.0 work.
+- When a task touches tenant-aware routing, deploy validation, or smoke surfaces, read the corresponding source-of-truth docs before editing.
+- If a workflow or operational rule changes, update `/home/fsd42/dev/claudriel/docs/workflow/claudriel-workflow.md` in the same pass.

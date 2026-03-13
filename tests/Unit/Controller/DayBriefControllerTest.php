@@ -8,6 +8,7 @@ use Claudriel\Controller\DayBriefController;
 use Claudriel\Entity\Commitment;
 use Claudriel\Entity\McEvent;
 use Claudriel\Entity\Person;
+use Claudriel\Entity\Workspace;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\Request;
@@ -48,6 +49,10 @@ final class DayBriefControllerTest extends TestCase
         $this->entityTypeManager->registerEntityType(new EntityType(
             id: 'person', label: 'Person', class: Person::class,
             keys: ['id' => 'pid', 'uuid' => 'uuid', 'label' => 'name'],
+        ));
+        $this->entityTypeManager->registerEntityType(new EntityType(
+            id: 'workspace', label: 'Workspace', class: Workspace::class,
+            keys: ['id' => 'wid', 'uuid' => 'uuid', 'label' => 'name'],
         ));
     }
 
@@ -181,5 +186,37 @@ final class DayBriefControllerTest extends TestCase
         $body = json_decode($response->content, true);
         self::assertCount(1, $body['people']);
         self::assertSame('Alice', $body['people'][0]['person_name']);
+    }
+
+    public function test_json_filters_events_by_tenant_header(): void
+    {
+        $storage = $this->entityTypeManager->getStorage('mc_event');
+        $storage->save(new McEvent([
+            'uuid' => 'tenant-one-event',
+            'type' => 'message.received',
+            'source' => 'gmail',
+            'category' => 'people',
+            'tenant_id' => 'tenant-one',
+            'occurred' => (new \DateTimeImmutable)->format('Y-m-d H:i:s'),
+            'payload' => json_encode(['from_name' => 'Tenant One', 'from_email' => 'one@example.com']),
+        ]));
+        $storage->save(new McEvent([
+            'uuid' => 'tenant-two-event',
+            'type' => 'message.received',
+            'source' => 'gmail',
+            'category' => 'people',
+            'tenant_id' => 'tenant-two',
+            'occurred' => (new \DateTimeImmutable)->format('Y-m-d H:i:s'),
+            'payload' => json_encode(['from_name' => 'Tenant Two', 'from_email' => 'two@example.com']),
+        ]));
+
+        $controller = new DayBriefController($this->entityTypeManager, null);
+        $request = Request::create('/brief', 'GET', server: ['HTTP_X_TENANT_ID' => 'tenant-one', 'HTTP_ACCEPT' => 'application/json']);
+        $response = $controller->show([], [], null, $request);
+
+        self::assertSame(200, $response->statusCode);
+        $body = json_decode($response->content, true, 512, JSON_THROW_ON_ERROR);
+        self::assertCount(1, $body['people']);
+        self::assertSame('Tenant One', $body['people'][0]['person_name']);
     }
 }

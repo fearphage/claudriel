@@ -40,6 +40,8 @@ class ChatRequest(BaseModel):
     session_id: str
     system_prompt: str
     messages: list[ChatMessage]
+    tenant_id: str | None = None
+    workspace_id: str | None = None
 
 
 @app.get("/health")
@@ -56,7 +58,13 @@ async def chat(
         raise HTTPException(status_code=503, detail="Service not ready")
 
     session = session_manager.get_or_create(request.session_id)
-    logger.info("Chat request: session=%s, messages=%d", request.session_id, len(request.messages))
+    logger.info(
+        "Chat request: session=%s, tenant=%s, workspace=%s, messages=%d",
+        request.session_id,
+        request.tenant_id,
+        request.workspace_id,
+        len(request.messages),
+    )
 
     async def event_stream():
         messages = [{"role": m.role, "content": m.content} for m in request.messages]

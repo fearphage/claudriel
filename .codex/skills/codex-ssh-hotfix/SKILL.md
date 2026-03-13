@@ -61,3 +61,4 @@ State clearly whether validation was full or syntax-only.
 - SSH fixes are temporary unless the same change is committed in the repo.
 - After any hotfix, identify the canonical repo file that must be updated.
 - Never leave a production-only change undocumented if a normal deploy could overwrite it.
+- If the hotfix touches deploy behavior, smoke expectations, or tenant/workspace routing, update `/home/fsd42/dev/claudriel/docs/workflow/claudriel-workflow.md` and the relevant source-of-truth docs afterward.

@@ -10,8 +10,11 @@ use Claudriel\Domain\Chat\SidecarChatClient;
 use Claudriel\Domain\DayBrief\Assembler\DayBriefAssembler;
 use Claudriel\Entity\ChatMessage;
 use Claudriel\Entity\Workspace;
+use Claudriel\Routing\RequestScopeViolation;
+use Claudriel\Routing\TenantWorkspaceResolver;
 use Claudriel\Support\BriefSignal;
 use Claudriel\Support\DriftDetector;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\SSR\SsrResponse;
@@ -30,6 +33,13 @@ final class ChatStreamController
      */
     public function stream(array $params = [], array $query = [], mixed $account = null, mixed $httpRequest = null): StreamedResponse|SsrResponse
     {
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        try {
+            $requestScope = $resolver->resolve($query, $account, $httpRequest instanceof Request ? $httpRequest : null);
+        } catch (RequestScopeViolation $exception) {
+            return $this->jsonError($exception->getMessage(), $exception->statusCode());
+        }
+
         $messageId = $params['messageId'] ?? '';
 
         // Find the user message
@@ -52,8 +62,18 @@ final class ChatStreamController
             );
         }
         $sessionUuid = $userMsg->get('session_uuid');
+        $tenantId = $this->resolveMessageTenantId($userMsg);
+        $workspaceId = $this->resolveMessageWorkspaceId($userMsg);
 
-        $localActionResponse = $this->handleLocalAction($userMsg, $msgStorage);
+        if ($requestScope->tenantId !== $tenantId) {
+            return $this->jsonError('Message not found', 404);
+        }
+
+        if ($requestScope->workspaceId() !== null && $requestScope->workspaceId() !== $workspaceId) {
+            return $this->jsonError('Message not found', 404);
+        }
+
+        $localActionResponse = $this->handleLocalAction($userMsg, $msgStorage, $tenantId);
         if ($localActionResponse instanceof StreamedResponse) {
             return $localActionResponse;
         }
@@ -69,11 +89,11 @@ final class ChatStreamController
         }
 
         return new StreamedResponse(
-            function () use ($sessionUuid, $apiKey, $msgStorage): void {
+            function () use ($sessionUuid, $apiKey, $msgStorage, $tenantId, $workspaceId): void {
                 if (session_status() === PHP_SESSION_ACTIVE) {
                     session_write_close();
                 }
-                $this->streamTokens($sessionUuid, $apiKey, $msgStorage);
+                $this->streamTokens($sessionUuid, $apiKey, $msgStorage, $tenantId, $workspaceId);
             },
             200,
             [
@@ -84,7 +104,7 @@ final class ChatStreamController
         );
     }
 
-    private function handleLocalAction(ChatMessage $userMsg, mixed $msgStorage): ?StreamedResponse
+    private function handleLocalAction(ChatMessage $userMsg, mixed $msgStorage, string $tenantId): ?StreamedResponse
     {
         $content = trim((string) $userMsg->get('content'));
         $workspaceDeletes = $this->extractWorkspaceDeletionNames($content);
@@ -95,7 +115,7 @@ final class ChatStreamController
             $missing = [];
 
             foreach ($workspaceDeletes as $workspaceName) {
-                $workspace = $this->findWorkspaceByName($workspaceName);
+                $workspace = $this->findWorkspaceByName($workspaceName, $tenantId);
                 if (! $workspace instanceof Workspace) {
                     $missing[] = $workspaceName;
 
@@ -120,7 +140,7 @@ final class ChatStreamController
             return null;
         }
 
-        $existing = $this->findWorkspaceByName($workspaceName);
+        $existing = $this->findWorkspaceByName($workspaceName, $tenantId);
         if ($existing instanceof Workspace) {
             $responseText = sprintf(
                 'The workspace "%s" already exists.',
@@ -130,6 +150,7 @@ final class ChatStreamController
             $workspace = new Workspace([
                 'name' => $workspaceName,
                 'description' => '',
+                'tenant_id' => $tenantId,
             ]);
             $workspaceStorage->save($workspace);
             $this->touchBriefSignal();
@@ -155,6 +176,8 @@ final class ChatStreamController
                     'role' => 'assistant',
                     'content' => $responseText,
                     'created_at' => (new \DateTimeImmutable)->format('c'),
+                    'tenant_id' => $this->resolveMessageTenantId($userMsg),
+                    'workspace_id' => $this->resolveMessageWorkspaceId($userMsg),
                 ]);
                 $msgStorage->save($assistantMsg);
 
@@ -169,25 +192,9 @@ final class ChatStreamController
         );
     }
 
-    private function findWorkspaceByName(string $workspaceName): ?Workspace
+    private function findWorkspaceByName(string $workspaceName, string $tenantId): ?Workspace
     {
-        $workspaceStorage = $this->entityTypeManager->getStorage('workspace');
-        $ids = $workspaceStorage->getQuery()->execute();
-        $workspaces = $workspaceStorage->loadMultiple($ids);
-        $needle = mb_strtolower(trim($workspaceName));
-
-        foreach ($workspaces as $workspace) {
-            if (! $workspace instanceof Workspace) {
-                continue;
-            }
-
-            $candidate = mb_strtolower(trim((string) $workspace->get('name')));
-            if ($candidate === $needle) {
-                return $workspace;
-            }
-        }
-
-        return null;
+        return (new TenantWorkspaceResolver($this->entityTypeManager))->findWorkspaceByNameForTenant($workspaceName, $tenantId);
     }
 
     /**
@@ -284,7 +291,7 @@ final class ChatStreamController
         $signal->touch();
     }
 
-    private function streamTokens(string $sessionUuid, string $apiKey, mixed $msgStorage): void
+    private function streamTokens(string $sessionUuid, string $apiKey, mixed $msgStorage, string $tenantId, ?string $workspaceUuid = null): void
     {
         echo "retry: 3000\n\n";
         if (ob_get_level() > 0) {
@@ -297,7 +304,7 @@ final class ChatStreamController
         $allMessages = $msgStorage->loadMultiple($allMsgIds);
         $sessionMessages = [];
         foreach ($allMessages as $msg) {
-            if ($msg->get('session_uuid') === $sessionUuid) {
+            if ($msg->get('session_uuid') === $sessionUuid && $this->resolveMessageTenantId($msg) === $tenantId) {
                 $sessionMessages[] = $msg;
             }
         }
@@ -322,19 +329,22 @@ final class ChatStreamController
         // Build system prompt (tool instructions only when sidecar is available)
         $projectRoot = $this->resolveProjectRoot();
         $promptBuilder = $this->buildPromptBuilder($projectRoot);
-        $systemPrompt = $promptBuilder->build(hasToolAccess: $useSidecar);
+        $activeWorkspace = $workspaceUuid !== null ? $this->findWorkspaceByUuid($workspaceUuid, $tenantId)?->get('name') : null;
+        $systemPrompt = $promptBuilder->build($tenantId, hasToolAccess: $useSidecar, activeWorkspace: is_string($activeWorkspace) ? $activeWorkspace : null);
 
         $onToken = function (string $token): void {
             $this->emitSseEvent('chat-token', ['token' => $token]);
         };
 
-        $onDone = function (string $fullResponse) use ($sessionUuid, $msgStorage): void {
+        $onDone = function (string $fullResponse) use ($sessionUuid, $msgStorage, $tenantId, $workspaceUuid): void {
             $assistantMsg = new ChatMessage([
                 'uuid' => $this->generateUuid(),
                 'session_uuid' => $sessionUuid,
                 'role' => 'assistant',
                 'content' => $fullResponse,
                 'created_at' => (new \DateTimeImmutable)->format('c'),
+                'tenant_id' => $tenantId,
+                'workspace_id' => $workspaceUuid,
             ]);
             $msgStorage->save($assistantMsg);
 
@@ -368,6 +378,8 @@ final class ChatStreamController
                 $onError,
                 sessionId: $sessionUuid,
                 onProgress: $onProgress,
+                tenantId: $tenantId,
+                workspaceId: $workspaceUuid,
             );
         } else {
             // Fallback: direct Anthropic API (no Gmail/Calendar)
@@ -527,5 +539,33 @@ final class ChatStreamController
         }
 
         return null;
+    }
+
+    private function findWorkspaceByUuid(string $workspaceUuid, string $tenantId): ?Workspace
+    {
+        return (new TenantWorkspaceResolver($this->entityTypeManager))->findWorkspaceByUuidForTenant($workspaceUuid, $tenantId);
+    }
+
+    private function resolveMessageTenantId(mixed $message): string
+    {
+        $tenantId = $message instanceof ChatMessage ? $message->get('tenant_id') : null;
+
+        return is_string($tenantId) && $tenantId !== '' ? $tenantId : 'default';
+    }
+
+    private function resolveMessageWorkspaceId(mixed $message): ?string
+    {
+        $workspaceId = $message instanceof ChatMessage ? $message->get('workspace_id') : null;
+
+        return is_string($workspaceId) && $workspaceId !== '' ? $workspaceId : null;
+    }
+
+    private function jsonError(string $message, int $statusCode): SsrResponse
+    {
+        return new SsrResponse(
+            content: json_encode(['error' => $message], JSON_THROW_ON_ERROR),
+            statusCode: $statusCode,
+            headers: ['Content-Type' => 'application/json'],
+        );
     }
 }

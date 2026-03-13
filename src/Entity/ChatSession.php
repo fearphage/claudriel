@@ -22,5 +22,12 @@ final class ChatSession extends ContentEntityBase
             $values['title'] = 'New Chat';
         }
         parent::__construct($values, 'chat_session', $this->entityKeys);
+
+        if ($this->get('tenant_id') === null) {
+            $this->set('tenant_id', $_ENV['CLAUDRIEL_DEFAULT_TENANT'] ?? getenv('CLAUDRIEL_DEFAULT_TENANT') ?: 'default');
+        }
+        if ($this->get('workspace_id') === null) {
+            $this->set('workspace_id', null);
+        }
     }
 }

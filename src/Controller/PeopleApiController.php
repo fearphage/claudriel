@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Claudriel\Controller;
 
 use Claudriel\Entity\Person;
+use Claudriel\Routing\RequestScopeViolation;
+use Claudriel\Routing\TenantWorkspaceResolver;
 use Symfony\Component\HttpFoundation\Request;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\SSR\SsrResponse;
@@ -20,9 +22,14 @@ final class PeopleApiController
 
     public function list(array $params = [], array $query = [], mixed $account = null): SsrResponse
     {
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        $scope = $resolver->resolve($query, $account);
         $entries = array_values(array_filter(
             $this->loadAll(),
-            function (Person $entry) use ($query): bool {
+            function (Person $entry) use ($query, $resolver, $scope): bool {
+                if (! $resolver->tenantMatches($entry, $scope->tenantId)) {
+                    return false;
+                }
                 if (isset($query['email']) && (string) $query['email'] !== (string) ($entry->get('email') ?? '')) {
                     return false;
                 }
@@ -44,6 +51,13 @@ final class PeopleApiController
     public function create(array $params = [], array $query = [], mixed $account = null, ?Request $httpRequest = null): SsrResponse
     {
         $body = json_decode($httpRequest?->getContent() ?? '', true) ?? [];
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        try {
+            $scope = $resolver->resolve($query, $account, $httpRequest, $body);
+            $resolver->assertPayloadTenantMatchesContext($body, $scope->tenantId);
+        } catch (RequestScopeViolation $exception) {
+            return $this->json(['error' => $exception->getMessage()], $exception->statusCode());
+        }
         $email = is_string($body['email'] ?? null) ? trim($body['email']) : '';
         if ($email === '') {
             return $this->json(['error' => 'Field "email" is required.'], 422);
@@ -54,7 +68,7 @@ final class PeopleApiController
             'name' => is_string($body['name'] ?? null) && trim($body['name']) !== '' ? trim($body['name']) : $email,
             'tier' => is_string($body['tier'] ?? null) ? $body['tier'] : 'contact',
             'source' => is_string($body['source'] ?? null) ? $body['source'] : 'manual',
-            'tenant_id' => $body['tenant_id'] ?? null,
+            'tenant_id' => $scope->tenantId,
             'latest_summary' => is_string($body['latest_summary'] ?? null) ? $body['latest_summary'] : '',
             'last_interaction_at' => $this->normalizeDateTime($body['last_interaction_at'] ?? null),
             'last_inbox_category' => is_string($body['last_inbox_category'] ?? null) ? $body['last_inbox_category'] : null,
@@ -67,7 +81,9 @@ final class PeopleApiController
 
     public function show(array $params = [], array $query = [], mixed $account = null): SsrResponse
     {
-        $person = $this->findByUuid((string) ($params['uuid'] ?? ''));
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        $scope = $resolver->resolve($query, $account);
+        $person = $this->findByUuid((string) ($params['uuid'] ?? ''), $scope->tenantId);
         if ($person === null) {
             return $this->json(['error' => 'Person not found.'], 404);
         }
@@ -77,14 +93,26 @@ final class PeopleApiController
 
     public function update(array $params = [], array $query = [], mixed $account = null, ?Request $httpRequest = null): SsrResponse
     {
-        $person = $this->findByUuid((string) ($params['uuid'] ?? ''));
+        $body = json_decode($httpRequest?->getContent() ?? '', true) ?? [];
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        try {
+            $scope = $resolver->resolve($query, $account, $httpRequest, $body);
+            $resolver->assertPayloadTenantMatchesContext($body, $scope->tenantId);
+        } catch (RequestScopeViolation $exception) {
+            return $this->json(['error' => $exception->getMessage()], $exception->statusCode());
+        }
+
+        $person = $this->findByUuid((string) ($params['uuid'] ?? ''), $scope->tenantId);
         if ($person === null) {
             return $this->json(['error' => 'Person not found.'], 404);
         }
 
-        $body = json_decode($httpRequest?->getContent() ?? '', true) ?? [];
         foreach (['name', 'tier', 'source', 'tenant_id', 'latest_summary', 'last_inbox_category'] as $field) {
             if (! array_key_exists($field, $body)) {
+                continue;
+            }
+
+            if ($field === 'tenant_id') {
                 continue;
             }
 
@@ -124,7 +152,9 @@ final class PeopleApiController
 
     public function delete(array $params = [], array $query = [], mixed $account = null): SsrResponse
     {
-        $person = $this->findByUuid((string) ($params['uuid'] ?? ''));
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        $scope = $resolver->resolve($query, $account);
+        $person = $this->findByUuid((string) ($params['uuid'] ?? ''), $scope->tenantId);
         if ($person === null) {
             return $this->json(['error' => 'Person not found.'], 404);
         }
@@ -145,7 +175,7 @@ final class PeopleApiController
         return array_values(array_filter($entries, fn ($entry): bool => $entry instanceof Person));
     }
 
-    private function findByUuid(string $uuid): ?Person
+    private function findByUuid(string $uuid, string $tenantId): ?Person
     {
         if ($uuid === '') {
             return null;
@@ -159,7 +189,7 @@ final class PeopleApiController
 
         $entry = $storage->load(reset($ids));
 
-        return $entry instanceof Person ? $entry : null;
+        return $entry instanceof Person && (new TenantWorkspaceResolver($this->entityTypeManager))->tenantMatches($entry, $tenantId) ? $entry : null;
     }
 
     private function normalizeDateTime(mixed $value): ?string

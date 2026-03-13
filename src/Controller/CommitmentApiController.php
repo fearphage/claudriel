@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Claudriel\Controller;
 
 use Claudriel\Entity\Commitment;
+use Claudriel\Routing\RequestScopeViolation;
+use Claudriel\Routing\TenantWorkspaceResolver;
 use Symfony\Component\HttpFoundation\Request;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\SSR\SsrResponse;
@@ -22,9 +24,14 @@ final class CommitmentApiController
 
     public function list(array $params = [], array $query = [], mixed $account = null): SsrResponse
     {
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        $scope = $resolver->resolve($query, $account);
         $entries = array_values(array_filter(
             $this->loadAll(),
-            function (Commitment $entry) use ($query): bool {
+            function (Commitment $entry) use ($query, $resolver, $scope): bool {
+                if (! $resolver->tenantMatches($entry, $scope->tenantId)) {
+                    return false;
+                }
                 if (isset($query['status']) && (string) $query['status'] !== (string) ($entry->get('status') ?? 'pending')) {
                     return false;
                 }
@@ -47,6 +54,13 @@ final class CommitmentApiController
     public function create(array $params = [], array $query = [], mixed $account = null, ?Request $httpRequest = null): SsrResponse
     {
         $body = json_decode($httpRequest?->getContent() ?? '', true) ?? [];
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        try {
+            $scope = $resolver->resolve($query, $account, $httpRequest, $body);
+            $resolver->assertPayloadTenantMatchesContext($body, $scope->tenantId);
+        } catch (RequestScopeViolation $exception) {
+            return $this->json(['error' => $exception->getMessage()], $exception->statusCode());
+        }
         $title = is_string($body['title'] ?? null) ? trim($body['title']) : '';
         if ($title === '') {
             return $this->json(['error' => 'Field "title" is required.'], 422);
@@ -64,7 +78,7 @@ final class CommitmentApiController
             'due_date' => is_string($body['due_date'] ?? null) ? $body['due_date'] : null,
             'person_uuid' => is_string($body['person_uuid'] ?? null) ? $body['person_uuid'] : null,
             'source' => is_string($body['source'] ?? null) ? $body['source'] : 'manual',
-            'tenant_id' => $body['tenant_id'] ?? null,
+            'tenant_id' => $scope->tenantId,
             'created_at' => (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
             'updated_at' => (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
         ]);
@@ -76,7 +90,9 @@ final class CommitmentApiController
 
     public function show(array $params = [], array $query = [], mixed $account = null): SsrResponse
     {
-        $commitment = $this->findByUuid((string) ($params['uuid'] ?? ''));
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        $scope = $resolver->resolve($query, $account);
+        $commitment = $this->findByUuid((string) ($params['uuid'] ?? ''), $scope->tenantId);
         if ($commitment === null) {
             return $this->json(['error' => 'Commitment not found.'], 404);
         }
@@ -86,12 +102,20 @@ final class CommitmentApiController
 
     public function update(array $params = [], array $query = [], mixed $account = null, ?Request $httpRequest = null): SsrResponse
     {
-        $commitment = $this->findByUuid((string) ($params['uuid'] ?? ''));
+        $body = json_decode($httpRequest?->getContent() ?? '', true) ?? [];
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        try {
+            $scope = $resolver->resolve($query, $account, $httpRequest, $body);
+            $resolver->assertPayloadTenantMatchesContext($body, $scope->tenantId);
+        } catch (RequestScopeViolation $exception) {
+            return $this->json(['error' => $exception->getMessage()], $exception->statusCode());
+        }
+
+        $commitment = $this->findByUuid((string) ($params['uuid'] ?? ''), $scope->tenantId);
         if ($commitment === null) {
             return $this->json(['error' => 'Commitment not found.'], 404);
         }
 
-        $body = json_decode($httpRequest?->getContent() ?? '', true) ?? [];
         if (array_key_exists('title', $body)) {
             $title = is_string($body['title']) ? trim($body['title']) : '';
             if ($title === '') {
@@ -108,7 +132,7 @@ final class CommitmentApiController
             $commitment->set('status', $status);
         }
 
-        foreach (['due_date', 'person_uuid', 'source', 'tenant_id'] as $field) {
+        foreach (['due_date', 'person_uuid', 'source'] as $field) {
             if (array_key_exists($field, $body)) {
                 $commitment->set($field, $body[$field]);
             }
@@ -129,7 +153,9 @@ final class CommitmentApiController
 
     public function delete(array $params = [], array $query = [], mixed $account = null): SsrResponse
     {
-        $commitment = $this->findByUuid((string) ($params['uuid'] ?? ''));
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        $scope = $resolver->resolve($query, $account);
+        $commitment = $this->findByUuid((string) ($params['uuid'] ?? ''), $scope->tenantId);
         if ($commitment === null) {
             return $this->json(['error' => 'Commitment not found.'], 404);
         }
@@ -150,7 +176,7 @@ final class CommitmentApiController
         return array_values(array_filter($entries, fn ($entry): bool => $entry instanceof Commitment));
     }
 
-    private function findByUuid(string $uuid): ?Commitment
+    private function findByUuid(string $uuid, string $tenantId): ?Commitment
     {
         if ($uuid === '') {
             return null;
@@ -164,7 +190,7 @@ final class CommitmentApiController
 
         $entry = $storage->load(reset($ids));
 
-        return $entry instanceof Commitment ? $entry : null;
+        return $entry instanceof Commitment && (new TenantWorkspaceResolver($this->entityTypeManager))->tenantMatches($entry, $tenantId) ? $entry : null;
     }
 
     private function normalizeStatus(mixed $value): ?string

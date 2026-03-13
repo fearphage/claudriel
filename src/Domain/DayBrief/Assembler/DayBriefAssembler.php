@@ -22,11 +22,12 @@ final class DayBriefAssembler
     ) {}
 
     /** @return array{schedule: array, job_hunt: array, people: array, triage: array, creators: array, notifications: array, commitments: array{pending: array, drifting: array}, counts: array{job_alerts: int, messages: int, triage: int, due_today: int, drifting: int}, generated_at: string, matched_skills: array, workspaces: array} */
-    public function assemble(string $tenantId, \DateTimeImmutable $since): array
+    public function assemble(string $tenantId, \DateTimeImmutable $since, ?string $workspaceUuid = null): array
     {
         $recentEvents = array_values(array_filter(
             $this->eventRepo->findBy([]),
-            fn ($e) => new \DateTimeImmutable($e->get('occurred') ?? 'now') >= $since,
+            fn ($e) => $this->eventMatchesScope($e, $tenantId, $workspaceUuid)
+                && new \DateTimeImmutable($e->get('occurred') ?? 'now') >= $since,
         ));
 
         $schedule = [];
@@ -79,7 +80,7 @@ final class DayBriefAssembler
         }
 
         $schedule = $this->scheduleRepo !== null
-            ? $this->buildNormalizedSchedule($tenantId)
+            ? $this->buildNormalizedSchedule($tenantId, $workspaceUuid)
             : $this->prepareSchedule($schedule);
         $normalizedPeople = $this->personRepo !== null
             ? $this->buildNormalizedPeople($tenantId, $since)
@@ -93,7 +94,7 @@ final class DayBriefAssembler
         $allCommitments = $this->commitmentRepo->findBy([]);
         $pending = array_values(array_filter(
             $allCommitments,
-            fn ($c) => $c->get('status') === 'pending',
+            fn ($c) => $this->entityMatchesTenant($c, $tenantId) && $c->get('status') === 'pending',
         ));
         $drifting = $this->driftDetector->findDrifting($tenantId);
 
@@ -120,7 +121,7 @@ final class DayBriefAssembler
             ],
             'generated_at' => (new \DateTimeImmutable)->format(\DateTimeInterface::ATOM),
             'matched_skills' => $this->matchSkillsToEvents($recentEvents),
-            'workspaces' => $this->buildWorkspaceData($recentEvents),
+            'workspaces' => $this->buildWorkspaceData($recentEvents, $tenantId, $workspaceUuid),
         ];
     }
 
@@ -172,7 +173,7 @@ final class DayBriefAssembler
     /**
      * @return list<array{title: string, start_time: string, end_time: string, source: string}>
      */
-    private function buildNormalizedSchedule(string $tenantId): array
+    private function buildNormalizedSchedule(string $tenantId, ?string $workspaceUuid = null): array
     {
         $today = (new \DateTimeImmutable('today'))->format('Y-m-d');
         $normalizer = new SchedulePayloadNormalizer;
@@ -186,6 +187,13 @@ final class DayBriefAssembler
                 $entryTenant = $this->getEntityValue($entry, 'tenant_id');
                 if (is_string($entryTenant) && $entryTenant !== '' && $entryTenant !== $tenantId) {
                     return false;
+                }
+
+                if ($workspaceUuid !== null) {
+                    $entryWorkspace = $this->getEntityValue($entry, 'workspace_id') ?? $this->getEntityValue($entry, 'workspace_uuid');
+                    if (is_string($entryWorkspace) && $entryWorkspace !== '' && $entryWorkspace !== $workspaceUuid) {
+                        return false;
+                    }
                 }
 
                 return str_starts_with((string) ($this->getEntityValue($entry, 'starts_at') ?? ''), $today);
@@ -204,6 +212,10 @@ final class DayBriefAssembler
 
         $legacySchedule = [];
         foreach ($this->eventRepo->findBy([]) as $event) {
+            if (! $this->eventMatchesScope($event, $tenantId, $workspaceUuid)) {
+                continue;
+            }
+
             if (($this->getEntityValue($event, 'category') ?? 'notification') !== 'schedule') {
                 continue;
             }
@@ -471,12 +483,25 @@ final class DayBriefAssembler
         ], $entries);
     }
 
-    private function buildWorkspaceData(array $recentEvents): array
+    private function buildWorkspaceData(array $recentEvents, string $tenantId, ?string $workspaceUuid = null): array
     {
         if ($this->workspaceRepo === null) {
             return [];
         }
-        $workspaces = $this->workspaceRepo->findBy([]);
+        $workspaces = array_values(array_filter(
+            $this->workspaceRepo->findBy([]),
+            function ($workspace) use ($tenantId, $workspaceUuid): bool {
+                if (! $this->entityMatchesTenant($workspace, $tenantId)) {
+                    return false;
+                }
+
+                if ($workspaceUuid !== null) {
+                    return (string) ($this->getEntityValue($workspace, 'uuid') ?? '') === $workspaceUuid;
+                }
+
+                return true;
+            },
+        ));
 
         return array_map(function ($ws) use ($recentEvents) {
             $wsUuid = $ws->get('uuid');
@@ -527,5 +552,28 @@ final class DayBriefAssembler
         }
 
         return $matched;
+    }
+
+    private function entityMatchesTenant(mixed $entity, string $tenantId): bool
+    {
+        $entityTenant = $this->getEntityValue($entity, 'tenant_id') ?? $this->getEntityValue($entity, 'account_id');
+        if (! is_scalar($entityTenant) || trim((string) $entityTenant) === '') {
+            return $tenantId === 'default';
+        }
+
+        return trim((string) $entityTenant) === $tenantId;
+    }
+
+    private function eventMatchesScope(mixed $event, string $tenantId, ?string $workspaceUuid = null): bool
+    {
+        if (! $this->entityMatchesTenant($event, $tenantId)) {
+            return false;
+        }
+
+        if ($workspaceUuid === null) {
+            return true;
+        }
+
+        return (string) ($this->getEntityValue($event, 'workspace_id') ?? '') === $workspaceUuid;
     }
 }

@@ -25,6 +25,7 @@ set('application', 'claudriel');
 set('keep_releases', 5);
 set('allow_anonymous_stats', false);
 set('repository', 'git@github.com:jonesrussell/claudriel.git');
+set('deploy_validation_base_url', 'https://claudriel.northcloud.one');
 
 // ---------------------------------------------------------------------------
 // Shared filesystem
@@ -93,6 +94,50 @@ task('sidecar:deploy', function (): void {
     run('cd {{deploy_path}}/sidecar && docker compose -f docker-compose.sidecar.yml --env-file .env up -d --build');
 });
 
+desc('Validate sidecar health and app smoke probes');
+task('deploy:validate', function (): void {
+    $baseUrl = rtrim((string) get('deploy_validation_base_url'), '/');
+    $briefJsonFile = '{{deploy_path}}/shared/logs/deploy-validation-brief.json';
+    $sidecarHealthFile = '{{deploy_path}}/shared/logs/deploy-validation-sidecar-health.json';
+
+    writeln('Validating deployed sidecar health');
+    run("curl --silent --show-error --fail http://127.0.0.1:8100/health > {$sidecarHealthFile}");
+    run("grep -q '\"status\":\"ok\"' {$sidecarHealthFile}");
+
+    try {
+        run("for attempt in 1 2 3 4 5; do curl --silent --show-error --fail {$baseUrl}/brief > /dev/null && exit 0; sleep 1; done; echo 'Public Caddy endpoint did not become healthy in time' >&2; exit 1");
+
+        writeln('Running public brief JSON smoke probe');
+        run("curl --silent --show-error --fail --header 'Accept: application/json' {$baseUrl}/brief > {$briefJsonFile}");
+        run("grep -q '\"counts\"' {$briefJsonFile}");
+
+        writeln('Running public chat SSE smoke probe');
+        run(strtr(<<<'BASH'
+chat_send_file=$(mktemp)
+chat_stream_file=$(mktemp)
+trap 'rm -f "$chat_send_file" "$chat_stream_file"' EXIT
+
+curl --silent --show-error --fail \
+  --header 'Content-Type: application/json' \
+  --data '{"message":"delete workspace deploy-validation-smoke"}' \
+  __BASE_URL__/api/chat/send > "$chat_send_file"
+
+message_id=$(php -r '$payload = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR); if (!isset($payload["message_id"])) { fwrite(STDERR, "Missing message_id\n"); exit(1);} echo $payload["message_id"];' "$chat_send_file")
+
+curl --silent --show-error --fail --max-time 20 \
+  "__BASE_URL__/stream/chat/${message_id}" > "$chat_stream_file"
+
+grep -q 'event: chat-done' "$chat_stream_file"
+grep -q 'Could not find "deploy-validation-smoke"' "$chat_stream_file"
+BASH, ['__BASE_URL__' => $baseUrl]));
+
+        writeln('Deploy validation passed');
+    } catch (\Throwable $exception) {
+        writeln('Deploy validation failed; captured validation artifacts remain under {{deploy_path}}/shared/logs');
+        throw $exception;
+    }
+});
+
 // ---------------------------------------------------------------------------
 // Deploy flow
 // ---------------------------------------------------------------------------
@@ -113,6 +158,7 @@ task('deploy', [
     'sidecar:deploy',
     'caddy:reload',
     'php-fpm:reload',
+    'deploy:validate',
     'deploy:unlock',
     'deploy:cleanup',
 ]);

@@ -1,6 +1,6 @@
 # Sidecar Production Deployment Design
 
-**Goal:** Deploy the existing Claudriel sidecar (Python FastAPI + Claude Agent SDK) as a Docker container on `claudriel.northcloud.one`, alongside the natively deployed PHP site, and add basic auth to the production site.
+**Goal:** Deploy the existing Claudriel sidecar (Python FastAPI + Claude Agent SDK) as a Docker container on `claudriel.northcloud.one`, alongside the natively deployed PHP site, with production validation owned by `deploy.php`.
 
 ## Context
 
@@ -11,7 +11,7 @@ The production PHP site is deployed via PHP Deployer (artifact upload pattern) w
 ## Architecture
 
 ```
-Browser (SSE) -- Caddy (basic auth) -- PHP-FPM (ChatStreamController)
+Browser (SSE) -- Caddy -- PHP-FPM (ChatStreamController)
                                             |
                                             | HTTP POST localhost:8100
                                             v
@@ -72,23 +72,9 @@ The `sidecar/` directory lives outside the rotating releases structure. On each 
 
 ## Deploy Workflow Integration
 
-Two new steps added to `.github/workflows/deploy.yml` after the existing `dep deploy production` step. These run via SSH as the `deployer` user:
+`deploy.php` is the canonical source of truth for production deployment and post-deploy validation. GitHub Actions is responsible for verification and then invoking `dep deploy production`; the Deployer task graph is responsible for sidecar promotion and fail-closed validation on the production host.
 
-```yaml
-      - name: Deploy sidecar container
-        run: |
-          ssh deployer@claudriel.northcloud.one '
-            cd /home/deployer/claudriel
-            mkdir -p sidecar
-            cp current/docker-compose.sidecar.yml sidecar/
-            rm -rf sidecar/docker-context
-            cp -r current/docker/sidecar sidecar/docker-context
-            cd sidecar
-            docker compose -f docker-compose.sidecar.yml --env-file ../shared/.env up -d --build
-          '
-```
-
-A corresponding Deployer task in `deploy.php` ensures the `sidecar/` directory exists:
+Deployer ensures the `sidecar/` directory exists:
 
 ```php
 desc('Ensure sidecar directory exists');
@@ -99,49 +85,38 @@ task('deploy:sidecar_dir', function (): void {
 
 Added to the deploy flow after `deploy:setup`.
 
+The production deploy flow then:
+
+1. Uploads the release artifact
+2. Switches the app symlink
+3. Promotes the sidecar through `sidecar:deploy`
+4. Reloads Caddy and PHP-FPM
+5. Runs `deploy:validate`
+
+The `deploy:validate` task is intentionally inside Deployer so it can fail the release from the same deployment graph that changed production. It performs:
+
+- sidecar health validation against `http://127.0.0.1:8100/health`
+- a brief JSON smoke probe against the public Caddy endpoint at `https://claudriel.northcloud.one/brief`
+- a chat SSE smoke probe against the public Caddy endpoints using a local workspace-delete action that avoids external model/tool dependence
+
+If any validation step fails, the deploy fails closed and the validation logs are emitted through the Deployer output seen in GitHub Actions.
+
 The sidecar restarts only when its source files change. PHP deploys that don't touch `docker/sidecar/` result in a no-op Docker rebuild (cached layers).
 
-## Basic Auth
+## Public Access Model
 
-Caddy basic auth protects all routes. The `/api/ingest` endpoint is exempted because it has its own bearer token auth (`CLAUDRIEL_API_KEY`) and the sidecar needs unauthenticated HTTP access to it.
+Production no longer uses Caddy basic auth. The repo-managed Caddyfile serves the brief, dashboard, chat, and stream surfaces directly, while route-specific application and bearer-token checks continue to protect the endpoints that require them.
 
-Credentials are stored in `shared/.env` and loaded via Caddy's environment variable substitution. Caddy reads env vars from its process environment, so a systemd override is needed:
-
-```bash
-sudo systemctl edit caddy
-# Add:
-# [Service]
-# EnvironmentFile=/home/deployer/claudriel/shared/.env
-```
-
-Caddyfile uses env var references (no secrets committed to git):
-
-```
-claudriel.northcloud.one {
-  @not_ingest {
-    not path /api/ingest
-  }
-  basicauth @not_ingest {
-    {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
-  }
-  # ... rest of existing config
-}
-```
-
-Values in `shared/.env`:
-```
-BASIC_AUTH_USER=jones
-BASIC_AUTH_HASH=$2a$14$...   # generated via caddy hash-password
-```
+This means the post-deploy validation probes in `deploy.php` can hit the same public Caddy endpoints that real users hit, instead of bypassing Caddy with a temporary local PHP server.
 
 ## File Changes
 
 | File | Action | Responsibility |
 |------|--------|---------------|
 | `docker-compose.sidecar.yml` | Create | Production sidecar service definition |
-| `Caddyfile` | Modify | Add basic auth with `/api/ingest` exemption |
-| `.github/workflows/deploy.yml` | Modify | Add sidecar copy + build/restart steps |
-| `deploy.php` | Modify | Create `sidecar/` directory in deploy setup |
+| `Caddyfile` | Modify | Serve production routes directly without Caddy basic auth |
+| `.github/workflows/deploy.yml` | Modify | Verify PHP and sidecar checks, then invoke `dep deploy production -vv` |
+| `deploy.php` | Modify | Create `sidecar/` directory, deploy sidecar, and run public post-deploy validation |
 
 No changes to:
 - `docker/sidecar/` (Python code, Dockerfile, entrypoint) - already works
@@ -153,12 +128,11 @@ No changes to:
 Before first deploy with sidecar:
 
 1. **Claude tokens:** Copy `~/.claude/` directory and `~/.claude.json` file to `/home/deployer/` on the server. These contain OAuth tokens for Gmail/Calendar MCP access.
-2. **Basic auth password:** Run `caddy hash-password` on the server, add `BASIC_AUTH_USER` and `BASIC_AUTH_HASH` to `shared/.env`. Add a systemd override for Caddy: `sudo systemctl edit caddy` with `[Service]\nEnvironmentFile=/home/deployer/claudriel/shared/.env`, then `sudo systemctl restart caddy`.
-3. **Sidecar env vars:** Add to `/home/deployer/claudriel/shared/.env`:
+2. **Sidecar env vars:** Add to `/home/deployer/claudriel/shared/.env`:
    - `SIDECAR_URL=http://127.0.0.1:8100`
    - `CLAUDRIEL_SIDECAR_KEY=<generate a random key>` (shared secret between PHP and sidecar)
    - `CLAUDRIEL_API_KEY` and `ANTHROPIC_API_KEY` should already exist from prior setup
-4. **Docker permissions:** Ensure `deployer` user is in the `docker` group
+3. **Docker permissions:** Ensure `deployer` user is in the `docker` group
 
 ## Token Refresh
 

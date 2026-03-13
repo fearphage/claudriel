@@ -6,6 +6,9 @@ namespace Claudriel\Controller;
 
 use Claudriel\Entity\ChatMessage;
 use Claudriel\Entity\ChatSession;
+use Claudriel\Routing\RequestScopeViolation;
+use Claudriel\Routing\TenantWorkspaceResolver;
+use Symfony\Component\HttpFoundation\Request;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\SSR\SsrResponse;
 
@@ -26,12 +29,22 @@ final class ChatController
      */
     public function index(array $params = [], array $query = [], mixed $account = null, mixed $httpRequest = null): SsrResponse
     {
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        try {
+            $scope = $resolver->resolve($query, $account, $httpRequest instanceof Request ? $httpRequest : null);
+        } catch (RequestScopeViolation $exception) {
+            return $this->json(['error' => $exception->getMessage()], $exception->statusCode());
+        }
+
         $apiKey = $this->getApiKey();
 
         // Load recent sessions
         $sessionStorage = $this->entityTypeManager->getStorage('chat_session');
         $sessionIds = $sessionStorage->getQuery()->execute();
-        $allSessions = $sessionStorage->loadMultiple($sessionIds);
+        $allSessions = array_values(array_filter(
+            $sessionStorage->loadMultiple($sessionIds),
+            fn ($session): bool => $resolver->tenantMatches($session, $scope->tenantId),
+        ));
 
         // Sort by created_at descending, take 10
         usort($allSessions, function ($a, $b) {
@@ -73,21 +86,32 @@ final class ChatController
      */
     public function messages(array $params = [], array $query = [], mixed $account = null, mixed $httpRequest = null): SsrResponse
     {
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        try {
+            $scope = $resolver->resolve($query, $account, $httpRequest instanceof Request ? $httpRequest : null);
+        } catch (RequestScopeViolation $exception) {
+            return $this->json(['error' => $exception->getMessage()], $exception->statusCode());
+        }
+
         $uuid = $params['uuid'] ?? '';
         $sessionStorage = $this->entityTypeManager->getStorage('chat_session');
         $sessionIds = $sessionStorage->getQuery()->condition('uuid', $uuid)->execute();
 
         if (empty($sessionIds)) {
-            return new SsrResponse(
-                content: json_encode(['error' => 'Session not found']),
-                statusCode: 404,
-                headers: ['Content-Type' => 'application/json'],
-            );
+            return $this->json(['error' => 'Session not found'], 404);
+        }
+
+        $session = $sessionStorage->load(reset($sessionIds));
+        if (! $resolver->tenantMatches($session, $scope->tenantId) || ! $resolver->workspaceMatches($session, $scope->workspaceId())) {
+            return $this->json(['error' => 'Session not found'], 404);
         }
 
         $messageStorage = $this->entityTypeManager->getStorage('chat_message');
         $messageIds = $messageStorage->getQuery()->condition('session_uuid', $uuid)->execute();
-        $allMessages = $messageStorage->loadMultiple($messageIds);
+        $allMessages = array_values(array_filter(
+            $messageStorage->loadMultiple($messageIds),
+            fn ($message): bool => $resolver->tenantMatches($message, $scope->tenantId),
+        ));
 
         usort($allMessages, function ($a, $b) {
             return ($a->get('created_at') ?? '') <=> ($b->get('created_at') ?? '');
@@ -115,6 +139,14 @@ final class ChatController
     {
         $raw = method_exists($httpRequest, 'getContent') ? $httpRequest->getContent() : '';
         $body = json_decode($raw, true) ?? [];
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        try {
+            $scope = $resolver->resolve($query, $account, $httpRequest instanceof Request ? $httpRequest : null, $body);
+            $resolver->assertPayloadTenantMatchesContext($body, $scope->tenantId);
+        } catch (RequestScopeViolation $exception) {
+            return $this->json(['error' => $exception->getMessage()], $exception->statusCode());
+        }
+
         $message = trim($body['message'] ?? '');
         $sessionUuid = $body['session_id'] ?? null;
 
@@ -147,11 +179,19 @@ final class ChatController
             }
         }
 
+        if ($session instanceof ChatSession) {
+            if (! $resolver->tenantMatches($session, $scope->tenantId) || ! $resolver->workspaceMatches($session, $scope->workspaceId())) {
+                return $this->json(['error' => 'Session not found'], 404);
+            }
+        }
+
         if ($session === null) {
             $session = new ChatSession([
                 'uuid' => $this->generateUuid(),
                 'title' => mb_substr($message, 0, 60),
                 'created_at' => (new \DateTimeImmutable)->format('c'),
+                'tenant_id' => $scope->tenantId,
+                'workspace_id' => $scope->workspaceId(),
             ]);
             $sessionStorage->save($session);
         }
@@ -165,6 +205,8 @@ final class ChatController
             'role' => 'user',
             'content' => $message,
             'created_at' => (new \DateTimeImmutable)->format('c'),
+            'tenant_id' => $scope->tenantId,
+            'workspace_id' => $scope->workspaceId(),
         ]);
         $messageStorage->save($userMsg);
 
@@ -195,6 +237,15 @@ final class ChatController
             random_int(0, 0x0FFF) | 0x4000,
             random_int(0, 0x3FFF) | 0x8000,
             random_int(0, 0xFFFF), random_int(0, 0xFFFF), random_int(0, 0xFFFF),
+        );
+    }
+
+    private function json(array $data, int $statusCode = 200): SsrResponse
+    {
+        return new SsrResponse(
+            content: json_encode($data, JSON_THROW_ON_ERROR),
+            statusCode: $statusCode,
+            headers: ['Content-Type' => 'application/json'],
         );
     }
 }

@@ -68,7 +68,7 @@ final class BriefStreamControllerTest extends TestCase
     public function test_stream_returns_fallback_json_payload_when_requested(): void
     {
         $etm = $this->buildEntityTypeManager();
-        $this->seedWorkspace($etm, 'workspace-fallback-1', 'Fallback Workspace');
+        $this->seedWorkspace($etm, 'workspace-fallback-1', 'Fallback Workspace', 'user-42');
 
         $controller = new BriefStreamController($etm);
         $request = Request::create('/stream/brief', 'GET', server: ['HTTP_X_REQUEST_ID' => 'req-fallback-1']);
@@ -107,12 +107,13 @@ final class BriefStreamControllerTest extends TestCase
         return $etm;
     }
 
-    private function seedWorkspace(EntityTypeManager $etm, string $uuid, string $name): void
+    private function seedWorkspace(EntityTypeManager $etm, string $uuid, string $name, string $tenantId = 'default'): void
     {
         $etm->getStorage('workspace')->save(new Workspace([
             'uuid' => $uuid,
             'name' => $name,
             'description' => 'Workspace used in controller coverage',
+            'tenant_id' => $tenantId,
         ]));
     }
 

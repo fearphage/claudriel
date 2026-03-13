@@ -353,7 +353,13 @@ final class DayBriefAssemblerTest extends TestCase
         );
 
         $wsUuid = 'test-workspace-uuid-1234';
-        $workspace = new Workspace(['wid' => 1, 'uuid' => $wsUuid, 'name' => 'Alpha Project', 'description' => 'Test workspace']);
+        $workspace = new Workspace([
+            'wid' => 1,
+            'uuid' => $wsUuid,
+            'name' => 'Alpha Project',
+            'description' => 'Test workspace',
+            'tenant_id' => 'user-1',
+        ]);
         $workspaceRepo->save($workspace);
 
         // 2 events belonging to the workspace

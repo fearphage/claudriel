@@ -26,11 +26,15 @@ class SidecarChatClient
         Closure $onError,
         ?string $sessionId = null,
         ?Closure $onProgress = null,
+        ?string $tenantId = null,
+        ?string $workspaceId = null,
     ): void {
         $payload = json_encode([
             'session_id' => $sessionId ?? 'default',
             'system_prompt' => $systemPrompt,
             'messages' => $messages,
+            'tenant_id' => $tenantId,
+            'workspace_id' => $workspaceId,
         ]);
 
         error_log("[Sidecar] Starting curl to {$this->sidecarUrl}/chat, session=$sessionId");

@@ -15,6 +15,7 @@ use Claudriel\Entity\Skill;
 use Claudriel\Entity\Workspace;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Waaseyaa\Database\PdoDatabase;
 use Waaseyaa\Entity\EntityType;
@@ -302,6 +303,8 @@ final class ChatStreamControllerTest extends TestCase
                     \Closure $onError,
                     ?string $sessionId = null,
                     ?\Closure $onProgress = null,
+                    ?string $tenantId = null,
+                    ?string $workspaceId = null,
                 ): void {
                     if ($onProgress !== null) {
                         $onProgress([
@@ -349,6 +352,92 @@ final class ChatStreamControllerTest extends TestCase
             putenv("CLAUDRIEL_SIDECAR_KEY={$originalSidecarKey}");
         } else {
             putenv('CLAUDRIEL_SIDECAR_KEY');
+        }
+    }
+
+    public function test_delete_workspace_does_not_cross_tenant_boundaries(): void
+    {
+        $originalKey = getenv('ANTHROPIC_API_KEY');
+        putenv('ANTHROPIC_API_KEY');
+        unset($_ENV['ANTHROPIC_API_KEY']);
+
+        $etm = $this->buildEntityTypeManager();
+
+        $workspaceStorage = $etm->getStorage('workspace');
+        $workspaceStorage->save(new Workspace(['name' => 'Bar', 'description' => '', 'tenant_id' => 'tenant-two']));
+
+        $sessionStorage = $etm->getStorage('chat_session');
+        $sessionStorage->save(new ChatSession(['uuid' => 'sess-tenant', 'title' => 'Tenant Test', 'created_at' => date('c'), 'tenant_id' => 'tenant-one']));
+
+        $msgStorage = $etm->getStorage('chat_message');
+        $msgStorage->save(new ChatMessage([
+            'uuid' => 'msg-tenant',
+            'session_uuid' => 'sess-tenant',
+            'role' => 'user',
+            'content' => 'delete workspace Bar',
+            'created_at' => date('c'),
+            'tenant_id' => 'tenant-one',
+        ]));
+
+        $controller = new ChatStreamController($etm);
+        $request = Request::create('/stream/chat/msg-tenant', 'GET', server: ['HTTP_X_TENANT_ID' => 'tenant-one']);
+        $response = $controller->stream(['messageId' => 'msg-tenant'], [], null, $request);
+
+        self::assertInstanceOf(StreamedResponse::class, $response);
+
+        ob_start();
+        $callback = $response->getCallback();
+        self::assertIsCallable($callback);
+        $callback();
+        ob_end_clean();
+
+        $remaining = $workspaceStorage->getQuery()->condition('name', 'Bar')->execute();
+        self::assertNotEmpty($remaining);
+
+        $assistantIds = $msgStorage->getQuery()->condition('role', 'assistant')->execute();
+        $assistantMessage = $msgStorage->load(reset($assistantIds));
+        self::assertInstanceOf(ChatMessage::class, $assistantMessage);
+        self::assertSame('Could not find "Bar".', $assistantMessage->get('content'));
+
+        if ($originalKey !== false) {
+            putenv("ANTHROPIC_API_KEY={$originalKey}");
+        }
+    }
+
+    public function test_stream_fails_closed_for_mismatched_workspace_scope(): void
+    {
+        $originalKey = getenv('ANTHROPIC_API_KEY');
+        putenv('ANTHROPIC_API_KEY');
+        unset($_ENV['ANTHROPIC_API_KEY']);
+
+        $etm = $this->buildEntityTypeManager();
+        $workspaceStorage = $etm->getStorage('workspace');
+        $workspaceStorage->save(new Workspace(['uuid' => 'workspace-a', 'name' => 'Workspace A', 'tenant_id' => 'default']));
+        $workspaceStorage->save(new Workspace(['uuid' => 'workspace-b', 'name' => 'Workspace B', 'tenant_id' => 'default']));
+
+        $sessionStorage = $etm->getStorage('chat_session');
+        $sessionStorage->save(new ChatSession(['uuid' => 'sess-scope', 'title' => 'Scope Test', 'created_at' => date('c'), 'tenant_id' => 'default', 'workspace_id' => 'workspace-a']));
+
+        $msgStorage = $etm->getStorage('chat_message');
+        $msgStorage->save(new ChatMessage([
+            'uuid' => 'msg-scope',
+            'session_uuid' => 'sess-scope',
+            'role' => 'user',
+            'content' => 'hello',
+            'created_at' => date('c'),
+            'tenant_id' => 'default',
+            'workspace_id' => 'workspace-a',
+        ]));
+
+        $controller = new ChatStreamController($etm);
+        $request = Request::create('/stream/chat/msg-scope?workspace_uuid=workspace-b', 'GET');
+        $response = $controller->stream(['messageId' => 'msg-scope'], ['workspace_uuid' => 'workspace-b'], null, $request);
+
+        self::assertInstanceOf(SsrResponse::class, $response);
+        self::assertSame(404, $response->statusCode);
+
+        if ($originalKey !== false) {
+            putenv("ANTHROPIC_API_KEY={$originalKey}");
         }
     }
 

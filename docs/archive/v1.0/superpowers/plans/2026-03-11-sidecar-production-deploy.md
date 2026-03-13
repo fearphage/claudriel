@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Deploy the existing sidecar Docker container to production alongside the PHP site, and add basic auth to the production Caddyfile.
+**Goal:** Deploy the existing sidecar Docker container to production alongside the PHP site, with `deploy.php` as the canonical source of truth for production validation.
 
-**Architecture:** The sidecar runs as a single Docker container on `northcloud.one`, bound to `127.0.0.1:8100`. PHP-FPM reaches it via localhost. The deploy workflow builds it on the server after each PHP deploy. Caddy gets basic auth with env var substitution via systemd `EnvironmentFile`.
+**Architecture:** The sidecar runs as a single Docker container on `northcloud.one`, bound to `127.0.0.1:8100`. PHP-FPM reaches it via localhost. GitHub Actions verifies the release and then calls `dep deploy production`. `deploy.php` is the canonical source of truth for sidecar promotion and post-deploy validation on the server. Public brief and chat validation probes run through the production Caddy endpoints after deploy.
 
 **Tech Stack:** Docker Compose, Caddy, PHP Deployer, GitHub Actions, systemd
 
@@ -17,11 +17,28 @@
 | File | Action | Responsibility |
 |------|--------|---------------|
 | `docker-compose.sidecar.yml` | Create | Production-only sidecar compose (builds from `./docker-context`) |
-| `Caddyfile` | Modify | Add basic auth with `/api/ingest` exemption |
+| `Caddyfile` | Modify | Remove production basic auth so public routes match deploy validation surfaces |
 | `deploy.php` | Modify | Add `deploy:sidecar_dir` task to create persistent `sidecar/` directory |
-| `.github/workflows/deploy.yml` | Modify | Add sidecar deploy step (SSH copy + docker compose up) |
+| `.github/workflows/deploy.yml` | Modify | Verify PHP and sidecar checks, then call `dep deploy production -vv` |
 
 No new test files. This is infrastructure-only (Docker, Caddy, CI config). The sidecar Python code and PHP integration already exist and work.
+
+## Canonical Deployment Rule
+
+- GitHub Actions is responsible for pre-deploy verification.
+- `deploy.php` is responsible for production-side orchestration.
+- Post-deploy validation belongs in Deployer tasks, not in ad hoc Actions SSH logic.
+
+## Post-Deploy Validation
+
+The deploy graph must include a `deploy:validate` task after sidecar promotion and service reloads. That task should:
+
+- check sidecar health on `127.0.0.1:8100`
+- run a brief smoke probe against the public Caddy endpoint
+- run a chat smoke probe that exercises the public send/stream path
+- fail the deploy immediately if any probe fails
+
+These validation steps are part of the production deploy contract because they verify the exact release state that was just promoted.
 
 ---
 
@@ -73,27 +90,16 @@ git commit -m "feat: add production sidecar compose file"
 
 ---
 
-### Task 2: Add basic auth to Caddyfile
+### Task 2: Remove production basic auth from Caddyfile
 
 **Files:**
 - Modify: `Caddyfile`
 
-The Caddyfile currently starts with the site block at line 4. Basic auth must be added inside the block, before any `handle` directives. The `/api/ingest` endpoint is exempted since it has its own bearer token auth and the sidecar needs unauthenticated access.
+The Caddyfile currently starts with the site block at line 4. Production no longer uses a Caddy-level auth gate, so any existing `basicauth` block must be removed from the repo-managed config.
 
-- [ ] **Step 1: Add basic auth block to Caddyfile**
+- [ ] **Step 1: Remove any basic auth block from Caddyfile**
 
-Insert after the `tls` block (after line 8) and before the `root` directive (line 10):
-
-```
-  @not_ingest {
-    not path /api/ingest
-  }
-  basicauth @not_ingest {
-    {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
-  }
-```
-
-The `{$BASIC_AUTH_USER}` and `{$BASIC_AUTH_HASH}` syntax references environment variables. These are loaded by Caddy from its process environment (configured via systemd `EnvironmentFile` in the server setup step).
+The production Caddyfile should route directly to PHP-FPM and file handlers without any global `basicauth` guard. `/api/ingest` remains protected by its bearer token check in the application, not by Caddy.
 
 - [ ] **Step 2: Verify Caddyfile syntax**
 
@@ -105,10 +111,7 @@ If `caddy` is not installed locally, visually verify the block is correctly plac
 
 ```bash
 git add Caddyfile
-git commit -m "feat: add basic auth to production Caddyfile
-
-Protects all routes except /api/ingest (has its own bearer auth).
-Credentials loaded from env vars via systemd EnvironmentFile."
+git commit -m "Remove production basic auth from Caddyfile"
 ```
 
 ---
@@ -222,22 +225,10 @@ ssh jones@northcloud.one 'sudo usermod -aG docker deployer'
 Verify: `ssh deployer@claudriel.northcloud.one 'docker ps'`
 Expected: No permission error (may show empty container list)
 
-- [ ] **Step 2: Generate basic auth password hash**
-
-```bash
-ssh jones@northcloud.one 'caddy hash-password'
-```
-
-Enter a password when prompted. Copy the bcrypt hash output (starts with `$2a$`).
-
-- [ ] **Step 3: Add env vars to shared/.env**
+- [ ] **Step 2: Add sidecar env vars to shared/.env**
 
 ```bash
 ssh deployer@claudriel.northcloud.one 'cat >> /home/deployer/claudriel/shared/.env << EOF
-
-# Basic auth (Caddy)
-BASIC_AUTH_USER=jones
-BASIC_AUTH_HASH=<paste the bcrypt hash from step 2>
 
 # Sidecar
 SIDECAR_URL=http://127.0.0.1:8100
@@ -247,21 +238,7 @@ EOF'
 
 Generate the sidecar key first: `openssl rand -hex 32`
 
-- [ ] **Step 4: Add systemd EnvironmentFile override for Caddy**
-
-```bash
-ssh jones@northcloud.one 'sudo mkdir -p /etc/systemd/system/caddy.service.d && sudo tee /etc/systemd/system/caddy.service.d/env.conf << EOF
-[Service]
-EnvironmentFile=/home/deployer/claudriel/shared/.env
-EOF
-sudo systemctl daemon-reload
-sudo systemctl restart caddy'
-```
-
-Verify: `ssh jones@northcloud.one 'sudo systemctl status caddy'`
-Expected: Active (running), no errors
-
-- [ ] **Step 5: Copy Claude OAuth tokens to server**
+- [ ] **Step 3: Copy Claude OAuth tokens to server**
 
 From your local machine:
 
@@ -273,7 +250,7 @@ scp ~/.claude.json deployer@claudriel.northcloud.one:/home/deployer/.claude.json
 Verify: `ssh deployer@claudriel.northcloud.one 'ls -la ~/.claude/ ~/.claude.json'`
 Expected: Files exist with content
 
-- [ ] **Step 6: Push code changes and verify deploy**
+- [ ] **Step 4: Push code changes and verify deploy**
 
 ```bash
 git push
@@ -290,17 +267,16 @@ ssh deployer@claudriel.northcloud.one 'docker ps'
 ssh deployer@claudriel.northcloud.one 'curl -s http://127.0.0.1:8100/health'
 # Expected: {"status": "ok", "active_sessions": 0}
 
-# Check basic auth is active (should get 401 without credentials)
-curl -s -o /dev/null -w "%{http_code}" https://claudriel.northcloud.one
-# Expected: 401
-
-# Check basic auth works with credentials
-curl -s -o /dev/null -w "%{http_code}" -u jones:<password> https://claudriel.northcloud.one
+# Check public brief endpoint
+curl -s -o /dev/null -w "%{http_code}" https://claudriel.northcloud.one/brief
 # Expected: 200
 
-# Check /api/ingest is exempt from basic auth
-curl -s -o /dev/null -w "%{http_code}" https://claudriel.northcloud.one/api/ingest
-# Expected: 401 or 403 (API key auth, not basic auth)
+# Check public chat send endpoint responds through Caddy
+curl -s -o /dev/null -w "%{http_code}" \
+  -H "Content-Type: application/json" \
+  -d '{"message":"delete workspace deploy-validation-smoke"}' \
+  https://claudriel.northcloud.one/api/chat/send
+# Expected: 200
 ```
 
 ---
@@ -310,13 +286,12 @@ curl -s -o /dev/null -w "%{http_code}" https://claudriel.northcloud.one/api/inge
 After all tasks are complete, verify:
 
 - [ ] `docker-compose.sidecar.yml` exists in repo root
-- [ ] Caddyfile has `basicauth` block with `{$BASIC_AUTH_USER}` / `{$BASIC_AUTH_HASH}`
-- [ ] Caddyfile exempts `/api/ingest` from basic auth
+- [ ] Caddyfile does not contain a production `basicauth` block
 - [ ] `deploy.php` has `deploy:sidecar_dir` task in the deploy flow
-- [ ] `.github/workflows/deploy.yml` has sidecar deploy step after PHP deploy
+- [ ] `deploy.php` validates public brief/chat endpoints after sidecar promotion
+- [ ] `.github/workflows/deploy.yml` invokes `dep deploy production -vv` after verify-stage PHP and sidecar checks
 - [ ] Sidecar container is running on production (`docker ps`)
 - [ ] Sidecar health check passes (`curl localhost:8100/health`)
-- [ ] Basic auth blocks unauthenticated access to dashboard
-- [ ] Basic auth allows authenticated access
-- [ ] `/api/ingest` is accessible without basic auth
+- [ ] Public brief endpoint is reachable without Caddy auth
+- [ ] Public chat send endpoint is reachable without Caddy auth
 - [ ] Chat works via the sidecar (send a message, get response with tool access)

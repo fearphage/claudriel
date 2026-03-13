@@ -6,6 +6,8 @@ namespace Claudriel\Controller;
 
 use Claudriel\Domain\DayBrief\Assembler\DayBriefAssembler;
 use Claudriel\Domain\DayBrief\Service\BriefSessionStore;
+use Claudriel\Routing\RequestScopeViolation;
+use Claudriel\Routing\TenantWorkspaceResolver;
 use Claudriel\Support\DriftDetector;
 use Symfony\Component\HttpFoundation\Request;
 use Twig\Environment;
@@ -22,6 +24,17 @@ final class DashboardController
 
     public function show(array $params = [], array $query = [], mixed $account = null, mixed $httpRequest = null): SsrResponse
     {
+        $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
+        try {
+            $scope = $resolver->resolve($query, $account, $httpRequest instanceof Request ? $httpRequest : null);
+        } catch (RequestScopeViolation $exception) {
+            return new SsrResponse(
+                content: json_encode(['error' => $exception->getMessage()], JSON_THROW_ON_ERROR),
+                statusCode: $exception->statusCode(),
+                headers: ['Content-Type' => 'application/json'],
+            );
+        }
+
         $storageDir = getenv('CLAUDRIEL_STORAGE') ?: dirname(__DIR__, 2).'/storage';
         $sessionStore = new BriefSessionStore($storageDir.'/brief-session.txt');
 
@@ -64,7 +77,7 @@ final class DashboardController
         }
 
         $assembler = new DayBriefAssembler($eventRepo, $commitmentRepo, $driftDetector, $personRepo, $skillRepo, $scheduleRepo, $workspaceRepo, $triageRepo);
-        $brief = $assembler->assemble('default', $since);
+        $brief = $assembler->assemble($scope->tenantId, $since, $scope->workspaceId());
         $briefPayload = $this->buildBriefPayload($brief);
         $fallbackPayload = [
             'workspaces' => $briefPayload['workspaces'] ?? [],
@@ -78,7 +91,10 @@ final class DashboardController
         // Load chat sessions
         $chatSessionStorage = $this->entityTypeManager->getStorage('chat_session');
         $sessionIds = $chatSessionStorage->getQuery()->execute();
-        $allSessions = $chatSessionStorage->loadMultiple($sessionIds);
+        $allSessions = array_values(array_filter(
+            $chatSessionStorage->loadMultiple($sessionIds),
+            fn ($session): bool => $resolver->tenantMatches($session, $scope->tenantId),
+        ));
         usort($allSessions, fn ($a, $b) => ($b->get('created_at') ?? '') <=> ($a->get('created_at') ?? ''));
 
         $twigSessions = array_map(fn ($s) => [
