@@ -132,7 +132,8 @@ final class BriefStreamController
             // Keepalive every 15 seconds
             $now = time();
             if (($now - $lastKeepalive) >= 15) {
-                $output(": keepalive\n\n");
+                $payload = json_encode(['ts' => $now], JSON_THROW_ON_ERROR);
+                $output("event: brief-keepalive\ndata: {$payload}\n\n");
                 $flush();
                 $lastKeepalive = $now;
             }

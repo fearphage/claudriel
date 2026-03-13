@@ -1178,6 +1178,10 @@
                 }
             });
 
+            briefSource.addEventListener('brief-keepalive', function() {
+                scheduleBriefTimeout();
+            });
+
             briefSource.onerror = function() {
                 switchToFallbackTransport('stream-error');
             };
