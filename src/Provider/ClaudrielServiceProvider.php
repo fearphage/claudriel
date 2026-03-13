@@ -11,6 +11,7 @@ use Claudriel\Command\RecategorizeEventsCommand;
 use Claudriel\Command\SkillsCommand;
 use Claudriel\Command\WorkspaceCreateCommand;
 use Claudriel\Command\WorkspacesCommand;
+use Claudriel\Controller\Ai\ExtractionImprovementSuggestionController;
 use Claudriel\Controller\Ai\ExtractionSelfAssessmentController;
 use Claudriel\Controller\Ai\TrainingExportController;
 use Claudriel\Controller\Audit\CommitmentExtractionAuditController;
@@ -310,6 +311,25 @@ final class ClaudrielServiceProvider extends ServiceProvider
             'claudriel.ai.self_assessment_json',
             RouteBuilder::create('/ai/self-assessment.json')
                 ->controller(ExtractionSelfAssessmentController::class.'::jsonView')
+                ->allowAll()
+                ->methods('GET')
+                ->build(),
+        );
+
+        $router->addRoute(
+            'claudriel.ai.improvement_suggestions',
+            RouteBuilder::create('/ai/improvement-suggestions')
+                ->controller(ExtractionImprovementSuggestionController::class.'::index')
+                ->allowAll()
+                ->methods('GET')
+                ->render()
+                ->build(),
+        );
+
+        $router->addRoute(
+            'claudriel.ai.improvement_suggestions_json',
+            RouteBuilder::create('/ai/improvement-suggestions.json')
+                ->controller(ExtractionImprovementSuggestionController::class.'::jsonView')
                 ->allowAll()
                 ->methods('GET')
                 ->build(),
