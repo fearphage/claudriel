@@ -12,6 +12,7 @@ use Claudriel\Entity\McEvent;
 use Claudriel\Entity\Person;
 use Claudriel\Entity\ScheduleEntry;
 use Claudriel\Entity\Skill;
+use Claudriel\Entity\TemporalNotification;
 use Claudriel\Entity\TriageEntry;
 use Claudriel\Entity\Workspace;
 use PHPUnit\Framework\TestCase;
@@ -45,6 +46,7 @@ final class DashboardControllerTest extends TestCase
         self::assertArrayHasKey('workspaces', $data);
         self::assertArrayHasKey('brief_fallback', $data);
         self::assertArrayHasKey('brief_fallback_url', $data);
+        self::assertArrayHasKey('proactive_guidance', $data['brief']);
         self::assertSame('Dashboard Workspace', $data['workspaces'][0]['name']);
         self::assertSame('Dashboard Workspace', $data['brief_fallback']['workspaces'][0]['name']);
         self::assertCount(2, $data['sessions']);
@@ -99,7 +101,38 @@ final class DashboardControllerTest extends TestCase
         self::assertStringContainsString('schedule-timeline', $response->content);
         self::assertStringContainsString('timeline-event-action', $response->content);
         self::assertStringContainsString('timeline-event-action-status', $response->content);
+        self::assertStringContainsString('guidance-panel', $response->content);
+        self::assertStringContainsString('ambient-nudge', $response->content);
         self::assertStringContainsString('Queued in chat', $response->content);
+    }
+
+    public function test_show_renders_live_guidance_card_and_ambient_nudge_from_schedule(): void
+    {
+        $etm = $this->buildEntityTypeManager();
+        $this->seedWorkspace($etm, 'workspace-dashboard-3', 'Guidance Workspace');
+        $this->seedUpcomingScheduleEntry($etm, 'Planning');
+
+        $controller = new DashboardController(
+            $etm,
+            new Environment(new FilesystemLoader(dirname(__DIR__, 3).'/templates')),
+        );
+
+        $response = $controller->show(
+            query: ['request_id' => 'dashboard-guidance-req'],
+            httpRequest: Request::create('/dashboard', 'GET', server: ['HTTP_X_REQUEST_ID' => 'dashboard-guidance-req']),
+        );
+
+        self::assertSame(200, $response->statusCode);
+        self::assertStringContainsString('Prepare for next block', $response->content);
+        self::assertStringContainsString('Planning', $response->content);
+        self::assertStringContainsString('Snooze 15m', $response->content);
+        self::assertStringContainsString('Dismiss', $response->content);
+        self::assertStringContainsString('Ambient Nudge', $response->content);
+        self::assertStringContainsString('Prep in chat', $response->content);
+        self::assertStringContainsString('data-agent-name="upcoming-block-prep"', $response->content);
+        self::assertStringContainsString('data-guidance-action="open_chat"', $response->content);
+        self::assertStringContainsString('data-guidance-snooze="', $response->content);
+        self::assertStringContainsString('data-guidance-dismiss="', $response->content);
     }
 
     private function buildEntityTypeManager(): EntityTypeManager
@@ -136,6 +169,20 @@ final class DashboardControllerTest extends TestCase
         ]));
     }
 
+    private function seedUpcomingScheduleEntry(EntityTypeManager $etm, string $title): void
+    {
+        $start = new \DateTimeImmutable('+20 minutes', new \DateTimeZone('UTC'));
+        $end = $start->modify('+45 minutes');
+
+        $etm->getStorage('schedule_entry')->save(new ScheduleEntry([
+            'uuid' => 'schedule-upcoming-'.md5($title),
+            'title' => $title,
+            'starts_at' => $start->format(\DateTimeInterface::ATOM),
+            'ends_at' => $end->format(\DateTimeInterface::ATOM),
+            'source' => 'manual',
+        ]));
+    }
+
     /** @return list<EntityType> */
     private function entityTypes(): array
     {
@@ -147,6 +194,7 @@ final class DashboardControllerTest extends TestCase
             new EntityType(id: 'chat_session', label: 'Chat Session', class: ChatSession::class, keys: ['id' => 'csid', 'uuid' => 'uuid', 'label' => 'title']),
             new EntityType(id: 'chat_message', label: 'Chat Message', class: ChatMessage::class, keys: ['id' => 'cmid', 'uuid' => 'uuid']),
             new EntityType(id: 'schedule_entry', label: 'Schedule Entry', class: ScheduleEntry::class, keys: ['id' => 'seid', 'uuid' => 'uuid', 'label' => 'title']),
+            new EntityType(id: 'temporal_notification', label: 'Temporal Notification', class: TemporalNotification::class, keys: ['id' => 'tnid', 'uuid' => 'uuid']),
             new EntityType(id: 'triage_entry', label: 'Triage Entry', class: TriageEntry::class, keys: ['id' => 'teid', 'uuid' => 'uuid', 'label' => 'sender_name']),
             new EntityType(id: 'workspace', label: 'Workspace', class: Workspace::class, keys: ['id' => 'wid', 'uuid' => 'uuid', 'label' => 'name']),
         ];
