@@ -10,6 +10,7 @@ use Claudriel\Entity\McEvent;
 use Claudriel\Entity\Person;
 use Claudriel\Entity\ScheduleEntry;
 use Claudriel\Entity\Skill;
+use Claudriel\Entity\TemporalNotification;
 use Claudriel\Entity\TriageEntry;
 use Claudriel\Entity\Workspace;
 use Claudriel\Support\BriefSignal;
@@ -89,6 +90,7 @@ final class BriefStreamControllerTest extends TestCase
         self::assertArrayHasKey('briefs', $payload);
         self::assertArrayHasKey('updated_at', $payload);
         self::assertArrayHasKey('time_snapshot', $payload['briefs']);
+        self::assertArrayHasKey('proactive_guidance', $payload['briefs']);
         self::assertSame('Fallback Workspace', $payload['workspaces'][0]['name']);
         self::assertSame('Fallback Workspace', $payload['briefs']['workspaces'][0]['name']);
     }
@@ -129,6 +131,7 @@ final class BriefStreamControllerTest extends TestCase
             new EntityType(id: 'person', label: 'Person', class: Person::class, keys: ['id' => 'pid', 'uuid' => 'uuid', 'label' => 'name']),
             new EntityType(id: 'skill', label: 'Skill', class: Skill::class, keys: ['id' => 'sid', 'uuid' => 'uuid', 'label' => 'name']),
             new EntityType(id: 'schedule_entry', label: 'Schedule Entry', class: ScheduleEntry::class, keys: ['id' => 'seid', 'uuid' => 'uuid', 'label' => 'title']),
+            new EntityType(id: 'temporal_notification', label: 'Temporal Notification', class: TemporalNotification::class, keys: ['id' => 'tnid', 'uuid' => 'uuid']),
             new EntityType(id: 'triage_entry', label: 'Triage Entry', class: TriageEntry::class, keys: ['id' => 'teid', 'uuid' => 'uuid', 'label' => 'sender_name']),
             new EntityType(id: 'workspace', label: 'Workspace', class: Workspace::class, keys: ['id' => 'wid', 'uuid' => 'uuid', 'label' => 'name']),
         ];

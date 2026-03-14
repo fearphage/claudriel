@@ -12,6 +12,7 @@ use Claudriel\Entity\McEvent;
 use Claudriel\Entity\Person;
 use Claudriel\Entity\ScheduleEntry;
 use Claudriel\Entity\Skill;
+use Claudriel\Entity\TemporalNotification;
 use Claudriel\Entity\TriageEntry;
 use Claudriel\Entity\Workspace;
 use PHPUnit\Framework\TestCase;
@@ -45,6 +46,7 @@ final class DashboardControllerTest extends TestCase
         self::assertArrayHasKey('workspaces', $data);
         self::assertArrayHasKey('brief_fallback', $data);
         self::assertArrayHasKey('brief_fallback_url', $data);
+        self::assertArrayHasKey('proactive_guidance', $data['brief']);
         self::assertSame('Dashboard Workspace', $data['workspaces'][0]['name']);
         self::assertSame('Dashboard Workspace', $data['brief_fallback']['workspaces'][0]['name']);
         self::assertCount(2, $data['sessions']);
@@ -99,6 +101,8 @@ final class DashboardControllerTest extends TestCase
         self::assertStringContainsString('schedule-timeline', $response->content);
         self::assertStringContainsString('timeline-event-action', $response->content);
         self::assertStringContainsString('timeline-event-action-status', $response->content);
+        self::assertStringContainsString('guidance-panel', $response->content);
+        self::assertStringContainsString('ambient-nudge', $response->content);
         self::assertStringContainsString('Queued in chat', $response->content);
     }
 
@@ -147,6 +151,7 @@ final class DashboardControllerTest extends TestCase
             new EntityType(id: 'chat_session', label: 'Chat Session', class: ChatSession::class, keys: ['id' => 'csid', 'uuid' => 'uuid', 'label' => 'title']),
             new EntityType(id: 'chat_message', label: 'Chat Message', class: ChatMessage::class, keys: ['id' => 'cmid', 'uuid' => 'uuid']),
             new EntityType(id: 'schedule_entry', label: 'Schedule Entry', class: ScheduleEntry::class, keys: ['id' => 'seid', 'uuid' => 'uuid', 'label' => 'title']),
+            new EntityType(id: 'temporal_notification', label: 'Temporal Notification', class: TemporalNotification::class, keys: ['id' => 'tnid', 'uuid' => 'uuid']),
             new EntityType(id: 'triage_entry', label: 'Triage Entry', class: TriageEntry::class, keys: ['id' => 'teid', 'uuid' => 'uuid', 'label' => 'sender_name']),
             new EntityType(id: 'workspace', label: 'Workspace', class: Workspace::class, keys: ['id' => 'wid', 'uuid' => 'uuid', 'label' => 'name']),
         ];

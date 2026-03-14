@@ -9,6 +9,7 @@ use Claudriel\Routing\RequestScopeViolation;
 use Claudriel\Routing\TenantWorkspaceResolver;
 use Claudriel\Support\BriefSignal;
 use Claudriel\Support\DriftDetector;
+use Claudriel\Temporal\Agent\TemporalGuidanceAssembler;
 use Claudriel\Temporal\TemporalContextFactory;
 use Claudriel\Temporal\TimeSnapshot;
 use Symfony\Component\HttpFoundation\Request;
@@ -215,6 +216,8 @@ final class BriefStreamController
         $briefs['commitments']['pending'] = array_map(fn ($c) => $c->toArray(), $brief['commitments']['pending']);
         $briefs['commitments']['drifting'] = array_map(fn ($c) => $c->toArray(), $brief['commitments']['drifting']);
         $briefs['matched_skills'] = array_map(fn ($s) => $s->toArray(), $brief['matched_skills']);
+        $briefs['proactive_guidance'] = (new TemporalGuidanceAssembler($this->entityTypeManager))
+            ->build($tenantId, $workspaceUuid, $brief, $snapshot);
 
         return [
             'workspaces' => $briefs['workspaces'],

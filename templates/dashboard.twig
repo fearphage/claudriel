@@ -257,6 +257,135 @@
             background: var(--accent-blue);
             box-shadow: 0 0 0 4px rgba(107, 155, 255, 0.14);
         }
+        .guidance-panel {
+            display: grid;
+            gap: 0.65rem;
+        }
+        .guidance-card {
+            border: 1px solid rgba(45, 212, 191, 0.16);
+            background: linear-gradient(180deg, rgba(45, 212, 191, 0.12), rgba(8, 15, 28, 0.82));
+            border-radius: var(--radius-md);
+            padding: 0.85rem 0.95rem;
+            box-shadow: 0 14px 30px rgba(4, 10, 24, 0.26);
+        }
+        .guidance-card[data-agent-name="overrun-alert"] {
+            border-color: rgba(239, 68, 68, 0.28);
+            background: linear-gradient(180deg, rgba(239, 68, 68, 0.12), rgba(26, 10, 14, 0.92));
+        }
+        .guidance-card[data-agent-name="shift-risk"] {
+            border-color: rgba(232, 168, 56, 0.26);
+            background: linear-gradient(180deg, rgba(232, 168, 56, 0.12), rgba(26, 19, 10, 0.92));
+        }
+        .guidance-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.65rem;
+        }
+        .guidance-card-title {
+            font-family: var(--font-display);
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .guidance-card-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            border-radius: 999px;
+            padding: 0.2rem 0.55rem;
+            font-size: 0.66rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .guidance-card-summary {
+            margin-top: 0.45rem;
+            font-size: 0.78rem;
+            line-height: 1.45;
+            color: var(--text-secondary);
+        }
+        .guidance-card-actions,
+        .ambient-nudge-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            margin-top: 0.75rem;
+        }
+        .guidance-button {
+            border: 1px solid rgba(107, 155, 255, 0.22);
+            background: rgba(107, 155, 255, 0.1);
+            color: var(--text-primary);
+            border-radius: 999px;
+            padding: 0.34rem 0.7rem;
+            font-size: 0.72rem;
+            font-family: var(--font-body);
+            cursor: pointer;
+            transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+        }
+        .guidance-button:hover {
+            transform: translateY(-1px);
+            background: rgba(107, 155, 255, 0.18);
+            border-color: rgba(107, 155, 255, 0.35);
+        }
+        .guidance-button:disabled {
+            opacity: 0.66;
+            cursor: wait;
+            transform: none;
+        }
+        .guidance-button--primary {
+            background: rgba(45, 212, 191, 0.14);
+            border-color: rgba(45, 212, 191, 0.28);
+        }
+        .guidance-meta {
+            margin-top: 0.5rem;
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            letter-spacing: 0.03em;
+        }
+        .guidance-status {
+            margin-top: 0.55rem;
+            min-height: 1.1rem;
+            font-size: 0.68rem;
+            color: var(--text-muted);
+        }
+        .guidance-status[data-state="working"] { color: var(--accent-blue); }
+        .guidance-status[data-state="complete"] { color: var(--accent-teal); }
+        .guidance-status[data-state="error"] { color: var(--accent-red); }
+        .ambient-nudge {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.85rem;
+            margin-bottom: 0.85rem;
+            padding: 0.85rem 0.95rem;
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(107, 155, 255, 0.24);
+            background: linear-gradient(120deg, rgba(38, 60, 101, 0.4), rgba(14, 22, 36, 0.95));
+        }
+        .ambient-nudge-copy {
+            flex: 1;
+            min-width: 0;
+        }
+        .ambient-nudge-eyebrow {
+            font-size: 0.66rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--accent-blue);
+        }
+        .ambient-nudge-title {
+            margin-top: 0.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .ambient-nudge-summary {
+            margin-top: 0.22rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
         .timeline-event {
             position: relative;
             margin-bottom: 0.65rem;
@@ -774,6 +903,39 @@
                 </div>
             </div>
 
+            <div class="panel-section" id="panelGuidance">
+                <div class="panel-section-title">Guidance <span class="badge" id="guidanceCount">{{ proactive_guidance.notifications|default([])|length }}</span></div>
+                <div id="guidancePanel" class="guidance-panel">
+                    {% if proactive_guidance.notifications|default([])|length > 0 %}
+                        {% for notification in proactive_guidance.notifications|default([]) %}
+                            <article class="guidance-card" data-notification-uuid="{{ notification.uuid }}" data-agent-name="{{ notification.agent_name }}" data-workspace-uuid="{{ active_workspace_uuid|default('') }}">
+                                <div class="guidance-card-header">
+                                    <div>
+                                        <div class="guidance-card-chip">{{ notification.agent_name|replace({'-': ' '})|title }}</div>
+                                        <div class="guidance-card-title">{{ notification.title }}</div>
+                                    </div>
+                                </div>
+                                <div class="guidance-card-summary">{{ notification.summary }}</div>
+                                <div class="guidance-card-actions">
+                                    {% if notification.actions|default([])|length > 0 %}
+                                        {% set primary_action = notification.actions|first %}
+                                        <button class="guidance-button guidance-button--primary" type="button" data-guidance-open="{{ primary_action.payload.prompt|default('') }}" data-guidance-notification="{{ notification.uuid }}" data-guidance-action="{{ primary_action.type }}">
+                                            {{ primary_action.label }}
+                                        </button>
+                                    {% endif %}
+                                    <button class="guidance-button" type="button" data-guidance-snooze="{{ notification.uuid }}" data-guidance-minutes="15">Snooze 15m</button>
+                                    <button class="guidance-button" type="button" data-guidance-dismiss="{{ notification.uuid }}">Dismiss</button>
+                                </div>
+                                <div class="guidance-meta">{{ notification.reason_code|replace({'_': ' '})|title }}</div>
+                                <div class="guidance-status" data-guidance-status="idle">Ready</div>
+                            </article>
+                        {% endfor %}
+                    {% else %}
+                        <div class="panel-empty">No live guidance right now.</div>
+                    {% endif %}
+                </div>
+            </div>
+
             {# Schedule #}
             <div class="panel-section" id="panelSchedule">
                 {% set timeline = schedule_timeline|default(schedule) %}
@@ -782,6 +944,24 @@
                 <div id="scheduleItems">
                     {% if timeline|length > 0 %}
                         <div class="schedule-timeline">
+                            {% if proactive_guidance.ambient_nudge %}
+                                {% set nudge = proactive_guidance.ambient_nudge %}
+                                <div class="ambient-nudge" data-notification-uuid="{{ nudge.uuid }}" data-workspace-uuid="{{ active_workspace_uuid|default('') }}">
+                                    <div class="ambient-nudge-copy">
+                                        <div class="ambient-nudge-eyebrow">Ambient Nudge</div>
+                                        <div class="ambient-nudge-title">{{ nudge.title }}</div>
+                                        <div class="ambient-nudge-summary">{{ nudge.summary }}</div>
+                                    </div>
+                                    <div class="ambient-nudge-actions">
+                                        {% if nudge.actions|default([])|length > 0 %}
+                                            {% set nudge_action = nudge.actions|first %}
+                                            <button class="guidance-button guidance-button--primary" type="button" data-guidance-open="{{ nudge_action.payload.prompt|default('') }}" data-guidance-notification="{{ nudge.uuid }}" data-guidance-action="{{ nudge_action.type }}">
+                                                {{ nudge_action.label }}
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endif %}
                             <div class="schedule-now-indicator">Now · {{ time_snapshot.local|date('g:i A') }}</div>
                             {% for item in timeline %}
                                 {% set start_ts = item.start_time|date('U') %}
@@ -943,6 +1123,8 @@
         var emptyState = document.getElementById('emptyState');
         var sessionTabsEl = document.getElementById('sessionTabs');
         var sessionListEl = document.querySelector('.session-list');
+        var activeTenantId = {{ active_tenant_id|json_encode|raw }};
+        var activeWorkspaceUuid = {{ active_workspace_uuid|json_encode|raw }};
 
         var sessionId = null;
         var sending = false;
@@ -973,6 +1155,8 @@
             localStorage.setItem(panelKey, isCollapsed ? 'true' : 'false');
             updatePanel();
         });
+
+        bindGuidanceActions(document);
 
         function primeChatInput(prompt) {
             if (!prompt || !inputEl || inputEl.disabled) {
@@ -1394,12 +1578,194 @@
             });
         }
 
+        function updateGuidanceStatus(container, state, message) {
+            var statusEl = container ? container.querySelector('[data-guidance-status]') : null;
+            if (!statusEl) {
+                return;
+            }
+
+            statusEl.dataset.state = state;
+            statusEl.textContent = message;
+        }
+
+        function postGuidanceAction(url, body) {
+            return fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-Token': document.head.querySelector('meta[name="csrf-token"]')?.content || '',
+                },
+                body: JSON.stringify(body || {}),
+            }).then(function(response) {
+                return response.json().then(function(payload) {
+                    return { ok: response.ok, payload: payload };
+                });
+            });
+        }
+
+        function removeNotificationCard(notificationUuid) {
+            var escapedUuid = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(notificationUuid) : notificationUuid;
+            document.querySelectorAll('[data-notification-uuid="' + escapedUuid + '"]').forEach(function(node) {
+                node.remove();
+            });
+        }
+
+        function bindGuidanceActions(root) {
+            (root || document).querySelectorAll('[data-guidance-dismiss]').forEach(function(button) {
+                if (button.dataset.boundGuidance === 'dismiss') {
+                    return;
+                }
+                button.dataset.boundGuidance = 'dismiss';
+                button.addEventListener('click', function() {
+                    var notificationUuid = this.getAttribute('data-guidance-dismiss');
+                    var container = this.closest('[data-notification-uuid]');
+                    updateGuidanceStatus(container, 'working', 'Dismissing…');
+                    postGuidanceAction('/api/temporal-notifications/' + encodeURIComponent(notificationUuid) + '/dismiss', {
+                        tenant_id: activeTenantId,
+                        workspace_uuid: activeWorkspaceUuid
+                    }).then(function(result) {
+                        if (!result.ok) {
+                            updateGuidanceStatus(container, 'error', result.payload.error || 'Dismiss failed.');
+                            return;
+                        }
+                        removeNotificationCard(notificationUuid);
+                    });
+                });
+            });
+
+            (root || document).querySelectorAll('[data-guidance-snooze]').forEach(function(button) {
+                if (button.dataset.boundGuidance === 'snooze') {
+                    return;
+                }
+                button.dataset.boundGuidance = 'snooze';
+                button.addEventListener('click', function() {
+                    var notificationUuid = this.getAttribute('data-guidance-snooze');
+                    var container = this.closest('[data-notification-uuid]');
+                    updateGuidanceStatus(container, 'working', 'Snoozing…');
+                    postGuidanceAction('/api/temporal-notifications/' + encodeURIComponent(notificationUuid) + '/snooze', {
+                        tenant_id: activeTenantId,
+                        workspace_uuid: activeWorkspaceUuid,
+                        minutes: Number(this.getAttribute('data-guidance-minutes') || '15')
+                    }).then(function(result) {
+                        if (!result.ok) {
+                            updateGuidanceStatus(container, 'error', result.payload.error || 'Snooze failed.');
+                            return;
+                        }
+                        removeNotificationCard(notificationUuid);
+                    });
+                });
+            });
+
+            (root || document).querySelectorAll('[data-guidance-open]').forEach(function(button) {
+                if (button.dataset.boundGuidance === 'open') {
+                    return;
+                }
+                button.dataset.boundGuidance = 'open';
+                button.addEventListener('click', function() {
+                    var prompt = this.getAttribute('data-guidance-open');
+                    var notificationUuid = this.getAttribute('data-guidance-notification');
+                    var actionType = this.getAttribute('data-guidance-action') || 'open_chat';
+                    var container = this.closest('[data-notification-uuid]');
+                    updateGuidanceStatus(container, 'working', 'Opening in chat…');
+                    postGuidanceAction('/api/temporal-notifications/' + encodeURIComponent(notificationUuid) + '/actions/' + encodeURIComponent(actionType), {
+                        tenant_id: activeTenantId,
+                        workspace_uuid: activeWorkspaceUuid,
+                        state: 'working'
+                    }).then(function(result) {
+                        if (!result.ok) {
+                            updateGuidanceStatus(container, 'error', result.payload.error || 'Open action failed.');
+                            return;
+                        }
+                        if (prompt) {
+                            sendMessage(prompt);
+                        }
+                        return postGuidanceAction('/api/temporal-notifications/' + encodeURIComponent(notificationUuid) + '/actions/' + encodeURIComponent(actionType), {
+                            tenant_id: activeTenantId,
+                            workspace_uuid: activeWorkspaceUuid,
+                            state: 'complete'
+                        });
+                    }).then(function(result) {
+                        if (result && !result.ok) {
+                            updateGuidanceStatus(container, 'error', result.payload.error || 'Open action failed.');
+                            return;
+                        }
+                        updateGuidanceStatus(container, 'complete', 'Queued in chat');
+                    });
+                });
+            });
+        }
+
+        function renderGuidance(data) {
+            var guidance = data && data.proactive_guidance ? data.proactive_guidance : { notifications: [], ambient_nudge: null };
+            var notifications = Array.isArray(guidance.notifications) ? guidance.notifications : [];
+            var ambient = guidance.ambient_nudge || null;
+            var guidanceCount = document.getElementById('guidanceCount');
+            var guidancePanel = document.getElementById('guidancePanel');
+
+            if (guidanceCount) {
+                guidanceCount.textContent = notifications.length;
+            }
+
+            if (guidancePanel) {
+                if (notifications.length === 0) {
+                    guidancePanel.innerHTML = '<div class="panel-empty">No live guidance right now.</div>';
+                } else {
+                    guidancePanel.innerHTML = notifications.map(function(notification) {
+                        var primaryAction = Array.isArray(notification.actions) && notification.actions.length > 0 ? notification.actions[0] : null;
+                        return '<article class="guidance-card" data-notification-uuid="' + esc(notification.uuid) + '" data-agent-name="' + esc(notification.agent_name) + '" data-workspace-uuid="' + esc(activeWorkspaceUuid || '') + '">'
+                            + '<div class="guidance-card-header"><div><div class="guidance-card-chip">' + esc(String(notification.agent_name || '').replace(/-/g, ' ')) + '</div>'
+                            + '<div class="guidance-card-title">' + esc(notification.title || '') + '</div></div></div>'
+                            + '<div class="guidance-card-summary">' + esc(notification.summary || '') + '</div>'
+                            + '<div class="guidance-card-actions">'
+                            + (primaryAction ? '<button class="guidance-button guidance-button--primary" type="button" data-guidance-open="' + esc(primaryAction.payload && primaryAction.payload.prompt ? primaryAction.payload.prompt : '') + '" data-guidance-notification="' + esc(notification.uuid) + '" data-guidance-action="' + esc(primaryAction.type || '') + '">' + esc(primaryAction.label || 'Open') + '</button>' : '')
+                            + '<button class="guidance-button" type="button" data-guidance-snooze="' + esc(notification.uuid) + '" data-guidance-minutes="15">Snooze 15m</button>'
+                            + '<button class="guidance-button" type="button" data-guidance-dismiss="' + esc(notification.uuid) + '">Dismiss</button>'
+                            + '</div><div class="guidance-meta">' + esc(String(notification.reason_code || '').replace(/_/g, ' ')) + '</div><div class="guidance-status" data-guidance-status="idle">Ready</div></article>';
+                    }).join('');
+                }
+
+                bindGuidanceActions(guidancePanel);
+            }
+
+            var scheduleItems = document.getElementById('scheduleItems');
+            if (!scheduleItems) {
+                return;
+            }
+
+            var timeline = scheduleItems.querySelector('.schedule-timeline');
+            if (!timeline) {
+                return;
+            }
+
+            var priorAmbient = timeline.querySelector('.ambient-nudge');
+            if (priorAmbient) {
+                priorAmbient.remove();
+            }
+
+            if (!ambient) {
+                return;
+            }
+
+            var primary = Array.isArray(ambient.actions) && ambient.actions.length > 0 ? ambient.actions[0] : null;
+            timeline.insertAdjacentHTML('afterbegin',
+                '<div class="ambient-nudge" data-notification-uuid="' + esc(ambient.uuid) + '" data-workspace-uuid="' + esc(activeWorkspaceUuid || '') + '">'
+                + '<div class="ambient-nudge-copy"><div class="ambient-nudge-eyebrow">Ambient Nudge</div><div class="ambient-nudge-title">' + esc(ambient.title || '') + '</div><div class="ambient-nudge-summary">' + esc(ambient.summary || '') + '</div></div>'
+                + '<div class="ambient-nudge-actions">'
+                + (primary ? '<button class="guidance-button guidance-button--primary" type="button" data-guidance-open="' + esc(primary.payload && primary.payload.prompt ? primary.payload.prompt : '') + '" data-guidance-notification="' + esc(ambient.uuid) + '" data-guidance-action="' + esc(primary.type || '') + '">' + esc(primary.label || 'Open') + '</button>' : '')
+                + '</div></div>'
+            );
+            bindGuidanceActions(timeline);
+        }
+
         // ── Sidebar Rebuild from Brief Data ──
         function rebuildSidebar(data) {
             data = normalizeBriefPayload(data);
             if (!data) {
                 return;
             }
+
+            renderGuidance(data);
 
             // Schedule
             var scheduleCount = document.getElementById('scheduleCount');

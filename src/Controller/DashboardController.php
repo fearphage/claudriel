@@ -9,6 +9,7 @@ use Claudriel\Domain\DayBrief\Service\BriefSessionStore;
 use Claudriel\Routing\RequestScopeViolation;
 use Claudriel\Routing\TenantWorkspaceResolver;
 use Claudriel\Support\DriftDetector;
+use Claudriel\Temporal\Agent\TemporalGuidanceAssembler;
 use Claudriel\Temporal\TemporalContextFactory;
 use Symfony\Component\HttpFoundation\Request;
 use Twig\Environment;
@@ -87,7 +88,10 @@ final class DashboardController
 
         $assembler = new DayBriefAssembler($eventRepo, $commitmentRepo, $driftDetector, $personRepo, $skillRepo, $scheduleRepo, $workspaceRepo, $triageRepo);
         $brief = $assembler->assemble($scope->tenantId, $since, $scope->workspaceId(), $snapshot);
+        $proactiveGuidance = (new TemporalGuidanceAssembler($this->entityTypeManager))
+            ->build($scope->tenantId, $scope->workspaceId(), $brief, $snapshot);
         $briefPayload = $this->buildBriefPayload($brief);
+        $briefPayload['proactive_guidance'] = $proactiveGuidance;
         $fallbackPayload = [
             'workspaces' => $briefPayload['workspaces'],
             'briefs' => $briefPayload,
@@ -136,6 +140,9 @@ final class DashboardController
                 'csrf_token' => CsrfMiddleware::token(),
                 'model' => $model,
                 'workspaces' => $brief['workspaces'],
+                'active_tenant_id' => $scope->tenantId,
+                'active_workspace_uuid' => $scope->workspaceId(),
+                'proactive_guidance' => $proactiveGuidance,
                 'brief_fallback_payload' => json_encode($fallbackPayload, JSON_THROW_ON_ERROR),
                 'brief_fallback_url' => '/stream/brief?transport=fallback&request_id='.$requestId,
             ]));
