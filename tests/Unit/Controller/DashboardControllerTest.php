@@ -106,6 +106,35 @@ final class DashboardControllerTest extends TestCase
         self::assertStringContainsString('Queued in chat', $response->content);
     }
 
+    public function test_show_renders_live_guidance_card_and_ambient_nudge_from_schedule(): void
+    {
+        $etm = $this->buildEntityTypeManager();
+        $this->seedWorkspace($etm, 'workspace-dashboard-3', 'Guidance Workspace');
+        $this->seedUpcomingScheduleEntry($etm, 'Planning');
+
+        $controller = new DashboardController(
+            $etm,
+            new Environment(new FilesystemLoader(dirname(__DIR__, 3).'/templates')),
+        );
+
+        $response = $controller->show(
+            query: ['request_id' => 'dashboard-guidance-req'],
+            httpRequest: Request::create('/dashboard', 'GET', server: ['HTTP_X_REQUEST_ID' => 'dashboard-guidance-req']),
+        );
+
+        self::assertSame(200, $response->statusCode);
+        self::assertStringContainsString('Prepare for next block', $response->content);
+        self::assertStringContainsString('Planning', $response->content);
+        self::assertStringContainsString('Snooze 15m', $response->content);
+        self::assertStringContainsString('Dismiss', $response->content);
+        self::assertStringContainsString('Ambient Nudge', $response->content);
+        self::assertStringContainsString('Prep in chat', $response->content);
+        self::assertStringContainsString('data-agent-name="upcoming-block-prep"', $response->content);
+        self::assertStringContainsString('data-guidance-action="open_chat"', $response->content);
+        self::assertStringContainsString('data-guidance-snooze="', $response->content);
+        self::assertStringContainsString('data-guidance-dismiss="', $response->content);
+    }
+
     private function buildEntityTypeManager(): EntityTypeManager
     {
         $db = PdoDatabase::createSqlite(':memory:');
@@ -137,6 +166,20 @@ final class DashboardControllerTest extends TestCase
             'uuid' => $uuid,
             'title' => $title,
             'created_at' => $createdAt,
+        ]));
+    }
+
+    private function seedUpcomingScheduleEntry(EntityTypeManager $etm, string $title): void
+    {
+        $start = new \DateTimeImmutable('+20 minutes', new \DateTimeZone('UTC'));
+        $end = $start->modify('+45 minutes');
+
+        $etm->getStorage('schedule_entry')->save(new ScheduleEntry([
+            'uuid' => 'schedule-upcoming-'.md5($title),
+            'title' => $title,
+            'starts_at' => $start->format(\DateTimeInterface::ATOM),
+            'ends_at' => $end->format(\DateTimeInterface::ATOM),
+            'source' => 'manual',
         ]));
     }
 

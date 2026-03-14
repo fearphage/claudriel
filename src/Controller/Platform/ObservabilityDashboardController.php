@@ -12,11 +12,21 @@ use Claudriel\Service\Audit\CommitmentExtractionAuditService;
 use Claudriel\Service\Audit\CommitmentExtractionDriftDetector;
 use Claudriel\Service\Audit\CommitmentExtractionFailureClassifier;
 use Claudriel\Service\Governance\CodifiedContextIntegrityScanner;
+use Claudriel\Temporal\Agent\OverrunAlertAgent;
+use Claudriel\Temporal\Agent\ShiftRiskAgent;
+use Claudriel\Temporal\Agent\TemporalAgentContextBuilder;
+use Claudriel\Temporal\Agent\TemporalAgentLifecycle;
+use Claudriel\Temporal\Agent\TemporalAgentOrchestrator;
+use Claudriel\Temporal\Agent\TemporalAgentRegistry;
+use Claudriel\Temporal\Agent\TemporalNotificationDeliveryService;
+use Claudriel\Temporal\Agent\UpcomingBlockPrepAgent;
+use Claudriel\Temporal\Agent\WrapUpPromptAgent;
 use Claudriel\Temporal\AtomicTimeService;
 use Claudriel\Temporal\Clock\SystemWallClock;
 use Claudriel\Temporal\ClockHealthMonitor;
 use Claudriel\Temporal\SystemClockSyncProbe;
 use Claudriel\Temporal\TemporalAwarenessEngine;
+use Claudriel\Temporal\TimeSnapshot;
 use DateTimeImmutable;
 use Symfony\Component\HttpFoundation\Request;
 use Twig\Environment;
@@ -474,10 +484,9 @@ final class ObservabilityDashboardController
      */
     private function buildTemporalToolingSignals(): array
     {
-        $timeService = new AtomicTimeService;
-        $snapshot = $timeService->now();
+        $snapshot = $this->temporalSnapshot();
         $clockHealth = (new ClockHealthMonitor(
-            $timeService,
+            new AtomicTimeService,
             new SystemClockSyncProbe,
             new SystemWallClock,
         ))->assess('system-wall-clock');
@@ -582,6 +591,9 @@ final class ObservabilityDashboardController
                     ],
                 ],
             ],
+            $this->buildTemporalAgentCallChainNode(
+                $this->buildTemporalAgentObservability($snapshot, $clockHealth, $schedule, $awareness),
+            ),
             [
                 'title' => 'Tooling transport signals',
                 'summary' => 'Fallback, retry, and operation signals are wired into the panel',
@@ -610,6 +622,370 @@ final class ObservabilityDashboardController
             'awareness' => $awareness,
             'children' => $children,
         ];
+    }
+
+    private function temporalSnapshot(): TimeSnapshot
+    {
+        if ($this->referenceDate instanceof DateTimeImmutable) {
+            $utc = $this->referenceDate->setTimezone(new \DateTimeZone('UTC'));
+
+            return new TimeSnapshot(
+                $utc,
+                $this->referenceDate,
+                0,
+                $this->referenceDate->getTimezone()->getName(),
+            );
+        }
+
+        return (new AtomicTimeService)->now();
+    }
+
+    /**
+     * @param  array{
+     *   summary: string,
+     *   status: string,
+     *   children: list<array<string, mixed>>
+     * }  $agentObservability
+     * @return array<string, mixed>
+     */
+    private function buildTemporalAgentCallChainNode(array $agentObservability): array
+    {
+        return [
+            'title' => 'Proactive agent execution',
+            'summary' => $agentObservability['summary'],
+            'status' => $agentObservability['status'],
+            'expanded' => true,
+            'children' => $agentObservability['children'],
+        ];
+    }
+
+    /**
+     * @param  array{
+     *   provider: string,
+     *   synchronized: bool,
+     *   reference_source: string,
+     *   drift_seconds: float,
+     *   threshold_seconds: int,
+     *   state: string,
+     *   safe_for_temporal_reasoning: bool,
+     *   retry_after_seconds: int,
+     *   fallback_mode: string,
+     *   metadata: array<string, scalar|null>
+     * }  $clockHealth
+     * @param  list<array{title: string, start_time: string, end_time: string, source: string}>  $schedule
+     * @param  array{
+     *   current_block: ?array{title: string, start_time: string, end_time: string, source: string},
+     *   next_block: ?array{title: string, start_time: string, end_time: string, source: string},
+     *   gaps: list<array{starts_at: string, ends_at: string, duration_minutes: int, between: array{from: string, to: string}}>,
+     *   overruns: list<array{title: string, ended_at: string, overrun_minutes: int}>
+     * }  $awareness
+     * @return array{
+     *   summary: string,
+     *   status: string,
+     *   children: list<array<string, mixed>>
+     * }
+     */
+    private function buildTemporalAgentObservability(
+        TimeSnapshot $snapshot,
+        array $clockHealth,
+        array $schedule,
+        array $awareness,
+    ): array {
+        try {
+            $context = (new TemporalAgentContextBuilder)->build(
+                tenantId: 'platform-observability',
+                workspaceUuid: null,
+                snapshot: $snapshot,
+                clockHealth: $clockHealth,
+                schedule: $schedule,
+                temporalAwareness: $awareness,
+                timezoneContext: [
+                    'timezone' => $snapshot->timezone(),
+                    'source' => 'time_snapshot',
+                ],
+            );
+
+            $batch = (new TemporalAgentOrchestrator($this->temporalAgentRegistry()))->evaluate($context);
+            $notificationsByDeliveryKey = $this->loadTemporalNotificationsByDeliveryKey();
+            $children = array_map(
+                fn (array $decision): array => $this->buildTemporalAgentDecisionNode(
+                    $decision,
+                    $notificationsByDeliveryKey[$decision['suppression']['key']] ?? [],
+                ),
+                $batch->toArray()['decisions'],
+            );
+
+            return [
+                'summary' => sprintf(
+                    '%d emitted · %d suppressed across %d agents',
+                    $batch->toArray()['emitted_count'],
+                    $batch->toArray()['suppressed_count'],
+                    count($batch->toArray()['decisions']),
+                ),
+                'status' => $this->aggregateChildStatuses($children),
+                'children' => $children,
+            ];
+        } catch (\Throwable $exception) {
+            return [
+                'summary' => 'Temporal agent observability failed during evaluation replay',
+                'status' => 'error',
+                'children' => [[
+                    'title' => 'Evaluation replay failure',
+                    'summary' => $exception->getMessage(),
+                    'status' => 'error',
+                    'expanded' => false,
+                    'children' => [],
+                ]],
+            ];
+        }
+    }
+
+    private function temporalAgentRegistry(): TemporalAgentRegistry
+    {
+        return new TemporalAgentRegistry([
+            new OverrunAlertAgent,
+            new ShiftRiskAgent,
+            new WrapUpPromptAgent,
+            new UpcomingBlockPrepAgent,
+        ]);
+    }
+
+    /**
+     * @param  array{
+     *   agent: string,
+     *   state: string,
+     *   kind: string,
+     *   title: string,
+     *   summary: string,
+     *   reason_code: string,
+     *   actions: list<array{type: string, label: string, payload: array<string, scalar|array<array-key, scalar>|null>}>,
+     *   metadata: array<string, scalar|array<array-key, scalar>|null>,
+     *   suppression: array{key: string, window_starts_at: string, window_seconds: int}
+     * }  $decision
+     * @param  list<array<string, mixed>>  $notifications
+     * @return array<string, mixed>
+     */
+    private function buildTemporalAgentDecisionNode(array $decision, array $notifications): array
+    {
+        $decisionStatus = $this->decisionStatus($decision);
+        $children = [[
+            'title' => 'Decision envelope',
+            'summary' => sprintf(
+                '%s · reason %s · %d action%s',
+                $decision['kind'],
+                $decision['reason_code'],
+                count($decision['actions']),
+                count($decision['actions']) === 1 ? '' : 's',
+            ),
+            'status' => $decisionStatus,
+            'expanded' => false,
+            'children' => [],
+        ]];
+
+        if ($notifications === []) {
+            $children[] = [
+                'title' => 'Notification delivery',
+                'summary' => $decision['state'] === TemporalAgentLifecycle::EMITTED
+                    ? 'No persisted notification matched the emitted decision'
+                    : 'Delivery skipped because the decision was suppressed',
+                'status' => $decision['state'] === TemporalAgentLifecycle::EMITTED ? 'retry' : 'fallback',
+                'expanded' => false,
+                'children' => [],
+            ];
+        } else {
+            foreach ($notifications as $notification) {
+                $children[] = $this->buildTemporalNotificationNode($notification);
+            }
+        }
+
+        return [
+            'title' => $decision['agent'],
+            'summary' => sprintf('%s · %s', $decision['state'], $decision['summary']),
+            'status' => $this->combineStatusWithChildren($decisionStatus, $children),
+            'expanded' => true,
+            'children' => $children,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $notification
+     * @return array<string, mixed>
+     */
+    private function buildTemporalNotificationNode(array $notification): array
+    {
+        $actions = is_array($notification['actions'] ?? null) ? $notification['actions'] : [];
+        $actionStates = is_array($notification['action_states'] ?? null) ? $notification['action_states'] : [];
+        $children = [];
+
+        foreach ($actions as $action) {
+            $type = is_string($action['type'] ?? null) ? $action['type'] : 'unknown';
+            $state = is_string($actionStates[$type] ?? null) ? $actionStates[$type] : 'idle';
+            $children[] = [
+                'title' => sprintf('Action: %s', $type),
+                'summary' => sprintf('%s · state %s', (string) ($action['label'] ?? $type), $state),
+                'status' => $this->actionStatus($state),
+                'expanded' => false,
+                'children' => [],
+            ];
+        }
+
+        $status = $this->combineStatusWithChildren(
+            $this->notificationStatus((string) ($notification['state'] ?? 'unknown')),
+            $children,
+        );
+
+        return [
+            'title' => 'Notification delivery',
+            'summary' => sprintf(
+                '%s · delivered %s',
+                (string) ($notification['state'] ?? 'unknown'),
+                (string) ($notification['delivered_at'] ?? 'unknown'),
+            ),
+            'status' => $status,
+            'expanded' => $children !== [],
+            'children' => $children,
+        ];
+    }
+
+    /**
+     * @return array<string, list<array<string, mixed>>>
+     */
+    private function loadTemporalNotificationsByDeliveryKey(): array
+    {
+        try {
+            $storage = $this->entityTypeManager->getStorage('temporal_notification');
+            $notifications = $storage->loadMultiple($storage->getQuery()->execute());
+        } catch (\Throwable) {
+            return [];
+        }
+
+        $grouped = [];
+
+        foreach ($notifications as $notification) {
+            if (! is_object($notification) || ! method_exists($notification, 'get')) {
+                continue;
+            }
+
+            $deliveryKey = $notification->get('delivery_key');
+            if (! is_string($deliveryKey) || $deliveryKey === '') {
+                continue;
+            }
+
+            $grouped[$deliveryKey][] = [
+                'uuid' => $notification->get('uuid'),
+                'state' => $notification->get('state'),
+                'actions' => $notification->get('actions'),
+                'action_states' => $notification->get('action_states'),
+                'delivered_at' => $notification->get('delivered_at'),
+            ];
+        }
+
+        foreach ($grouped as &$notificationsForDecision) {
+            usort($notificationsForDecision, static fn (array $left, array $right): int => strcmp(
+                (string) ($right['delivered_at'] ?? ''),
+                (string) ($left['delivered_at'] ?? ''),
+            ));
+        }
+
+        unset($notificationsForDecision);
+
+        return $grouped;
+    }
+
+    /**
+     * @param  array{
+     *   state: string,
+     *   reason_code: string
+     * }  $decision
+     */
+    private function decisionStatus(array $decision): string
+    {
+        if ($decision['state'] === TemporalAgentLifecycle::EMITTED) {
+            return 'success';
+        }
+
+        return match ($decision['reason_code']) {
+            'duplicate_within_window' => 'retry',
+            default => 'fallback',
+        };
+    }
+
+    private function notificationStatus(string $state): string
+    {
+        return match ($state) {
+            TemporalNotificationDeliveryService::STATE_ACTIVE => 'success',
+            TemporalNotificationDeliveryService::STATE_SNOOZED => 'retry',
+            TemporalNotificationDeliveryService::STATE_DISMISSED,
+            TemporalNotificationDeliveryService::STATE_EXPIRED => 'fallback',
+            default => 'error',
+        };
+    }
+
+    private function actionStatus(string $state): string
+    {
+        return match ($state) {
+            'complete' => 'success',
+            'working' => 'retry',
+            'idle' => 'fallback',
+            'failed' => 'error',
+            default => 'error',
+        };
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $children
+     */
+    private function aggregateChildStatuses(array $children): string
+    {
+        $status = 'success';
+
+        foreach ($children as $child) {
+            if (($child['status'] ?? null) === 'error') {
+                return 'error';
+            }
+
+            if (($child['status'] ?? null) === 'retry') {
+                $status = 'retry';
+
+                continue;
+            }
+
+            if (($child['status'] ?? null) === 'fallback' && $status === 'success') {
+                $status = 'fallback';
+            }
+        }
+
+        return $status;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $children
+     */
+    private function combineStatusWithChildren(string $baseStatus, array $children): string
+    {
+        if ($baseStatus === 'error') {
+            return 'error';
+        }
+
+        $status = $baseStatus;
+
+        foreach ($children as $child) {
+            if (($child['status'] ?? null) === 'error') {
+                return 'error';
+            }
+
+            if (($child['status'] ?? null) === 'retry') {
+                $status = 'retry';
+
+                continue;
+            }
+
+            if (($child['status'] ?? null) === 'fallback' && $status === 'success') {
+                $status = 'fallback';
+            }
+        }
+
+        return $status;
     }
 
     /**

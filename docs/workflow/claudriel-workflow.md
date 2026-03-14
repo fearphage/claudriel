@@ -9,6 +9,7 @@ This document is the canonical workflow guide for the v1.0 multi-tenant foundati
 - Milestone sequencing: [v1.0-plan.md](/home/fsd42/dev/claudriel/v1.0-plan.md)
 - Tenant and workspace model: [tenant-workspace-boundaries.md](/home/fsd42/dev/claudriel/docs/tenant-workspace-boundaries.md)
 - Smoke surfaces: [v1.0-smoke-matrix.md](/home/fsd42/dev/claudriel/tests/smoke/v1.0-smoke-matrix.md)
+- Temporal agent runtime and operations: [temporal-agents.md](/home/fsd42/dev/claudriel/docs/specs/temporal-agents.md)
 - Production deploy orchestration: [deploy.php](/home/fsd42/dev/claudriel/deploy.php)
 - CI and production entrypoint: [deploy.yml](/home/fsd42/dev/claudriel/.github/workflows/deploy.yml)
 
@@ -63,6 +64,8 @@ The v1.0 smoke surfaces are defined in [v1.0-smoke-matrix.md](/home/fsd42/dev/cl
 - Chat send: `POST /api/chat/send`
 - Chat stream: `GET /stream/chat/{message_id}`
 - Invalid route fail-closed behavior: request an unknown route near the brief or dashboard surfaces and expect `404`
+
+For proactive temporal-agent changes, also use the smoke-style validation sequence documented in [temporal-agents.md](/home/fsd42/dev/claudriel/docs/specs/temporal-agents.md).
 
 ### Expected Local Caveats
 
