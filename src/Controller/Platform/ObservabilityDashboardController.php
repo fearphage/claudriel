@@ -862,7 +862,7 @@ final class ObservabilityDashboardController
         $grouped = [];
 
         foreach ($notifications as $notification) {
-            if (! is_object($notification) || ! method_exists($notification, 'get')) {
+            if (! method_exists($notification, 'get')) {
                 continue;
             }
 
