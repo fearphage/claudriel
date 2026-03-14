@@ -144,3 +144,22 @@ The intended implementation order is:
 6. update smoke validation, deploy probes, and docs
 
 Any change that skips ahead and re-decides these contracts should be treated as drift.
+
+## Smoke And Deploy Validation
+
+The public entry flow is not complete unless staging and production can prove these behaviors quickly:
+
+- `GET /` returns the marketing homepage with signup and login CTAs
+- anonymous `GET /app` redirects to `/login`
+- valid login lands in `/app`
+- authenticated re-entry to `/` returns the user to `/app`
+
+The canonical smoke surface for this flow lives in [v1.3-public-entry-funnel-smoke-matrix.md](/home/fsd42/dev/claudriel/tests/smoke/v1.3-public-entry-funnel-smoke-matrix.md).
+
+Deploy validation should remain non-destructive:
+
+- verify homepage CTA markers at `/`
+- verify anonymous `/app` redirects to `/login`
+- keep the existing signup and login invalid-path probes
+
+This makes staging verification straightforward with `curl` and keeps the public-entry contract observable without requiring a live account mutation in every probe.

@@ -55,6 +55,8 @@ The v1.0 smoke surfaces are defined in [v1.0-smoke-matrix.md](/home/fsd42/dev/cl
 
 For the public signup and account system, also use [v1.2-public-account-smoke-matrix.md](/home/fsd42/dev/claudriel/tests/smoke/v1.2-public-account-smoke-matrix.md) and [public-accounts.md](/home/fsd42/dev/claudriel/docs/specs/public-accounts.md) as the source of truth for onboarding, reset, and deploy-validation expectations.
 
+For the marketing-homepage and app-entry split, also use [v1.3-public-entry-funnel-smoke-matrix.md](/home/fsd42/dev/claudriel/tests/smoke/v1.3-public-entry-funnel-smoke-matrix.md) and [public-entry-funnel.md](/home/fsd42/dev/claudriel/docs/specs/public-entry-funnel.md).
+
 ### Serve The App Locally
 
 - Repo-native path: `bin/serve <port>`
@@ -94,6 +96,8 @@ Production deploys are driven by GitHub Actions and finalized by Deployer:
 - public brief reachability at `https://claudriel.northcloud.one/brief`
 - public brief JSON payload shape
 - public signup and login probes with live CSRF extraction
+- public homepage CTA markers at `/`
+- anonymous app-shell redirect behavior at `/app`
 - public chat send and chat stream behavior using the negative workspace-delete probe
 
 The deploy validation logs are expected to surface in the GitHub Actions UI because the deploy job runs Deployer with verbose output.
