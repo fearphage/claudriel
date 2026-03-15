@@ -48,7 +48,9 @@ final class ScheduleApiController
                 $date = $query['date'] ?? 'today';
                 $startsAt = (string) ($entry->get('starts_at') ?? '');
                 if ($date === 'today') {
-                    return str_starts_with($startsAt, (new \DateTimeImmutable('today'))->format('Y-m-d'));
+                    $tz = is_string($query['timezone'] ?? null) ? new \DateTimeZone($query['timezone']) : null;
+
+                    return str_starts_with($startsAt, (new \DateTimeImmutable('today', $tz))->format('Y-m-d'));
                 }
 
                 if (is_string($date) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1) {
