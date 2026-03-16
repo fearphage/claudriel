@@ -115,8 +115,9 @@ final class IssueOrchestrator
         }
 
         $entities = $storage->loadMultiple($ids);
+        $first = reset($entities);
 
-        return reset($entities) ?: null;
+        return $first instanceof IssueRun ? $first : null;
     }
 
     public function getRunByIssue(int $issueNumber): ?IssueRun
@@ -126,7 +127,7 @@ final class IssueOrchestrator
         $entities = $storage->loadMultiple($ids);
 
         foreach (array_reverse($entities) as $entity) {
-            if (in_array($entity->get('status'), ['pending', 'running', 'paused'], true)) {
+            if ($entity instanceof IssueRun && in_array($entity->get('status'), ['pending', 'running', 'paused'], true)) {
                 return $entity;
             }
         }
@@ -141,13 +142,18 @@ final class IssueOrchestrator
 
         if ($status !== null) {
             $ids = $storage->getQuery()->condition('status', $status)->execute();
-
-            return $ids !== [] ? array_values($storage->loadMultiple($ids)) : [];
+        } else {
+            $ids = $storage->getQuery()->execute();
         }
 
-        $ids = $storage->getQuery()->execute();
+        if ($ids === []) {
+            return [];
+        }
 
-        return $ids !== [] ? array_values($storage->loadMultiple($ids)) : [];
+        /** @var IssueRun[] $runs */
+        $runs = array_values($storage->loadMultiple($ids));
+
+        return $runs;
     }
 
     public function getWorkspaceDiff(IssueRun $run): string
@@ -250,12 +256,12 @@ final class IssueOrchestrator
     private function loadWorkspace(IssueRun $run): Workspace
     {
         $storage = $this->entityTypeManager->getStorage('workspace');
-        $workspace = $storage->load($run->get('workspace_id'));
+        $entity = $storage->load($run->get('workspace_id'));
 
-        if ($workspace === null) {
+        if (! $entity instanceof Workspace) {
             throw new \RuntimeException("Workspace not found for run {$run->get('uuid')}");
         }
 
-        return $workspace;
+        return $entity;
     }
 }

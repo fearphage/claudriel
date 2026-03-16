@@ -1190,7 +1190,7 @@ final class ClaudrielServiceProvider extends ServiceProvider
         GitOperator $gitOperator,
     ): ?IssueOrchestrator {
         $githubToken = $_ENV['GITHUB_TOKEN'] ?? getenv('GITHUB_TOKEN') ?: null;
-        if (! is_string($githubToken) || $githubToken === '') {
+        if (! is_string($githubToken)) {
             return null;
         }
 
