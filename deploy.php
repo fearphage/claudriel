@@ -99,7 +99,7 @@ task('sidecar:deploy', function (): void {
 
 desc('Clear stale framework caches from shared storage');
 task('deploy:clear_cache', function (): void {
-    run('rm -f {{deploy_path}}/shared/storage/framework/packages.php');
+    run('sudo rm -f {{deploy_path}}/shared/storage/framework/packages.php');
 });
 
 desc('Validate sidecar health and app smoke probes');
