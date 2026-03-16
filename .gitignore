@@ -28,6 +28,9 @@ workspaces/
 .playwright-mcp/
 tools/memory-mcp/package-lock.json
 
+# Session artifacts
+v1.0-plan.md
+
 # Screenshots
 *.png
 
