@@ -51,6 +51,8 @@ Rule: higher layers import lower layers only. Never import from src/Command insi
 | `src/Controller/Chat*.php` | `claudriel:chat` | `docs/specs/chat.md` |
 | `src/Controller/*, src/Command/*` | — | `docs/specs/web-cli.md` |
 | `src/Provider/*` | — | `docs/specs/infrastructure.md` |
+| `src/Entity/*`, `src/Provider/*`, `src/Access/*` | `waaseyaa-app-development` | `docs/specs/entity.md` |
+| `src/Controller/*`, `src/Routing/*` | `waaseyaa-app-development` | — |
 | GitHub issues, milestones, new features, roadmap | — | `docs/specs/workflow.md` |
 
 ## Common Operations
