@@ -4,7 +4,7 @@
     "type": "project",
     "license": "GPL-2.0-or-later",
     "require": {
-        "php": ">=8.3",
+        "php": ">=8.4",
         "waaseyaa/github": "v0.1.0-alpha.8",
         "waaseyaa/ai-pipeline": "v0.1.0-alpha.8",
         "waaseyaa/api": "v0.1.0-alpha.8",
