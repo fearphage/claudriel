@@ -27,7 +27,6 @@ use Claudriel\Entity\Tenant;
 use Claudriel\Entity\TriageEntry;
 use Claudriel\Entity\Workspace;
 use Claudriel\Service\Mail\MailTransportInterface;
-use Claudriel\Service\SidecarWorkspaceBootstrapService;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -44,11 +43,6 @@ final class PublicAccountLifecycleSmokeTest extends TestCase
     {
         $entityTypeManager = $this->buildEntityTypeManager();
         $mailTransport = new PublicLifecycleMailTransport;
-        $sidecarBootstrap = new SidecarWorkspaceBootstrapService(responder: static fn (string $tenantId, string $workspaceId): array => [
-            'state' => 'created',
-            'tenant_id' => $tenantId,
-            'workspace_id' => $workspaceId,
-        ]);
 
         $accountController = new PublicAccountController(
             $entityTypeManager,
@@ -56,7 +50,6 @@ final class PublicAccountLifecycleSmokeTest extends TestCase
             $mailTransport,
             'https://claudriel.test',
             sys_get_temp_dir().'/claudriel-public-lifecycle',
-            $sidecarBootstrap,
         );
 
         $signup = $accountController->signup(httpRequest: Request::create('/signup', 'POST', [

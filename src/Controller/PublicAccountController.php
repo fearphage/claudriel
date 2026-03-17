@@ -9,7 +9,6 @@ use Claudriel\Entity\Account;
 use Claudriel\Entity\Workspace;
 use Claudriel\Service\Mail\MailTransportInterface;
 use Claudriel\Service\PublicAccountSignupService;
-use Claudriel\Service\SidecarWorkspaceBootstrapService;
 use Claudriel\Service\TenantBootstrapService;
 use Claudriel\Service\WorkspaceBootstrapService;
 use Claudriel\Support\AuthenticatedAccountSessionResolver;
@@ -28,7 +27,6 @@ final class PublicAccountController
         private readonly ?MailTransportInterface $mailTransport = null,
         private readonly ?string $appUrl = null,
         private readonly ?string $storageDir = null,
-        private readonly ?SidecarWorkspaceBootstrapService $sidecarWorkspaceBootstrapService = null,
     ) {}
 
     public function signupForm(array $params = [], array $query = [], mixed $account = null): RedirectResponse|SsrResponse
@@ -112,11 +110,6 @@ final class PublicAccountController
         $account = $result['account'];
         $tenant = $this->tenantBootstrapService()->bootstrapForAccount($account);
         $workspace = $this->workspaceBootstrapService()->bootstrapDefaultWorkspace($tenant);
-        $sidecarState = $this->sidecarWorkspaceBootstrapService()->bootstrap(
-            (string) $tenant->get('uuid'),
-            (string) $workspace->get('uuid'),
-        );
-        $this->persistWorkspaceSidecarState($workspace, $sidecarState);
         $redirect = $result['redirect_path'];
 
         return new RedirectResponse($redirect.'?verified=1&account='.rawurlencode((string) $account->get('uuid')).'&tenant='.rawurlencode((string) $tenant->get('uuid')).'&workspace='.rawurlencode((string) $workspace->get('uuid')), 302);
@@ -137,14 +130,6 @@ final class PublicAccountController
             (string) ($query['workspace'] ?? ''),
             (string) ($query['tenant'] ?? ''),
         );
-        $workspaceSidecarState = null;
-        if ($workspace instanceof Workspace) {
-            $workspaceMetadata = json_decode((string) $workspace->get('metadata'), true);
-            if (is_array($workspaceMetadata) && isset($workspaceMetadata['sidecar_bootstrap'])) {
-                $workspaceSidecarState = $workspaceMetadata['sidecar_bootstrap'];
-            }
-        }
-
         if (((string) ($query['verified'] ?? '0')) === '1'
             && $account instanceof Account
             && $tenant !== null
@@ -163,7 +148,6 @@ final class PublicAccountController
             'account' => $account,
             'tenant' => $tenant,
             'workspace' => $workspace,
-            'workspace_sidecar_state' => $workspaceSidecarState,
         ]);
     }
 
@@ -185,11 +169,6 @@ final class PublicAccountController
     private function workspaceBootstrapService(): WorkspaceBootstrapService
     {
         return new WorkspaceBootstrapService($this->entityTypeManager);
-    }
-
-    private function sidecarWorkspaceBootstrapService(): SidecarWorkspaceBootstrapService
-    {
-        return $this->sidecarWorkspaceBootstrapService ?? new SidecarWorkspaceBootstrapService;
     }
 
     private function appUrl(string $tenantId): string
@@ -215,19 +194,6 @@ final class PublicAccountController
         $account = $this->entityTypeManager->getStorage('account')->load(reset($ids));
 
         return $account instanceof Account ? $account : null;
-    }
-
-    /**
-     * @param  array{state: string, tenant_id: string, workspace_id: string}  $sidecarState
-     */
-    private function persistWorkspaceSidecarState(Workspace $workspace, array $sidecarState): void
-    {
-        $metadata = $workspace->get('metadata');
-        $decoded = is_string($metadata) ? json_decode($metadata, true) : $metadata;
-        $decoded = is_array($decoded) ? $decoded : [];
-        $decoded['sidecar_bootstrap'] = $sidecarState;
-        $workspace->set('metadata', json_encode($decoded, JSON_THROW_ON_ERROR));
-        $this->entityTypeManager->getStorage('workspace')->save($workspace);
     }
 
     /**

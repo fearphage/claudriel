@@ -11,7 +11,6 @@ use Claudriel\Entity\AccountVerificationToken;
 use Claudriel\Entity\Tenant;
 use Claudriel\Entity\Workspace;
 use Claudriel\Service\Mail\MailTransportInterface;
-use Claudriel\Service\SidecarWorkspaceBootstrapService;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -97,15 +96,7 @@ final class PublicAccountControllerTest extends TestCase
     {
         $transport = new InMemoryMailTransport;
         $entityTypeManager = $this->buildEntityTypeManager();
-        $controller = $this->controller(
-            $entityTypeManager,
-            $transport,
-            new SidecarWorkspaceBootstrapService(responder: static fn (string $tenantId, string $workspaceId): array => [
-                'state' => 'created',
-                'tenant_id' => $tenantId,
-                'workspace_id' => $workspaceId,
-            ]),
-        );
+        $controller = $this->controller($entityTypeManager, $transport);
 
         $controller->signup(
             httpRequest: Request::create('/signup', 'POST', [
@@ -148,7 +139,6 @@ final class PublicAccountControllerTest extends TestCase
         self::assertSame('Main Workspace', $workspace->get('name'));
         $workspaceMetadata = json_decode((string) $workspace->get('metadata'), true, 512, JSON_THROW_ON_ERROR);
         self::assertSame('default', $workspaceMetadata['bootstrap_kind']);
-        self::assertSame('created', $workspaceMetadata['sidecar_bootstrap']['state']);
         self::assertSame($workspace->get('uuid'), $tenant->get('metadata')['default_workspace_uuid']);
 
         $onboarding = $controller->onboardingBootstrap(query: [
@@ -169,7 +159,6 @@ final class PublicAccountControllerTest extends TestCase
     private function controller(
         ?EntityTypeManager $entityTypeManager = null,
         ?MailTransportInterface $transport = null,
-        ?SidecarWorkspaceBootstrapService $sidecarWorkspaceBootstrapService = null,
     ): PublicAccountController {
         return new PublicAccountController(
             $entityTypeManager ?? $this->buildEntityTypeManager(),
@@ -177,7 +166,6 @@ final class PublicAccountControllerTest extends TestCase
             $transport,
             'https://claudriel.test',
             sys_get_temp_dir().'/claudriel-signup-tests',
-            $sidecarWorkspaceBootstrapService,
         );
     }
 
