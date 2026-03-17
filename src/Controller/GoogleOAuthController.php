@@ -30,6 +30,7 @@ final class GoogleOAuthController
 
     private readonly string $redirectUri;
 
+    /** @phpstan-ignore constructor.unusedParameter */
     public function __construct(
         private readonly EntityTypeManager $entityTypeManager,
         ?Environment $twig = null,
@@ -137,6 +138,7 @@ final class GoogleOAuthController
         }
 
         $httpCode = 0;
+        /** @phpstan-ignore isset.variable, booleanAnd.alwaysTrue, function.alreadyNarrowedType */
         if (isset($http_response_header) && is_array($http_response_header)) {
             foreach ($http_response_header as $header) {
                 if (preg_match('#^HTTP/\d+\.\d+\s+(\d+)#', $header, $m)) {
@@ -169,6 +171,7 @@ final class GoogleOAuthController
         }
 
         $httpCode = 0;
+        /** @phpstan-ignore isset.variable, booleanAnd.alwaysTrue, function.alreadyNarrowedType */
         if (isset($http_response_header) && is_array($http_response_header)) {
             foreach ($http_response_header as $header) {
                 if (preg_match('#^HTTP/\d+\.\d+\s+(\d+)#', $header, $m)) {
