@@ -22,7 +22,7 @@ final class ClaudrielSurfaceHost extends AbstractAdminSurfaceHost
     private \Closure $entityTypeManagerFactory;
 
     /**
-     * @param \Closure(): EntityTypeManager $entityTypeManagerFactory
+     * @param  \Closure(): EntityTypeManager  $entityTypeManagerFactory
      */
     public function __construct(\Closure $entityTypeManagerFactory)
     {
@@ -56,7 +56,7 @@ final class ClaudrielSurfaceHost extends AbstractAdminSurfaceHost
 
     public function buildCatalog(AdminSurfaceSessionData $session): CatalogBuilder
     {
-        $catalog = new CatalogBuilder();
+        $catalog = new CatalogBuilder;
 
         $catalog->defineEntity('workspace', 'Workspace')->group('structure');
         $catalog->defineEntity('person', 'Person')->group('people');
