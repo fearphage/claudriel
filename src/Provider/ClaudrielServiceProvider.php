@@ -285,6 +285,15 @@ final class ClaudrielServiceProvider extends ServiceProvider
 
         $this->singleton(InternalApiTokenGenerator::class, function () {
             $secret = $_ENV['AGENT_INTERNAL_SECRET'] ?? getenv('AGENT_INTERNAL_SECRET') ?: '';
+            $env = $_ENV['CLAUDRIEL_ENV'] ?? getenv('CLAUDRIEL_ENV') ?: 'development';
+
+            if ($secret === '' || strlen($secret) < 32 || $secret === 'change-me-to-a-random-string-at-least-32-bytes') {
+                $message = 'AGENT_INTERNAL_SECRET is missing, too short (min 32 bytes), or still set to the example default. Internal API endpoints are unprotected.';
+                if ($env === 'production') {
+                    throw new \RuntimeException($message);
+                }
+                error_log('[claudriel] WARNING: '.$message);
+            }
 
             return new InternalApiTokenGenerator($secret);
         });
