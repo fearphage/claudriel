@@ -17,6 +17,16 @@ DriftDetector     → active Commitments with updated_at < 48h ago
 GET /brief           → DayBriefController → JSON
 claudriel:brief      → BriefCommand → CLI
 claudriel:commitments → CommitmentsCommand → CLI
+
+Chat → ChatStreamController → SubprocessChatClient
+  → agent/main.py (Python, stdin/stdout JSON-lines)
+  → tools call back to /api/internal/* (HMAC Bearer auth)
+  → InternalGoogleController → GoogleTokenManager → Google APIs
+
+GraphQL (waaseyaa/graphql):
+  POST /graphql → auto-generated schema from entity types
+  Commitment + Person fully migrated (REST controllers removed)
+  Frontend uses graphqlFetch() composables
 ```
 
 ## Layers
@@ -49,6 +59,8 @@ Rule: higher layers import lower layers only. Never import from src/Command insi
 | `src/Domain/Chat/*` | `claudriel:chat` | `docs/specs/chat.md` |
 | `src/Entity/Chat*.php` | `claudriel:chat` | `docs/specs/chat.md` |
 | `src/Controller/Chat*.php` | `claudriel:chat` | `docs/specs/chat.md` |
+| `src/Controller/InternalGoogle*` | `claudriel:chat` | `docs/specs/agent-subprocess.md` |
+| `agent/*` | `claudriel:chat` | `docs/specs/agent-subprocess.md` |
 | `src/Controller/*, src/Command/*` | — | `docs/specs/web-cli.md` |
 | `src/Provider/*` | — | `docs/specs/infrastructure.md` |
 | `src/Entity/*`, `src/Provider/*`, `src/Access/*` | `waaseyaa-app-development` | `docs/specs/entity.md` |
@@ -92,6 +104,18 @@ All work starts with an issue. Before writing code, ask for or create the issue 
 5. Read drift report at session start — flag `bin/check-milestones` warnings first
 
 See `docs/specs/workflow.md` for milestone list and versioning model.
+
+## Internal API Routes (agent subprocess)
+
+```
+GET  /api/internal/gmail/list         # List Gmail messages
+GET  /api/internal/gmail/read/{id}    # Read a Gmail message
+POST /api/internal/gmail/send         # Send a Gmail message
+GET  /api/internal/calendar/list      # List calendar events
+POST /api/internal/calendar/create    # Create calendar event
+```
+
+All require HMAC Bearer token via `InternalApiTokenGenerator`. See `docs/specs/agent-subprocess.md`.
 
 ## Critical Gotchas
 
