@@ -6,6 +6,7 @@ namespace Claudriel\Controller;
 
 use Claudriel\Access\AuthenticatedAccount;
 use Claudriel\Entity\Integration;
+use Claudriel\Support\AuthenticatedAccountSessionResolver;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Twig\Environment;
@@ -48,7 +49,8 @@ final class GoogleOAuthController
         ?Request $httpRequest = null,
         ?Environment $twig = null,
     ): RedirectResponse {
-        if (! $account instanceof AuthenticatedAccount) {
+        $authenticatedAccount = $this->resolveAccount($account);
+        if ($authenticatedAccount === null) {
             return new RedirectResponse('/login', 302);
         }
 
@@ -95,15 +97,17 @@ final class GoogleOAuthController
             file_put_contents($debugPath, date('c').' '.$msg."\n", FILE_APPEND);
         };
 
-        $log('callback: account='.get_class($account).' query_keys='.implode(',', array_keys($query)));
+        $authenticatedAccount = $this->resolveAccount($account);
 
-        if (! $account instanceof AuthenticatedAccount) {
-            $log('callback: REJECTED - not Account instance');
+        $log('callback: resolved='.($authenticatedAccount !== null ? 'yes' : 'no').' query_keys='.implode(',', array_keys($query)));
+
+        if ($authenticatedAccount === null) {
+            $log('callback: REJECTED - no authenticated account');
 
             return new RedirectResponse('/login', 302);
         }
 
-        $log('callback: account_uuid='.$account->getUuid());
+        $log('callback: account_uuid='.$authenticatedAccount->getUuid());
 
         if (isset($query['error'])) {
             $log('callback: Google error='.$query['error']);
@@ -137,7 +141,7 @@ final class GoogleOAuthController
         $userInfo = $this->fetchUserInfo($tokenData['access_token']);
         $providerEmail = $userInfo['email'] ?? null;
 
-        $this->upsertIntegration($account, $tokenData, $providerEmail);
+        $this->upsertIntegration($authenticatedAccount, $tokenData, $providerEmail);
 
         $_SESSION['flash_success'] = 'Google account connected'
             .($providerEmail ? ' as '.$providerEmail : '').'.';
@@ -264,6 +268,15 @@ final class GoogleOAuthController
         }
 
         $storage->save($integration);
+    }
+
+    private function resolveAccount(mixed $account): ?AuthenticatedAccount
+    {
+        if ($account instanceof AuthenticatedAccount) {
+            return $account;
+        }
+
+        return (new AuthenticatedAccountSessionResolver($this->entityTypeManager))->resolve();
     }
 
     /**
