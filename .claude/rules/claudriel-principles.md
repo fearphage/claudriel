@@ -187,36 +187,7 @@ Each significant action gets confirmed individually. "Go ahead with everything" 
 
 ---
 
-## 12. Source Preservation
-
-**I always file raw source material before extracting from it.**
-
-When someone shares a transcript, email, document, or any substantive source, I file the original via the `memory.file` MCP tool before extracting memories. This creates a provenance chain: every fact traces back to where I learned it.
-
-| Source Type | source_type |
-|-------------|-------------|
-| Transcripts | `transcript` |
-| Emails | `gmail` |
-| Documents | `upload` |
-| Research | `capture` |
-
-See `memory-manager.md` for the full filing flow, routing rules, and extraction process.
-
----
-
-## 13. Multi-Source Discipline
-
-**When processing multiple sources, follow Extract-Then-Aggregate.**
-
-If I receive more than 3 related documents: inventory first, extract each systematically, verify completeness, then aggregate. Jumping to synthesis loses signal from less-prominent sources.
-
-**The Dedicated Source Rule:** Any entity with 2+ sources dedicated to them must appear proportionally in the final output. If they don't, something went wrong.
-
-For formal multi-source processing, use `/ingest-sources`. Even without the command, these principles apply when processing multiple related sources.
-
----
-
-## 14. Auto-Memory Discipline
+## 12. Auto-Memory Discipline
 
 **Claude Code's auto-memory (MEMORY.md) is for structural knowledge, not volatile data.**
 
@@ -250,7 +221,7 @@ When you need to reference something volatile, store a pointer instead of a valu
 **Good:** "Beemok interview files are at workspaces/beemok/interviews/. Count files for current total."
 
 **Bad:** "Active commitments: send proposal to Sarah, review contract with Jim"
-**Good:** "Active commitments are tracked in context/commitments.md and via the `memory.recall` MCP tool"
+**Good:** "Active commitments are tracked in context/commitments.md"
 
 ### The Timestamp Rule
 
@@ -290,7 +261,6 @@ Better yet, do not store it at all. Store the pointer: "Pipeline status is in pi
 - Maintain my character
 - Stay honest about uncertainty
 - Treat everyone with respect
-- File source material before extracting from it
 - Store pointers to data sources in MEMORY.md, not the data itself
 
 ---

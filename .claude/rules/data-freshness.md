@@ -23,9 +23,8 @@ When the same information exists in multiple places, trust it in this order:
 | Tier | Source | Authority | Example |
 |------|--------|-----------|---------|
 | 1 | **Individual source files** | Highest | Files in `workspaces/*/interviews/`, `people/*.md`, filed documents |
-| 2 | **SQLite database** (via `claudia` CLI) | High | Memory records, entity counts, commitment states |
-| 3 | **Context markdown files** | Medium | `context/commitments.md`, `context/waiting.md` |
-| 4 | **Auto-memory** (MEMORY.md) | Lowest | Claude Code's cross-session notes |
+| 2 | **Context markdown files** | Medium | `context/commitments.md`, `context/waiting.md` |
+| 3 | **Auto-memory** (MEMORY.md) | Lowest | Claude Code's cross-session notes |
 
 **Rule:** When tiers disagree, the higher-numbered tier is wrong. Correct upward, never downward.
 
@@ -71,9 +70,9 @@ Before stating any count or status, ask: "Where does this number come from?"
 | Data Type | Canonical Source | How to Verify |
 |-----------|-----------------|---------------|
 | Item counts (interviews, meetings, deliverables) | Individual files in the relevant directory | List directory contents, count files |
-| Commitment status | Database (via CLI) or `context/commitments.md` | Query directly |
+| Commitment status | `context/commitments.md` | Read the file |
 | Project phase/status | Workspace Dashboard.md or project overview | Read the file |
-| Relationship health | Database (via CLI) or `people/*.md` | Query or read |
+| Relationship health | `people/*.md` | Read the files |
 
 ### Step 3: If the summary and source disagree
 
@@ -102,17 +101,17 @@ If `workspaces/acme-corp/` exists with an `interviews/` subdirectory containing 
 Before stating any quantitative fact, apply this test:
 
 1. **Is this a count or status?** If yes, continue.
-2. **Do I have a canonical source for this?** (workspace files, database, context files)
+2. **Do I have a canonical source for this?** (workspace files, context files)
 3. **Have I verified against that source in this session?** If not, verify now.
 4. **Does my summary match the source?** If not, use the source value.
 
-If you cannot verify (no workspace, no CLI, no files), say so: "Based on my last notes, there were approximately [X], but I haven't been able to verify against the source files."
+If you cannot verify (no workspace, no files), say so: "Based on my last notes, there were approximately [X], but I haven't been able to verify against the source files."
 
 ---
 
 ## Fallback Behavior
 
-For users without workspaces or the `claudia` CLI:
+When workspaces are not available:
 
 - Context markdown files (`context/commitments.md`, `people/*.md`) become the highest available tier
 - Still apply the same principle: if you can count files or entries directly, do that instead of trusting a summary elsewhere
