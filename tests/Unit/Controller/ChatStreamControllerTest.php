@@ -6,6 +6,7 @@ namespace Claudriel\Tests\Unit\Controller;
 
 use Claudriel\Controller\ChatStreamController;
 use Claudriel\Domain\Chat\SubprocessChatClient;
+use Claudriel\Entity\Account;
 use Claudriel\Entity\ChatMessage;
 use Claudriel\Entity\ChatSession;
 use Claudriel\Entity\Commitment;
@@ -318,6 +319,94 @@ final class ChatStreamControllerTest extends TestCase
         self::assertStringContainsString('event: chat-done', $output);
 
         unlink($script);
+
+        if ($originalKey !== false) {
+            putenv("ANTHROPIC_API_KEY={$originalKey}");
+        } else {
+            putenv('ANTHROPIC_API_KEY');
+        }
+        if ($originalSecret !== false) {
+            putenv("AGENT_INTERNAL_SECRET={$originalSecret}");
+        } else {
+            putenv('AGENT_INTERNAL_SECRET');
+        }
+    }
+
+    public function test_stream_uses_tenant_uuid_not_entity_id_for_account_id(): void
+    {
+        $originalKey = getenv('ANTHROPIC_API_KEY');
+        $originalSecret = getenv('AGENT_INTERNAL_SECRET');
+        putenv('ANTHROPIC_API_KEY=test-key');
+        putenv('AGENT_INTERNAL_SECRET=test-secret-that-is-at-least-32-bytes-long');
+
+        $etm = $this->buildEntityTypeManager();
+
+        $tenantUuid = 'acct-uuid-'.uniqid();
+
+        $sessionStorage = $etm->getStorage('chat_session');
+        $sessionStorage->save(new ChatSession(['uuid' => 'sess-acctid', 'title' => 'AccountId Test', 'created_at' => date('c')]));
+
+        $msgStorage = $etm->getStorage('chat_message');
+        $msgStorage->save(new ChatMessage([
+            'uuid' => 'msg-acctid',
+            'session_uuid' => 'sess-acctid',
+            'role' => 'user',
+            'content' => 'Check my calendar',
+            'created_at' => date('c'),
+            'tenant_id' => $tenantUuid,
+        ]));
+
+        // Create an Account entity with a sequential id different from the tenant UUID
+        $account = new Account([
+            'aid' => 42,
+            'uuid' => $tenantUuid,
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+            'status' => 'active',
+            'email_verified_at' => date('c'),
+        ]);
+
+        // Mock script that writes stdin to a temp file so we can inspect the payload
+        $stdinCapture = sys_get_temp_dir().'/stdin_capture_'.uniqid().'.json';
+        $script = sys_get_temp_dir().'/mock_agent_acctid_'.uniqid().'.php';
+        file_put_contents($script, <<<PHP
+        <?php
+        \$stdin = file_get_contents('php://stdin');
+        file_put_contents('{$stdinCapture}', \$stdin);
+        echo json_encode(['event' => 'message', 'content' => 'Done.']) . "\\n";
+        echo json_encode(['event' => 'done']) . "\\n";
+        PHP);
+
+        $controller = new ChatStreamController(
+            $etm,
+            subprocessClientFactory: static function () use ($script) {
+                return new SubprocessChatClient(
+                    command: [PHP_BINARY, $script],
+                    timeoutSeconds: 10,
+                );
+            },
+        );
+
+        $response = $controller->stream(['messageId' => 'msg-acctid'], [], $account, null);
+        self::assertInstanceOf(StreamedResponse::class, $response);
+
+        ob_start();
+        ob_start();
+        $callback = $response->getCallback();
+        self::assertIsCallable($callback);
+        $callback();
+        ob_end_flush();
+        ob_get_clean();
+
+        // Verify the subprocess received the tenant UUID, not the sequential entity ID
+        self::assertFileExists($stdinCapture, 'Subprocess should have received stdin');
+        $payload = json_decode((string) file_get_contents($stdinCapture), true);
+        self::assertIsArray($payload);
+        self::assertSame($tenantUuid, $payload['account_id'], 'account_id must be the tenant UUID, not the sequential entity ID');
+        self::assertNotSame('42', $payload['account_id'], 'account_id must not be the sequential entity ID');
+
+        @unlink($script);
+        @unlink($stdinCapture);
 
         if ($originalKey !== false) {
             putenv("ANTHROPIC_API_KEY={$originalKey}");

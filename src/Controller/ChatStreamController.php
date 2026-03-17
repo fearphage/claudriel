@@ -376,7 +376,7 @@ final class ChatStreamController
             $this->emitSseEvent('chat-progress', $normalized);
         };
 
-        $accountId = is_object($account) && method_exists($account, 'id') ? (string) $account->id() : $tenantId;
+        $accountId = $tenantId;
         $tokenGenerator = $this->tokenGenerator ?? new InternalApiTokenGenerator(
             $_ENV['AGENT_INTERNAL_SECRET'] ?? getenv('AGENT_INTERNAL_SECRET') ?: '',
         );
