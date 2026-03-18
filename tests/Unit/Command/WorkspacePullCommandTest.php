@@ -7,7 +7,7 @@ namespace Claudriel\Tests\Unit\Command;
 use Claudriel\Command\WorkspacePullCommand;
 use Claudriel\Entity\Artifact;
 use Claudriel\Entity\Workspace;
-use Claudriel\Layer2\GitRepositoryManager;
+use Claudriel\Domain\Git\GitRepositoryManager;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\EventDispatcher\EventDispatcher;

@@ -9,7 +9,7 @@ use Claudriel\AI\PromptBuilder;
 use Claudriel\Domain\Chat\SubprocessChatClient;
 use Claudriel\Entity\Operation;
 use Claudriel\Entity\Workspace;
-use Claudriel\Service\GitOperator;
+use Claudriel\Domain\Git\GitOperator;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Waaseyaa\Entity\EntityType;
