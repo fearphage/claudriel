@@ -30,7 +30,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Waaseyaa\Database\PdoDatabase;
+use Waaseyaa\Database\DBALDatabase;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\EntityStorage\SqlEntityStorage;
@@ -40,6 +40,9 @@ final class PublicAccountLifecycleSmokeTest extends TestCase
 {
     public function test_full_public_account_lifecycle_supports_first_authenticated_use(): void
     {
+        putenv('CLAUDRIEL_REGISTRATION_OPEN=1');
+        $_ENV['CLAUDRIEL_REGISTRATION_OPEN'] = '1';
+
         $entityTypeManager = $this->buildEntityTypeManager();
         $mailTransport = new PublicLifecycleMailTransport;
 
@@ -181,7 +184,7 @@ final class PublicAccountLifecycleSmokeTest extends TestCase
 
     private function buildEntityTypeManager(): EntityTypeManager
     {
-        $db = PdoDatabase::createSqlite(':memory:');
+        $db = DBALDatabase::createSqlite(':memory:');
         $dispatcher = new EventDispatcher;
         $entityTypeManager = new EntityTypeManager($dispatcher, function ($definition) use ($db, $dispatcher): SqlEntityStorage {
             (new SqlSchemaHandler($definition, $db))->ensureTable();

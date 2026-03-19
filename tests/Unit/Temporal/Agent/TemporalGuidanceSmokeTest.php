@@ -34,7 +34,7 @@ use DateTimeZone;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\Request;
-use Waaseyaa\Database\PdoDatabase;
+use Waaseyaa\Database\DBALDatabase;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\EntityStorage\SqlEntityStorage;
@@ -219,7 +219,7 @@ final class TemporalGuidanceSmokeTest extends TestCase
 
     private function buildEntityTypeManager(): EntityTypeManager
     {
-        $database = PdoDatabase::createSqlite(':memory:');
+        $database = DBALDatabase::createSqlite(':memory:');
         $dispatcher = new EventDispatcher;
 
         $entityTypeManager = new EntityTypeManager($dispatcher, function ($definition) use ($database, $dispatcher) {

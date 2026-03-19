@@ -10,7 +10,7 @@ use Claudriel\Entity\McEvent;
 use Claudriel\Service\Ai\TrainingExportService;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use Waaseyaa\Database\PdoDatabase;
+use Waaseyaa\Database\DBALDatabase;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\EntityStorage\SqlEntityStorage;
@@ -28,16 +28,18 @@ final class TrainingExportServiceTest extends TestCase
             $days[$day['date']] = $day['samples'];
         }
 
+        $day2 = date('Y-m-d', strtotime('-2 days'));
+
         self::assertSame(7, $export['window_days']);
-        self::assertArrayHasKey('2026-03-12', $days);
-        self::assertCount(2, $days['2026-03-12']);
-        self::assertSame('success', $days['2026-03-12'][0]['label']);
-        self::assertSame('failure', $days['2026-03-12'][1]['label']);
-        self::assertArrayHasKey('mc_event_id', $days['2026-03-12'][0]);
-        self::assertArrayHasKey('raw_event_payload', $days['2026-03-12'][0]);
-        self::assertArrayHasKey('extracted_commitment_payload', $days['2026-03-12'][0]);
-        self::assertArrayHasKey('confidence', $days['2026-03-12'][0]);
-        self::assertArrayHasKey('failure_category', $days['2026-03-12'][0]);
+        self::assertArrayHasKey($day2, $days);
+        self::assertCount(2, $days[$day2]);
+        self::assertSame('success', $days[$day2][0]['label']);
+        self::assertSame('failure', $days[$day2][1]['label']);
+        self::assertArrayHasKey('mc_event_id', $days[$day2][0]);
+        self::assertArrayHasKey('raw_event_payload', $days[$day2][0]);
+        self::assertArrayHasKey('extracted_commitment_payload', $days[$day2][0]);
+        self::assertArrayHasKey('confidence', $days[$day2][0]);
+        self::assertArrayHasKey('failure_category', $days[$day2][0]);
     }
 
     public function test_export_sender_samples_filters_by_sender_and_date(): void
@@ -67,7 +69,7 @@ final class TrainingExportServiceTest extends TestCase
 
     private function buildSeededEntityTypeManager(): EntityTypeManager
     {
-        $db = PdoDatabase::createSqlite(':memory:');
+        $db = DBALDatabase::createSqlite(':memory:');
         $dispatcher = new EventDispatcher;
 
         $entityTypeManager = new EntityTypeManager(
@@ -85,11 +87,14 @@ final class TrainingExportServiceTest extends TestCase
 
         $eventStorage = $entityTypeManager->getStorage('mc_event');
 
+        $day2 = date('Y-m-d', strtotime('-2 days'));
+        $day1 = date('Y-m-d', strtotime('-1 day'));
+
         $alphaEvent = new McEvent([
             'source' => 'gmail',
             'type' => 'message.received',
             'payload' => '{"from_email":"alpha@example.com","subject":"Alpha"}',
-            'occurred' => '2026-03-12 08:15:00',
+            'occurred' => $day2.' 08:15:00',
             'content_hash' => 'export-alpha',
         ]);
         $eventStorage->save($alphaEvent);
@@ -98,7 +103,7 @@ final class TrainingExportServiceTest extends TestCase
             'source' => 'gmail',
             'type' => 'message.received',
             'payload' => '{"from_email":"beta@example.com","subject":"Beta"}',
-            'occurred' => '2026-03-13 11:30:00',
+            'occurred' => $day1.' 11:30:00',
             'content_hash' => 'export-beta',
         ]);
         $eventStorage->save($betaEvent);
@@ -121,14 +126,14 @@ final class TrainingExportServiceTest extends TestCase
             'extracted_commitment_payload' => '{"title":"Alpha maybe","confidence":0.22}',
             'confidence' => 0.22,
             'failure_category' => 'ambiguous',
-            'created_at' => '2026-03-12 09:15:00',
+            'created_at' => $day2.' 09:15:00',
         ]));
         $logStorage->save(new CommitmentExtractionLog([
             'raw_event_payload' => '{"from_email":"alpha@example.com","subject":"Alpha context"}',
             'extracted_commitment_payload' => '{"title":"Send note","confidence":0.48}',
             'confidence' => 0.48,
             'failure_category' => 'insufficient_context',
-            'created_at' => '2026-02-20 15:17:00',
+            'created_at' => date('Y-m-d', strtotime('-29 days')).' 15:17:00',
         ]));
         $logStorage->save(new CommitmentExtractionLog([
             'mc_event_id' => $betaEvent->id(),
@@ -136,7 +141,7 @@ final class TrainingExportServiceTest extends TestCase
             'extracted_commitment_payload' => '{"title":"Old beta","confidence":0.31}',
             'confidence' => 0.31,
             'failure_category' => 'unknown',
-            'created_at' => '2025-11-01 10:00:00',
+            'created_at' => date('Y-m-d', strtotime('-140 days')).' 10:00:00',
         ]));
 
         return $entityTypeManager;

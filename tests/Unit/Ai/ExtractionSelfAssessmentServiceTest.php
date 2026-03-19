@@ -13,7 +13,7 @@ use Claudriel\Service\Audit\CommitmentExtractionDriftDetector;
 use Claudriel\Service\Audit\CommitmentExtractionFailureClassifier;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use Waaseyaa\Database\PdoDatabase;
+use Waaseyaa\Database\DBALDatabase;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\EntityStorage\SqlEntityStorage;
@@ -68,7 +68,7 @@ final class ExtractionSelfAssessmentServiceTest extends TestCase
     {
         $entityTypeManager = $this->buildSeededEntityTypeManager();
         $auditService = new CommitmentExtractionAuditService($entityTypeManager);
-        $driftDetector = new CommitmentExtractionDriftDetector($auditService, new \DateTimeImmutable('2026-03-13'));
+        $driftDetector = new CommitmentExtractionDriftDetector($auditService, new \DateTimeImmutable('today'));
 
         return new ExtractionSelfAssessmentService(
             $auditService,
@@ -79,7 +79,7 @@ final class ExtractionSelfAssessmentServiceTest extends TestCase
 
     private function buildSeededEntityTypeManager(): EntityTypeManager
     {
-        $db = PdoDatabase::createSqlite(':memory:');
+        $db = DBALDatabase::createSqlite(':memory:');
         $dispatcher = new EventDispatcher;
 
         $entityTypeManager = new EntityTypeManager(
@@ -97,11 +97,16 @@ final class ExtractionSelfAssessmentServiceTest extends TestCase
 
         $eventStorage = $entityTypeManager->getStorage('mc_event');
 
+        $dayPrev1 = date('Y-m-d', strtotime('-12 days'));
+        $dayPrev2 = date('Y-m-d', strtotime('-11 days'));
+        $dayCur1 = date('Y-m-d', strtotime('-2 days'));
+        $dayCur2 = date('Y-m-d', strtotime('-1 day'));
+
         $previousAlphaEvent = new McEvent([
             'source' => 'gmail',
             'type' => 'message.received',
             'payload' => '{"from_email":"alpha@example.com","subject":"Prev alpha"}',
-            'occurred' => '2026-03-02 09:00:00',
+            'occurred' => $dayPrev1.' 09:00:00',
             'content_hash' => 'assessment-prev-alpha',
         ]);
         $eventStorage->save($previousAlphaEvent);
@@ -110,7 +115,7 @@ final class ExtractionSelfAssessmentServiceTest extends TestCase
             'source' => 'gmail',
             'type' => 'message.received',
             'payload' => '{"from_email":"beta@example.com","subject":"Prev beta"}',
-            'occurred' => '2026-03-03 09:00:00',
+            'occurred' => $dayPrev2.' 09:00:00',
             'content_hash' => 'assessment-prev-beta',
         ]);
         $eventStorage->save($previousBetaEvent);
@@ -119,7 +124,7 @@ final class ExtractionSelfAssessmentServiceTest extends TestCase
             'source' => 'gmail',
             'type' => 'message.received',
             'payload' => '{"from_email":"alpha@example.com","subject":"Current alpha"}',
-            'occurred' => '2026-03-12 09:00:00',
+            'occurred' => $dayCur1.' 09:00:00',
             'content_hash' => 'assessment-current-alpha',
         ]);
         $eventStorage->save($currentAlphaEvent);
@@ -128,7 +133,7 @@ final class ExtractionSelfAssessmentServiceTest extends TestCase
             'source' => 'gmail',
             'type' => 'message.received',
             'payload' => '{"from_email":"beta@example.com","subject":"Current beta"}',
-            'occurred' => '2026-03-13 09:00:00',
+            'occurred' => $dayCur2.' 09:00:00',
             'content_hash' => 'assessment-current-beta',
         ]);
         $eventStorage->save($currentBetaEvent);
@@ -137,7 +142,7 @@ final class ExtractionSelfAssessmentServiceTest extends TestCase
             'source' => 'gmail',
             'type' => 'message.received',
             'payload' => '{"from_email":"gamma@example.com","subject":"Current gamma"}',
-            'occurred' => '2026-03-13 11:00:00',
+            'occurred' => $dayCur2.' 11:00:00',
             'content_hash' => 'assessment-current-gamma',
         ]);
         $eventStorage->save($currentGammaEvent);
@@ -171,7 +176,7 @@ final class ExtractionSelfAssessmentServiceTest extends TestCase
             'extracted_commitment_payload' => '{"title":"Send previous alpha note","confidence":0.61}',
             'confidence' => 0.61,
             'failure_category' => 'insufficient_context',
-            'created_at' => '2026-03-04 10:00:00',
+            'created_at' => $dayPrev1.' 10:00:00',
         ]));
         $logStorage->save(new CommitmentExtractionLog([
             'mc_event_id' => $currentAlphaEvent->id(),
@@ -179,7 +184,7 @@ final class ExtractionSelfAssessmentServiceTest extends TestCase
             'extracted_commitment_payload' => '{"title":"Maybe current alpha","confidence":0.22}',
             'confidence' => 0.22,
             'failure_category' => 'ambiguous',
-            'created_at' => '2026-03-12 10:00:00',
+            'created_at' => $dayCur1.' 10:00:00',
         ]));
         $logStorage->save(new CommitmentExtractionLog([
             'mc_event_id' => $currentGammaEvent->id(),
@@ -187,7 +192,7 @@ final class ExtractionSelfAssessmentServiceTest extends TestCase
             'extracted_commitment_payload' => '{"title":"Send current gamma note","confidence":0.48}',
             'confidence' => 0.48,
             'failure_category' => 'insufficient_context',
-            'created_at' => '2026-03-13 10:30:00',
+            'created_at' => $dayCur2.' 10:30:00',
         ]));
 
         return $entityTypeManager;

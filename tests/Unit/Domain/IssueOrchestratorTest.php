@@ -12,7 +12,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use Waaseyaa\Database\PdoDatabase;
+use Waaseyaa\Database\DBALDatabase;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\EntityStorage\SqlEntityStorage;
@@ -191,7 +191,7 @@ final class IssueOrchestratorTest extends TestCase
             }
         };
 
-        $db = PdoDatabase::createSqlite(':memory:');
+        $db = DBALDatabase::createSqlite(':memory:');
         $dispatcher = new EventDispatcher;
         $this->entityTypeManager = new EntityTypeManager(
             $dispatcher,

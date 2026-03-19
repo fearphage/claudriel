@@ -10,7 +10,7 @@ use Claudriel\Entity\Account;
 use Claudriel\Entity\Integration;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use Waaseyaa\Database\PdoDatabase;
+use Waaseyaa\Database\DBALDatabase;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\EntityStorage\SqlEntityStorage;
@@ -64,7 +64,7 @@ final class GoogleOAuthControllerTest extends TestCase
 
     private function buildEntityTypeManager(): EntityTypeManager
     {
-        $db = PdoDatabase::createSqlite(':memory:');
+        $db = DBALDatabase::createSqlite(':memory:');
         $dispatcher = new EventDispatcher;
         $etm = new EntityTypeManager($dispatcher, function ($def) use ($db, $dispatcher) {
             (new SqlSchemaHandler($def, $db))->ensureTable();

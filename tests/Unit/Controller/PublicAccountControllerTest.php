@@ -17,7 +17,7 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
-use Waaseyaa\Database\PdoDatabase;
+use Waaseyaa\Database\DBALDatabase;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\EntityStorage\SqlEntityStorage;
@@ -32,8 +32,8 @@ final class PublicAccountControllerTest extends TestCase
         $response = $controller->signupForm();
 
         self::assertSame(200, $response->statusCode);
-        self::assertStringContainsString('Create your account', $response->content);
-        self::assertStringContainsString('Create account', $response->content);
+        self::assertStringContainsString('Your second in command', $response->content);
+        self::assertStringContainsString('Get Early Access', $response->content);
     }
 
     public function test_signup_form_redirects_authenticated_account_into_app_shell(): void
@@ -55,6 +55,9 @@ final class PublicAccountControllerTest extends TestCase
 
     public function test_signup_creates_pending_account_and_sends_verification_delivery(): void
     {
+        putenv('CLAUDRIEL_REGISTRATION_OPEN=1');
+        $_ENV['CLAUDRIEL_REGISTRATION_OPEN'] = '1';
+
         $transport = new InMemoryMailTransport;
         $entityTypeManager = $this->buildEntityTypeManager();
         $controller = $this->controller($entityTypeManager, $transport);
@@ -94,6 +97,9 @@ final class PublicAccountControllerTest extends TestCase
 
     public function test_verification_link_bootstraps_tenant_once_and_redirects_to_onboarding(): void
     {
+        putenv('CLAUDRIEL_REGISTRATION_OPEN=1');
+        $_ENV['CLAUDRIEL_REGISTRATION_OPEN'] = '1';
+
         $transport = new InMemoryMailTransport;
         $entityTypeManager = $this->buildEntityTypeManager();
         $controller = $this->controller($entityTypeManager, $transport);
@@ -171,7 +177,7 @@ final class PublicAccountControllerTest extends TestCase
 
     private function buildEntityTypeManager(): EntityTypeManager
     {
-        $db = PdoDatabase::createSqlite(':memory:');
+        $db = DBALDatabase::createSqlite(':memory:');
         $dispatcher = new EventDispatcher;
         $entityTypeManager = new EntityTypeManager($dispatcher, function ($definition) use ($db, $dispatcher): SqlEntityStorage {
             (new SqlSchemaHandler($definition, $db))->ensureTable();

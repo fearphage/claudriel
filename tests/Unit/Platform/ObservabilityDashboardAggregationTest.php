@@ -26,7 +26,7 @@ use DateTimeInterface;
 use DateTimeZone;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use Waaseyaa\Database\PdoDatabase;
+use Waaseyaa\Database\DBALDatabase;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\EntityStorage\SqlEntityStorage;
@@ -128,7 +128,7 @@ final class ObservabilityDashboardAggregationTest extends TestCase
         $currentWindowTwo = $today->sub(new \DateInterval('P1D'))->format('Y-m-d');
         $currentWindowThree = $today->format('Y-m-d');
 
-        $db = PdoDatabase::createSqlite(':memory:');
+        $db = DBALDatabase::createSqlite(':memory:');
         $dispatcher = new EventDispatcher;
 
         $entityTypeManager = new EntityTypeManager(

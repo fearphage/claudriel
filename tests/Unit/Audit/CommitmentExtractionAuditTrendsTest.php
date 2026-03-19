@@ -10,7 +10,7 @@ use Claudriel\Entity\McEvent;
 use Claudriel\Service\Audit\CommitmentExtractionAuditService;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use Waaseyaa\Database\PdoDatabase;
+use Waaseyaa\Database\DBALDatabase;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\EntityStorage\SqlEntityStorage;
@@ -28,20 +28,23 @@ final class CommitmentExtractionAuditTrendsTest extends TestCase
             $series[$point['date']] = $point;
         }
 
+        $day2 = date('Y-m-d', strtotime('-2 days'));
+        $day1 = date('Y-m-d', strtotime('-1 day'));
+
         self::assertSame(3, $trends['summary']['total_attempts']);
         self::assertSame(2, $trends['summary']['successful_extractions']);
         self::assertSame(1, $trends['summary']['low_confidence_logs']);
         self::assertSame(0.7967, $trends['summary']['average_confidence']);
 
-        self::assertSame(2, $series['2026-03-12']['total_attempts']);
-        self::assertSame(1, $series['2026-03-12']['successful_extractions']);
-        self::assertSame(1, $series['2026-03-12']['low_confidence_logs']);
-        self::assertSame(0.715, $series['2026-03-12']['average_confidence']);
+        self::assertSame(2, $series[$day2]['total_attempts']);
+        self::assertSame(1, $series[$day2]['successful_extractions']);
+        self::assertSame(1, $series[$day2]['low_confidence_logs']);
+        self::assertSame(0.715, $series[$day2]['average_confidence']);
 
-        self::assertSame(1, $series['2026-03-13']['total_attempts']);
-        self::assertSame(1, $series['2026-03-13']['successful_extractions']);
-        self::assertSame(0, $series['2026-03-13']['low_confidence_logs']);
-        self::assertSame(0.96, $series['2026-03-13']['average_confidence']);
+        self::assertSame(1, $series[$day1]['total_attempts']);
+        self::assertSame(1, $series[$day1]['successful_extractions']);
+        self::assertSame(0, $series[$day1]['low_confidence_logs']);
+        self::assertSame(0.96, $series[$day1]['average_confidence']);
     }
 
     public function test_monthly_trends_roll_up_by_month(): void
@@ -54,20 +57,24 @@ final class CommitmentExtractionAuditTrendsTest extends TestCase
             $series[$point['month']] = $point;
         }
 
-        self::assertSame(1, $series['2026-01']['total_attempts']);
-        self::assertSame(0, $series['2026-01']['successful_extractions']);
-        self::assertSame(1, $series['2026-01']['low_confidence_logs']);
-        self::assertSame(0.22, $series['2026-01']['average_confidence']);
+        $monthOld = date('Y-m', strtotime('-55 days'));
+        $monthMid = date('Y-m', strtotime('-29 days'));
+        $monthNow = date('Y-m');
 
-        self::assertSame(1, $series['2026-02']['total_attempts']);
-        self::assertSame(0, $series['2026-02']['successful_extractions']);
-        self::assertSame(1, $series['2026-02']['low_confidence_logs']);
-        self::assertSame(0.48, $series['2026-02']['average_confidence']);
+        self::assertSame(1, $series[$monthOld]['total_attempts']);
+        self::assertSame(0, $series[$monthOld]['successful_extractions']);
+        self::assertSame(1, $series[$monthOld]['low_confidence_logs']);
+        self::assertSame(0.22, $series[$monthOld]['average_confidence']);
 
-        self::assertSame(3, $series['2026-03']['total_attempts']);
-        self::assertSame(2, $series['2026-03']['successful_extractions']);
-        self::assertSame(1, $series['2026-03']['low_confidence_logs']);
-        self::assertSame(0.7967, $series['2026-03']['average_confidence']);
+        self::assertSame(1, $series[$monthMid]['total_attempts']);
+        self::assertSame(0, $series[$monthMid]['successful_extractions']);
+        self::assertSame(1, $series[$monthMid]['low_confidence_logs']);
+        self::assertSame(0.48, $series[$monthMid]['average_confidence']);
+
+        self::assertSame(3, $series[$monthNow]['total_attempts']);
+        self::assertSame(2, $series[$monthNow]['successful_extractions']);
+        self::assertSame(1, $series[$monthNow]['low_confidence_logs']);
+        self::assertSame(0.7967, $series[$monthNow]['average_confidence']);
     }
 
     public function test_sender_trends_calculate_distribution_and_low_confidence_rate(): void
@@ -97,19 +104,22 @@ final class CommitmentExtractionAuditTrendsTest extends TestCase
         self::assertSame(1, $distribution['0.7-0.9']);
         self::assertSame(0, $distribution['0.9-1.0']);
 
-        self::assertSame(2, $series['2026-03-12']['total_attempts']);
-        self::assertSame(1, $series['2026-03-12']['low_confidence_logs']);
-        self::assertSame(0.5, $series['2026-03-12']['low_confidence_rate']);
-        self::assertSame(0.715, $series['2026-03-12']['average_confidence']);
+        $day2 = date('Y-m-d', strtotime('-2 days'));
+        $dayMid = date('Y-m-d', strtotime('-29 days'));
 
-        self::assertSame(1, $series['2026-02-20']['total_attempts']);
-        self::assertSame(1, $series['2026-02-20']['low_confidence_logs']);
-        self::assertSame(1.0, $series['2026-02-20']['low_confidence_rate']);
+        self::assertSame(2, $series[$day2]['total_attempts']);
+        self::assertSame(1, $series[$day2]['low_confidence_logs']);
+        self::assertSame(0.5, $series[$day2]['low_confidence_rate']);
+        self::assertSame(0.715, $series[$day2]['average_confidence']);
+
+        self::assertSame(1, $series[$dayMid]['total_attempts']);
+        self::assertSame(1, $series[$dayMid]['low_confidence_logs']);
+        self::assertSame(1.0, $series[$dayMid]['low_confidence_rate']);
     }
 
     private function buildSeededEntityTypeManager(): EntityTypeManager
     {
-        $db = PdoDatabase::createSqlite(':memory:');
+        $db = DBALDatabase::createSqlite(':memory:');
         $dispatcher = new EventDispatcher;
 
         $entityTypeManager = new EntityTypeManager(
@@ -126,11 +136,15 @@ final class CommitmentExtractionAuditTrendsTest extends TestCase
         }
 
         $eventStorage = $entityTypeManager->getStorage('mc_event');
+        $day2 = date('Y-m-d', strtotime('-2 days'));
+        $day1 = date('Y-m-d', strtotime('-1 day'));
+        $dayOld = date('Y-m-d', strtotime('-55 days'));
+
         $alphaEvent = new McEvent([
             'source' => 'gmail',
             'type' => 'message.received',
             'payload' => '{"from_email":"alpha@example.com","subject":"Alpha"}',
-            'occurred' => '2026-03-12 08:15:00',
+            'occurred' => $day2.' 08:15:00',
             'content_hash' => 'trend-alpha',
         ]);
         $eventStorage->save($alphaEvent);
@@ -140,7 +154,7 @@ final class CommitmentExtractionAuditTrendsTest extends TestCase
             'source' => 'gmail',
             'type' => 'message.received',
             'payload' => '{"from_email":"beta@example.com","subject":"Beta"}',
-            'occurred' => '2026-03-13 11:30:00',
+            'occurred' => $day1.' 11:30:00',
             'content_hash' => 'trend-beta',
         ]);
         $eventStorage->save($betaEvent);
@@ -150,7 +164,7 @@ final class CommitmentExtractionAuditTrendsTest extends TestCase
             'source' => 'gmail',
             'type' => 'message.received',
             'payload' => '{"from_email":"gamma@example.com","subject":"Gamma"}',
-            'occurred' => '2026-01-25 09:00:00',
+            'occurred' => $dayOld.' 09:00:00',
             'content_hash' => 'trend-gamma',
         ]);
         $eventStorage->save($gammaEvent);
@@ -174,20 +188,20 @@ final class CommitmentExtractionAuditTrendsTest extends TestCase
             'raw_event_payload' => '{"from_email":"alpha@example.com","subject":"Alpha maybe"}',
             'extracted_commitment_payload' => '{"title":"Alpha maybe","confidence":0.61}',
             'confidence' => 0.61,
-            'created_at' => '2026-03-12 09:15:00',
+            'created_at' => $day2.' 09:15:00',
         ]));
         $logStorage->save(new CommitmentExtractionLog([
             'mc_event_id' => $gammaEventId,
             'raw_event_payload' => '{"from_email":"gamma@example.com","subject":"Gamma maybe"}',
             'extracted_commitment_payload' => '{"title":"Gamma maybe","confidence":0.22}',
             'confidence' => 0.22,
-            'created_at' => '2026-01-25 09:16:00',
+            'created_at' => $dayOld.' 09:16:00',
         ]));
         $logStorage->save(new CommitmentExtractionLog([
             'raw_event_payload' => '{"from_email":"alpha@example.com","subject":"Alpha second"}',
             'extracted_commitment_payload' => '{"title":"Alpha second maybe","confidence":0.48}',
             'confidence' => 0.48,
-            'created_at' => '2026-02-20 15:17:00',
+            'created_at' => date('Y-m-d', strtotime('-29 days')).' 15:17:00',
         ]));
 
         return $entityTypeManager;

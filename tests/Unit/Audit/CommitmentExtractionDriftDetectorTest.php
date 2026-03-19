@@ -11,7 +11,7 @@ use Claudriel\Service\Audit\CommitmentExtractionAuditService;
 use Claudriel\Service\Audit\CommitmentExtractionDriftDetector;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use Waaseyaa\Database\PdoDatabase;
+use Waaseyaa\Database\DBALDatabase;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\EntityStorage\SqlEntityStorage;
@@ -96,7 +96,7 @@ final class CommitmentExtractionDriftDetectorTest extends TestCase
 
     private function buildSeededEntityTypeManager(): EntityTypeManager
     {
-        $db = PdoDatabase::createSqlite(':memory:');
+        $db = DBALDatabase::createSqlite(':memory:');
         $dispatcher = new EventDispatcher;
 
         $entityTypeManager = new EntityTypeManager(
