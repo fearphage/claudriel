@@ -39,8 +39,10 @@ use Claudriel\Controller\Governance\CodifiedContextIntegrityController;
 use Claudriel\Controller\NotFoundController;
 use Claudriel\Controller\Platform\ObservabilityDashboardController;
 use Claudriel\Controller\PublicHomepageController;
+use Claudriel\Controller\WorkspaceDriftController;
 use Claudriel\Domain\DayBrief\Assembler\DayBriefAssembler;
 use Claudriel\Domain\DayBrief\Service\BriefSessionStore;
+use Claudriel\Domain\Git\DriftDetector as GitDriftDetector;
 use Claudriel\Domain\Git\GitOperator;
 use Claudriel\Domain\Git\GitRepositoryManager;
 use Claudriel\Domain\IssueInstructionBuilder;
@@ -517,6 +519,30 @@ final class ClaudrielServiceProvider extends ServiceProvider
                 ->allowAll()
                 ->methods('GET')
                 ->render()
+                ->build(),
+        );
+
+        // Workspace API: repo connection and drift detection
+        $driftControllerFactory = fn (): WorkspaceDriftController => new WorkspaceDriftController(
+            $entityTypeManager,
+            new GitRepositoryManager,
+            new GitDriftDetector,
+        );
+
+        $connectRepoRoute = RouteBuilder::create('/api/workspaces/{uuid}/connect-repo')
+            ->controller(fn (array $params) => $driftControllerFactory()->connectRepo($params))
+            ->allowAll()
+            ->methods('POST')
+            ->build();
+        $connectRepoRoute->setOption('_csrf', false);
+        $router->addRoute('claudriel.api.workspace.connect_repo', $connectRepoRoute);
+
+        $router->addRoute(
+            'claudriel.api.workspace.drift',
+            RouteBuilder::create('/api/workspaces/{uuid}/drift')
+                ->controller(fn (array $params) => $driftControllerFactory()->drift($params))
+                ->allowAll()
+                ->methods('GET')
                 ->build(),
         );
 
