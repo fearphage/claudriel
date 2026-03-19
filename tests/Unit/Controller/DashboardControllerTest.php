@@ -106,8 +106,14 @@ final class DashboardControllerTest extends TestCase
         self::assertStringContainsString('Queued in chat', $response->content);
     }
 
+    /** @see https://github.com/jonesrussell/claudriel/issues/345 */
     public function test_show_renders_live_guidance_card_and_ambient_nudge_from_schedule(): void
     {
+        $hour = (int) (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('G');
+        if ($hour >= 23 || $hour < 6) {
+            self::markTestSkipped('Temporal agent suppresses guidance outside business hours (#345)');
+        }
+
         $etm = $this->buildEntityTypeManager();
         $this->seedWorkspace($etm, 'workspace-dashboard-3', 'Guidance Workspace');
         $this->seedUpcomingScheduleEntry($etm, 'Planning');
@@ -135,8 +141,14 @@ final class DashboardControllerTest extends TestCase
         self::assertStringContainsString('data-guidance-dismiss="', $response->content);
     }
 
+    /** @see https://github.com/jonesrussell/claudriel/issues/345 */
     public function test_show_renders_persisted_guidance_action_state_in_html(): void
     {
+        $hour = (int) (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('G');
+        if ($hour >= 23 || $hour < 6) {
+            self::markTestSkipped('Temporal agent suppresses guidance outside business hours (#345)');
+        }
+
         $etm = $this->buildEntityTypeManager();
         $this->seedWorkspace($etm, 'workspace-dashboard-4', 'Guidance State Workspace');
         $this->seedUpcomingScheduleEntry($etm, 'Planning');
