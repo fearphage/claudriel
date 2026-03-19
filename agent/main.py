@@ -18,6 +18,7 @@ from tools.gmail_read import TOOL_DEF as GMAIL_READ_DEF, execute as gmail_read_e
 from tools.gmail_send import TOOL_DEF as GMAIL_SEND_DEF, execute as gmail_send_exec
 from tools.calendar_list import TOOL_DEF as CALENDAR_LIST_DEF, execute as calendar_list_exec
 from tools.calendar_create import TOOL_DEF as CALENDAR_CREATE_DEF, execute as calendar_create_exec
+from tools.judgment_rule_suggest import TOOL_DEF as JUDGMENT_RULE_SUGGEST_DEF, execute as judgment_rule_suggest_exec
 from tools.commitment_list import TOOL_DEF as COMMITMENT_LIST_DEF, execute as commitment_list_exec
 from tools.commitment_update import TOOL_DEF as COMMITMENT_UPDATE_DEF, execute as commitment_update_exec
 from tools.person_search import TOOL_DEF as PERSON_SEARCH_DEF, execute as person_search_exec
@@ -32,7 +33,7 @@ from tools.triage_list import TOOL_DEF as TRIAGE_LIST_DEF, execute as triage_lis
 from tools.triage_resolve import TOOL_DEF as TRIAGE_RESOLVE_DEF, execute as triage_resolve_exec
 from util.http import PhpApiClient
 
-TOOLS = [GMAIL_LIST_DEF, GMAIL_READ_DEF, GMAIL_SEND_DEF, CALENDAR_LIST_DEF, CALENDAR_CREATE_DEF, COMMITMENT_LIST_DEF, COMMITMENT_UPDATE_DEF, PERSON_SEARCH_DEF, PERSON_DETAIL_DEF, BRIEF_GENERATE_DEF, EVENT_SEARCH_DEF, SEARCH_GLOBAL_DEF, WORKSPACE_LIST_DEF, WORKSPACE_CONTEXT_DEF, SCHEDULE_QUERY_DEF, TRIAGE_LIST_DEF, TRIAGE_RESOLVE_DEF]
+TOOLS = [GMAIL_LIST_DEF, GMAIL_READ_DEF, GMAIL_SEND_DEF, CALENDAR_LIST_DEF, CALENDAR_CREATE_DEF, JUDGMENT_RULE_SUGGEST_DEF, COMMITMENT_LIST_DEF, COMMITMENT_UPDATE_DEF, PERSON_SEARCH_DEF, PERSON_DETAIL_DEF, BRIEF_GENERATE_DEF, EVENT_SEARCH_DEF, SEARCH_GLOBAL_DEF, WORKSPACE_LIST_DEF, WORKSPACE_CONTEXT_DEF, SCHEDULE_QUERY_DEF, TRIAGE_LIST_DEF, TRIAGE_RESOLVE_DEF]
 
 EXECUTORS = {
     "gmail_list": gmail_list_exec,
@@ -40,6 +41,7 @@ EXECUTORS = {
     "gmail_send": gmail_send_exec,
     "calendar_list": calendar_list_exec,
     "calendar_create": calendar_create_exec,
+    "judgment_rule_suggest": judgment_rule_suggest_exec,
     "commitment_list": commitment_list_exec,
     "commitment_update": commitment_update_exec,
     "person_search": person_search_exec,
