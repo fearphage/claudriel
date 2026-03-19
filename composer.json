@@ -62,7 +62,8 @@
                 "Claudriel\\Provider\\WorkspaceToolServiceProvider",
                 "Claudriel\\Provider\\ClaudrielServiceProvider",
                 "Claudriel\\Provider\\I18nServiceProvider",
-                "Claudriel\\Provider\\SearchToolServiceProvider"
+                "Claudriel\\Provider\\SearchToolServiceProvider",
+                "Claudriel\\Provider\\JudgmentRuleServiceProvider"
             ]
         }
     },
