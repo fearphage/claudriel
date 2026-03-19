@@ -53,5 +53,11 @@ final class Workspace extends ContentEntityBase
         if ($this->get('project_id') === null) {
             $this->set('project_id', null);
         }
+        if ($this->get('mode') === null) {
+            $this->set('mode', 'persistent');
+        }
+        if ($this->get('status') === null) {
+            $this->set('status', 'active');
+        }
     }
 }
