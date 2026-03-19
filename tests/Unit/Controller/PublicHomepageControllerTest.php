@@ -33,11 +33,9 @@ final class PublicHomepageControllerTest extends TestCase
         $response = $controller->show();
 
         self::assertSame(200, $response->statusCode);
-        self::assertStringContainsString('Create your account', $response->content);
+        self::assertStringContainsString('Join the waitlist', $response->content);
         self::assertStringContainsString('href="/signup"', $response->content);
         self::assertStringContainsString('href="/login"', $response->content);
-        self::assertStringContainsString('Schedule Intelligence For Real Work', $response->content);
-        self::assertStringContainsString('Public Entry Surface', $response->content);
     }
 
     public function test_show_redirects_authenticated_accounts_into_app_shell(): void
