@@ -51,8 +51,8 @@
         flex: 1;
         padding: 0.85rem 1rem;
         border-radius: 0.65rem;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--border-emphasis);
+        background: var(--bg-input);
         color: var(--text-primary);
         font-family: var(--font-body);
         font-size: 0.95rem;
@@ -115,21 +115,21 @@
     .feature-card {
         padding: 1.25rem;
         border-radius: 1rem;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.06);
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
         text-align: left;
     }
     .feature-icon {
         width: 2.2rem;
         height: 2.2rem;
         border-radius: 0.6rem;
-        background: rgba(107, 155, 255, 0.1);
-        border: 1px solid rgba(107, 155, 255, 0.2);
+        background: rgba(240, 176, 64, 0.1);
+        border: 1px solid rgba(240, 176, 64, 0.2);
         display: flex;
         align-items: center;
         justify-content: center;
         margin-bottom: 0.9rem;
-        color: var(--accent-blue);
+        color: var(--accent-amber);
         font-size: 1rem;
     }
     .feature-card h3 {
@@ -163,8 +163,8 @@
 {% block content %}
     <main class="waitlist-shell">
         <div class="waitlist-badge">Launching Soon</div>
-        <h1>Your second in command</h1>
-        <p class="lead">Autonomous, gated automation that learns and evolves with your platform.</p>
+        <h1>Your operations, handled.</h1>
+        <p class="lead">An AI-native operating system for people who build AI products. Track commitments, surface priorities, and keep client context current.</p>
 
         <div id="waitlist-msg" class="waitlist-message"></div>
 
@@ -175,19 +175,19 @@
 
         <div class="feature-grid">
             <article class="feature-card">
-                <div class="feature-icon">&#x2699;</div>
-                <h3>Autonomous Workhorses</h3>
-                <p>AI agents that implement, test, and deploy changes across your codebase.</p>
+                <div class="feature-icon">&#x2714;</div>
+                <h3>Commitment tracking</h3>
+                <p>Every email, meeting, and thread scanned for promises and deadlines. Nothing falls through.</p>
             </article>
             <article class="feature-card">
-                <div class="feature-icon">&#x2696;</div>
-                <h3>Second in Command</h3>
-                <p>Claudriel proposes architecture, sequences work, and manages priorities.</p>
+                <div class="feature-icon">&#x2600;</div>
+                <h3>Schedule intelligence</h3>
+                <p>A daily brief that tells you what matters, what's drifting, and where your next deep work window is.</p>
             </article>
             <article class="feature-card">
-                <div class="feature-icon">&#x21BB;</div>
-                <h3>Gated Self-Improvement</h3>
-                <p>Self-learning automation that requests approvals for high-impact changes.</p>
+                <div class="feature-icon">&#x21C4;</div>
+                <h3>Client context</h3>
+                <p>Relationship history, project state, and conversation threads, all in one place, always current.</p>
             </article>
         </div>
 
