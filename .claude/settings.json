@@ -27,6 +27,11 @@
         "CLAUDRIEL_API_URL": "http://localhost:8088",
         "CLAUDRIEL_API_KEY": "${CLAUDRIEL_API_KEY}"
       }
+    },
+    "waaseyaa": {
+      "command": "node",
+      "args": ["vendor/waaseyaa/mcp/server.js"],
+      "cwd": "."
     }
   }
 }
