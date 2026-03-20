@@ -20,16 +20,16 @@ final class InternalGoogleController
     public function gmailList(array $params = [], array $query = [], ?AccountInterface $account = null, ?Request $httpRequest = null): SsrResponse
     {
         $accountId = $this->authenticate($httpRequest);
-        error_log('[InternalGoogle] gmailList: accountId='.($accountId ?? 'null'));
+        file_put_contents('/tmp/claudriel_gmail_debug.log', date('c').' gmailList accountId='.($accountId ?? 'null')."\n", FILE_APPEND);
         if ($accountId === null) {
             return $this->jsonError('Unauthorized', 401);
         }
 
         try {
             $accessToken = $this->tokenManager->getValidAccessToken($accountId);
-            error_log('[InternalGoogle] gmailList: got token, len='.strlen($accessToken));
+            file_put_contents('/tmp/claudriel_gmail_debug.log', date('c').' got token len='.strlen($accessToken)."\n", FILE_APPEND);
         } catch (\RuntimeException $e) {
-            error_log('[InternalGoogle] gmailList: token error: '.$e->getMessage());
+            file_put_contents('/tmp/claudriel_gmail_debug.log', date('c').' token ERROR: '.$e->getMessage()."\n", FILE_APPEND);
 
             return $this->jsonError($e->getMessage(), 503);
         }
@@ -41,7 +41,7 @@ final class InternalGoogleController
             .http_build_query(['q' => $q, 'maxResults' => $maxResults]);
 
         $response = $this->googleApiGet($url, $accessToken);
-        error_log('[InternalGoogle] gmailList: response keys='.implode(',', array_keys($response)));
+        file_put_contents('/tmp/claudriel_gmail_debug.log', date('c').' response keys='.implode(',', array_keys($response))."\n", FILE_APPEND);
 
         return $this->jsonResponse($response);
     }
