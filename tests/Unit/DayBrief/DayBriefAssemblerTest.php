@@ -12,6 +12,7 @@ use Claudriel\Entity\ScheduleEntry;
 use Claudriel\Entity\TriageEntry;
 use Claudriel\Entity\Workspace;
 use Claudriel\Support\DriftDetector;
+use Claudriel\Support\FollowUpMonitor;
 use Claudriel\Temporal\AtomicTimeService;
 use Claudriel\Temporal\Clock\MonotonicClockInterface;
 use Claudriel\Temporal\Clock\WallClockInterface;
@@ -94,6 +95,8 @@ final class DayBriefAssemblerTest extends TestCase
                 snapshotStore: new RequestTimeSnapshotStore,
                 defaultTimezone: 'UTC',
             ),
+            null,
+            new FollowUpMonitor($this->eventRepo),
         );
     }
 
@@ -500,5 +503,27 @@ final class DayBriefAssemblerTest extends TestCase
         self::assertSame('They send proposal', $brief['commitments']['waiting_on'][0]->get('title'));
         self::assertArrayHasKey('waiting_on', $brief['counts']);
         self::assertSame(1, $brief['counts']['waiting_on']);
+    }
+
+    public function test_brief_includes_unanswered_follow_ups(): void
+    {
+        // Seed a sent event 5 days ago with no reply
+        $this->eventRepo->save(new McEvent([
+            'eid' => 200,
+            'source' => 'gmail',
+            'type' => 'message.sent',
+            'payload' => json_encode(['thread_id' => 'thread-follow-1', 'subject' => 'Proposal', 'to_email' => 'client@example.com']),
+            'occurred' => (new \DateTimeImmutable('-5 days'))->format(\DateTimeInterface::ATOM),
+            'tenant_id' => 'test-tenant',
+        ]));
+        // No reply seeded
+
+        $brief = $this->assembler->assemble('test-tenant', new \DateTimeImmutable('-24 hours'));
+
+        self::assertArrayHasKey('follow_ups', $brief);
+        self::assertCount(1, $brief['follow_ups']);
+        self::assertSame('thread-follow-1', $brief['follow_ups'][0]['thread_id']);
+        self::assertArrayHasKey('follow_ups', $brief['counts']);
+        self::assertSame(1, $brief['counts']['follow_ups']);
     }
 }

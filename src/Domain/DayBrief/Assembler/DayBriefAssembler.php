@@ -6,6 +6,7 @@ namespace Claudriel\Domain\DayBrief\Assembler;
 
 use Claudriel\Domain\Git\GitOperator;
 use Claudriel\Support\DriftDetector;
+use Claudriel\Support\FollowUpMonitor;
 use Claudriel\Support\SchedulePayloadNormalizer;
 use Claudriel\Temporal\AtomicTimeService;
 use Claudriel\Temporal\RelativeScheduleQueryService;
@@ -28,9 +29,10 @@ final class DayBriefAssembler
         private readonly ?EntityRepositoryInterface $triageRepo = null,
         private readonly ?AtomicTimeService $timeService = null,
         private readonly ?GitOperator $gitOperator = null,
+        private readonly ?FollowUpMonitor $followUpMonitor = null,
     ) {}
 
-    /** @return array{schedule: array, schedule_timeline: array, schedule_summary: string, temporal_awareness: array<string, mixed>, temporal_suggestions: list<array{type: string, title: string, summary: string}>, job_hunt: array, people: array, triage: array, creators: array, notifications: array, commitments: array{pending: array, drifting: array, waiting_on: array}, counts: array{job_alerts: int, messages: int, triage: int, due_today: int, drifting: int, waiting_on: int}, generated_at: string, time_snapshot: array<string, int|string>, matched_skills: array, workspaces: array, workspace_status: ?array{last_commit: ?string, has_changes: bool, is_drifted: bool}} */
+    /** @return array{schedule: array, schedule_timeline: array, schedule_summary: string, temporal_awareness: array<string, mixed>, temporal_suggestions: list<array{type: string, title: string, summary: string}>, job_hunt: array, people: array, triage: array, creators: array, notifications: array, commitments: array{pending: array, drifting: array, waiting_on: array}, follow_ups: list<array{thread_id: string, subject: string, sent_at: string, recipient: string}>, counts: array{job_alerts: int, messages: int, triage: int, due_today: int, drifting: int, waiting_on: int, follow_ups: int}, generated_at: string, time_snapshot: array<string, int|string>, matched_skills: array, workspaces: array, workspace_status: ?array{last_commit: ?string, has_changes: bool, is_drifted: bool}} */
     public function assemble(string $tenantId, \DateTimeImmutable $since, ?string $workspaceUuid = null, ?TimeSnapshot $snapshot = null): array
     {
         $snapshot ??= ($this->timeService ?? new AtomicTimeService)->now();
@@ -117,6 +119,10 @@ final class DayBriefAssembler
             static fn (ContentEntityInterface $c) => $c->get('direction') === 'inbound',
         ));
 
+        $followUps = $this->followUpMonitor !== null
+            ? $this->followUpMonitor->findUnanswered($tenantId)
+            : [];
+
         $today = $snapshot->local()->format('Y-m-d');
         $dueToday = count(array_filter($pending, static fn (ContentEntityInterface $c) => ($c->get('due_date') ?? '') === $today));
         $temporalAwareness = (new TemporalAwarenessEngine)->analyze($schedule, $snapshot);
@@ -138,6 +144,7 @@ final class DayBriefAssembler
                 'drifting' => $drifting,
                 'waiting_on' => $waitingOn,
             ],
+            'follow_ups' => $followUps,
             'counts' => [
                 'job_alerts' => count($jobHunt),
                 'messages' => count($people),
@@ -145,6 +152,7 @@ final class DayBriefAssembler
                 'due_today' => $dueToday,
                 'drifting' => count($drifting),
                 'waiting_on' => count($waitingOn),
+                'follow_ups' => count($followUps),
             ],
             'generated_at' => $snapshot->utc()->format(\DateTimeInterface::ATOM),
             'time_snapshot' => $snapshot->toArray(),
