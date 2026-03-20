@@ -393,12 +393,12 @@ In the `{% block styles %}` section, update:
 - `.feature-card h3`: add `font-family: var(--font-display)`
 - `.feature-icon` background: use `rgba(240, 176, 64, 0.1)` and border: `rgba(240, 176, 64, 0.2)` to match amber accent
 - `.feature-icon` color: `var(--accent-amber)`
-- `.waitlist-form input` styles: use `var(--bg-input)`, `var(--border-emphasis)`, focus uses `var(--accent-teal)`
+- `.signup-form input` styles: use `var(--bg-input)`, `var(--border-emphasis)`, focus uses `var(--accent-teal)`
 
 - [ ] **Step 5: Verify visually**
 
 Visit `http://localhost:8081/signup`. Confirm:
-- "Your operations, handled." headline
+- "Create your account" headline
 - Updated subheadline
 - Three feature cards with operator-outcome copy
 - Amber-tinted feature icons
@@ -1047,7 +1047,7 @@ Create PR targeting `main` with title: `feat: dashboard editorial treatment`
 With both servers running (`php -S localhost:8081 -t public` and `cd frontend/admin && npm run dev`):
 
 1. Visit `http://localhost:8081/` — homepage with operator copy and editorial mockup
-2. Click "Join the waitlist" → signup page with operator feature cards
+2. Click "Create your account" → signup page with operator feature cards
 3. Click "Log in" → login page with updated copy and dark form
 4. Log in → dashboard with editorial greeting and styled cards
 5. Navigate to `/admin/` → dark admin shell with editorial typography

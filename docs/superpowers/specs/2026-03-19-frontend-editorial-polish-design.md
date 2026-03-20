@@ -165,7 +165,7 @@ Slim dark nav bar, consistent everywhere:
 - Eyebrow: "For AI Operators"
 - Headline: "Run your operation. Not your inbox."
 - Subheadline: "Claudriel keeps your commitments, schedule, and client context in one place, so your next move is always obvious."
-- Primary CTA: "Join the waitlist"
+- Primary CTA: "Create your account"
 - Secondary CTA: "Log in"
 
 **Proof points (final):**
