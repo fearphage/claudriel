@@ -100,6 +100,15 @@ Rule: higher layers import lower layers only. Never import from src/Command insi
 4. Delete the REST controller and its test
 5. Add schema contract tests in `tests/Integration/GraphQL/SchemaContractTest.php`
 
+**Release a Waaseyaa framework fix:**
+1. Edit code in `/home/jones/dev/waaseyaa/packages/<package>/`
+2. Run relevant tests: `vendor/bin/phpunit packages/<package>/tests/`
+3. Commit, push to main
+4. Tag: `git tag v0.1.0-alpha.N && git push origin v0.1.0-alpha.N`
+5. Wait for "Split Monorepo" GitHub Action to publish sub-packages
+6. In Claudriel: update `composer.json` versions, run `composer update 'waaseyaa/*'`
+7. Commit composer.json + composer.lock, push to trigger CI deploy
+
 ## GitHub Workflow
 
 All work starts with an issue. Before writing code, ask for or create the issue number.
@@ -157,4 +166,9 @@ All require HMAC Bearer token via `InternalApiTokenGenerator`. See `docs/specs/a
 - `DayBriefAssembler::assemble()` returns `waiting_on` (inbound pending commitments) inside `commitments` key, and `follow_ups` (unanswered emails) at top level; both have corresponding entries in `counts`
 - `InMemoryStorageDriver` uses the entity's id key as storage key; when seeding multiple entities in tests, you MUST set unique IDs (e.g., `'eid' => 1`, `'eid' => 2`) or each `save()` overwrites the previous
 - `EntityRepositoryInterface::findBy()` only supports exact-match key-value criteria, not range queries (`>=`, `LIKE`, etc.); date filtering or substring search must happen in PHP after fetching results
+- Streaming controllers (`ChatStreamController`, `BriefStreamController`) MUST call `set_time_limit(0)` inside the `StreamedResponse` callback; PHP's default 30s `max_execution_time` kills SSE streams mid-response, producing `ERR_HTTP2_PROTOCOL_ERROR`
+- Waaseyaa `resolveControllerInstance()` (v0.1.0-alpha.35+) checks the service resolver for pre-registered controller singletons before reflection; controllers with ambiguous constructor types (e.g., `EntityRepositoryInterface`) MUST be registered as singletons in their service provider or DI will fail with "Cannot resolve required parameter"
+- Agent subprocess requires `cache_control: {"type": "ephemeral"}` on system prompt and last tool definition; without prompt caching, multi-turn tool loops exceed Tier 1 rate limits (30K input tokens/min) by the 3rd turn
+- Ansible Caddyfile template (`waaseyaa-caddyfile.j2`) overwrites any hand-edited Caddy config on deploy; SSE-specific directives (stream path matcher, gzip exclusion, `Alt-Svc "clear"`) must be in the template itself (northcloud-ansible#2)
+- Staging and production use separate Anthropic API keys from different workspaces: `vault_claudriel_staging_anthropic_api_key` (staging) and `vault_claudriel_anthropic_api_key` (production) in Ansible vault
 - CLI commands crash on a fresh database (`no such table: artifact`) because entity types only registered locally in `commands()` (not in domain providers) don't get tables created by the `ensureTable` loop (#378)
