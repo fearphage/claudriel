@@ -21,7 +21,8 @@ final class InboundCommitmentPipelineTest extends TestCase
     public function test_full_pipeline_saves_inbound_commitment(): void
     {
         // Mock AI client returns an inbound commitment
-        $aiClient = new class {
+        $aiClient = new class
+        {
             public function complete(string $prompt): string
             {
                 return json_encode([[

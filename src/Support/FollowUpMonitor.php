@@ -28,11 +28,9 @@ final class FollowUpMonitor
         /** @var ContentEntityInterface[] $all */
         $all = $this->eventRepo->findBy([]);
 
-        $sent = array_filter($all, static fn (ContentEntityInterface $e) =>
-            $e->get('type') === 'message.sent' && $e->get('tenant_id') === $tenantId);
+        $sent = array_filter($all, static fn (ContentEntityInterface $e) => $e->get('type') === 'message.sent' && $e->get('tenant_id') === $tenantId);
 
-        $received = array_filter($all, static fn (ContentEntityInterface $e) =>
-            $e->get('type') === 'message.received' && $e->get('tenant_id') === $tenantId);
+        $received = array_filter($all, static fn (ContentEntityInterface $e) => $e->get('type') === 'message.received' && $e->get('tenant_id') === $tenantId);
 
         // Build set of thread IDs that have replies
         $repliedThreads = [];

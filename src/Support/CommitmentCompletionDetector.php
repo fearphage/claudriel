@@ -21,16 +21,14 @@ final class CommitmentCompletionDetector
         $allCommitments = $this->commitmentRepo->findBy([]);
         $inboundPending = array_filter(
             $allCommitments,
-            static fn (ContentEntityInterface $c) =>
-                $c->get('direction') === 'inbound'
+            static fn (ContentEntityInterface $c) => $c->get('direction') === 'inbound'
                 && $c->get('status') === 'pending'
                 && $c->get('tenant_id') === $tenantId,
         );
 
         /** @var ContentEntityInterface[] $allEvents */
         $allEvents = $this->eventRepo->findBy([]);
-        $received = array_filter($allEvents, static fn (ContentEntityInterface $e) =>
-            $e->get('type') === 'message.received' && $e->get('tenant_id') === $tenantId);
+        $received = array_filter($allEvents, static fn (ContentEntityInterface $e) => $e->get('type') === 'message.received' && $e->get('tenant_id') === $tenantId);
 
         // Build map: thread_id => latest occurred timestamp
         $latestReplyByThread = [];
