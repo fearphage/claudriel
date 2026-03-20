@@ -72,7 +72,7 @@ Rule: higher layers import lower layers only. Never import from src/Command insi
 **Add a new entity type:**
 1. Create `src/Entity/Foo.php` extending `ContentEntityBase` with `entityTypeId` and `entityKeys`
 2. Register in `ClaudrielServiceProvider::register()` via `$this->entityType(new EntityType(...))`
-3. Wire an `EntityRepository` for it in the service container / config
+3. Wire persistence via `SqlEntityStorage` + `StorageRepositoryAdapter` in the domain service provider (see `.claude/rules/waaseyaa-entity-wiring.md`)
 
 **Add an ingestion handler:**
 1. Create `src/Ingestion/FooNormalizer.php` → produces an `Envelope`
@@ -127,7 +127,7 @@ All require HMAC Bearer token via `InternalApiTokenGenerator`. See `docs/specs/a
 ## Critical Gotchas
 
 - `McEvent` is named to avoid PHP reserved-word conflicts with `Event`
-- `EntityRepository` requires injection of `EntityType` + driver + `EventDispatcher` (see test for pattern)
+- `ClaudrielServiceProvider::commands()` creates parallel `SqlEntityStorage` + `StorageRepositoryAdapter` instances alongside domain-provider-registered storage; this dual-instance pattern is intentional (#377)
 - `CommitmentHandler` silently skips candidates with `confidence < 0.7`
 - `DriftDetector::findDrifting()` only checks `status=active` + `updated_at < 48h`; pending commitments are NOT checked
 - `GmailMessageNormalizer::normalize()` base64-decodes body with URL-safe alphabet (`-_` → `+/`)
@@ -157,3 +157,4 @@ All require HMAC Bearer token via `InternalApiTokenGenerator`. See `docs/specs/a
 - `DayBriefAssembler::assemble()` returns `waiting_on` (inbound pending commitments) inside `commitments` key, and `follow_ups` (unanswered emails) at top level; both have corresponding entries in `counts`
 - `InMemoryStorageDriver` uses the entity's id key as storage key; when seeding multiple entities in tests, you MUST set unique IDs (e.g., `'eid' => 1`, `'eid' => 2`) or each `save()` overwrites the previous
 - `EntityRepositoryInterface::findBy()` only supports exact-match key-value criteria, not range queries (`>=`, `LIKE`, etc.); date filtering or substring search must happen in PHP after fetching results
+- CLI commands crash on a fresh database (`no such table: artifact`) because entity types only registered locally in `commands()` (not in domain providers) don't get tables created by the `ensureTable` loop (#378)
