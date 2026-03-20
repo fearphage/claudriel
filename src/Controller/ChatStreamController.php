@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Claudriel\Controller;
 
+use Claudriel\Access\AuthenticatedAccount;
 use Claudriel\Domain\Chat\ChatSystemPromptBuilder;
 use Claudriel\Domain\Chat\InternalApiTokenGenerator;
 use Claudriel\Domain\Chat\IssueIntentDetector;
@@ -14,6 +15,7 @@ use Claudriel\Entity\ChatMessage;
 use Claudriel\Entity\Workspace;
 use Claudriel\Routing\RequestScopeViolation;
 use Claudriel\Routing\TenantWorkspaceResolver;
+use Claudriel\Support\AuthenticatedAccountSessionResolver;
 use Claudriel\Support\BriefSignal;
 use Claudriel\Support\DriftDetector;
 use Claudriel\Temporal\TemporalContextFactory;
@@ -385,7 +387,8 @@ final class ChatStreamController
             ]);
         };
 
-        $accountId = $tenantId;
+        $authenticatedAccount = $this->resolveAuthenticatedAccount($account);
+        $accountId = $authenticatedAccount?->getUuid() ?? $tenantId;
         $tokenGenerator = $this->tokenGenerator ?? new InternalApiTokenGenerator(
             $_ENV['AGENT_INTERNAL_SECRET'] ?? getenv('AGENT_INTERNAL_SECRET') ?: '',
         );
@@ -670,6 +673,15 @@ final class ChatStreamController
     private function findWorkspaceByUuid(string $workspaceUuid, string $tenantId): ?Workspace
     {
         return (new TenantWorkspaceResolver($this->entityTypeManager))->findWorkspaceByUuidForTenant($workspaceUuid, $tenantId);
+    }
+
+    private function resolveAuthenticatedAccount(mixed $account): ?AuthenticatedAccount
+    {
+        if ($account instanceof AuthenticatedAccount) {
+            return $account;
+        }
+
+        return (new AuthenticatedAccountSessionResolver($this->entityTypeManager))->resolve();
     }
 
     private function resolveMessageTenantId(mixed $message): string
