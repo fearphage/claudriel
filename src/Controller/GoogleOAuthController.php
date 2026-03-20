@@ -164,13 +164,18 @@ final class GoogleOAuthController
             ],
         ]);
 
+        error_log('[GoogleOAuth] exchangeCode: client_id='.substr($this->clientId, 0, 20).'... redirect_uri='.$this->redirectUri);
+
         $response = @file_get_contents(self::TOKEN_ENDPOINT, false, $context);
 
         if ($response === false) {
+            error_log('[GoogleOAuth] exchangeCode: file_get_contents returned false');
+
             return null;
         }
 
         $httpCode = $this->parseHttpStatusCode($http_response_header ?? []); // @phpstan-ignore nullCoalesce.variable
+        error_log('[GoogleOAuth] exchangeCode: httpCode='.$httpCode.' response='.substr((string) $response, 0, 500));
 
         if ($httpCode >= 400) {
             return null;
