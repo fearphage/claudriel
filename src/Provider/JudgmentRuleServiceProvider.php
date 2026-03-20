@@ -9,6 +9,7 @@ use Claudriel\Domain\Chat\InternalApiTokenGenerator;
 use Claudriel\Entity\JudgmentRule;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
+use Claudriel\Support\StorageRepositoryAdapter;
 use Waaseyaa\Foundation\ServiceProvider\ServiceProvider;
 use Waaseyaa\Routing\RouteBuilder;
 use Waaseyaa\Routing\WaaseyaaRouter;
@@ -40,7 +41,7 @@ final class JudgmentRuleServiceProvider extends ServiceProvider
 
         $this->singleton(InternalJudgmentRuleController::class, function () {
             return new InternalJudgmentRuleController(
-                $this->resolve(EntityTypeManager::class)->getRepository('judgment_rule'),
+                new StorageRepositoryAdapter($this->resolve(EntityTypeManager::class)->getStorage('judgment_rule')),
                 $this->resolve(InternalApiTokenGenerator::class),
                 $this->resolve('tenant_id') ?? 'default',
             );

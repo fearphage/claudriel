@@ -9,6 +9,7 @@ use Claudriel\Controller\InternalTriageController;
 use Claudriel\Controller\InternalWorkspaceController;
 use Claudriel\Domain\Chat\InternalApiTokenGenerator;
 use Waaseyaa\Entity\EntityTypeManager;
+use Claudriel\Support\StorageRepositoryAdapter;
 use Waaseyaa\Foundation\ServiceProvider\ServiceProvider;
 use Waaseyaa\Routing\RouteBuilder;
 use Waaseyaa\Routing\WaaseyaaRouter;
@@ -19,7 +20,7 @@ final class WorkspaceToolServiceProvider extends ServiceProvider
     {
         $this->singleton(InternalWorkspaceController::class, function () {
             return new InternalWorkspaceController(
-                $this->resolve(EntityTypeManager::class)->getRepository('workspace'),
+                new StorageRepositoryAdapter($this->resolve(EntityTypeManager::class)->getStorage('workspace')),
                 $this->resolve(InternalApiTokenGenerator::class),
                 $_ENV['CLAUDRIEL_DEFAULT_TENANT'] ?? getenv('CLAUDRIEL_DEFAULT_TENANT') ?: 'default',
             );
@@ -27,7 +28,7 @@ final class WorkspaceToolServiceProvider extends ServiceProvider
 
         $this->singleton(InternalScheduleController::class, function () {
             return new InternalScheduleController(
-                $this->resolve(EntityTypeManager::class)->getRepository('schedule_entry'),
+                new StorageRepositoryAdapter($this->resolve(EntityTypeManager::class)->getStorage('schedule_entry')),
                 $this->resolve(InternalApiTokenGenerator::class),
                 $_ENV['CLAUDRIEL_DEFAULT_TENANT'] ?? getenv('CLAUDRIEL_DEFAULT_TENANT') ?: 'default',
             );
@@ -35,7 +36,7 @@ final class WorkspaceToolServiceProvider extends ServiceProvider
 
         $this->singleton(InternalTriageController::class, function () {
             return new InternalTriageController(
-                $this->resolve(EntityTypeManager::class)->getRepository('triage_entry'),
+                new StorageRepositoryAdapter($this->resolve(EntityTypeManager::class)->getStorage('triage_entry')),
                 $this->resolve(InternalApiTokenGenerator::class),
                 $_ENV['CLAUDRIEL_DEFAULT_TENANT'] ?? getenv('CLAUDRIEL_DEFAULT_TENANT') ?: 'default',
             );

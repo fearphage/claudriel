@@ -10,6 +10,7 @@ use Claudriel\Controller\InternalSearchController;
 use Claudriel\Domain\Chat\InternalApiTokenGenerator;
 use Claudriel\Domain\DayBrief\Assembler\DayBriefAssembler;
 use Claudriel\Support\DriftDetector;
+use Claudriel\Support\StorageRepositoryAdapter;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\Foundation\ServiceProvider\ServiceProvider;
 use Waaseyaa\Routing\RouteBuilder;
@@ -21,9 +22,9 @@ final class SearchToolServiceProvider extends ServiceProvider
     {
         $this->singleton(InternalBriefController::class, function () {
             $entityTypeManager = $this->resolve(EntityTypeManager::class);
-            $eventRepo = $entityTypeManager->getRepository('mc_event');
-            $commitmentRepo = $entityTypeManager->getRepository('commitment');
-            $personRepo = $entityTypeManager->getRepository('person');
+            $eventRepo = new StorageRepositoryAdapter($entityTypeManager->getStorage('mc_event'));
+            $commitmentRepo = new StorageRepositoryAdapter($entityTypeManager->getStorage('commitment'));
+            $personRepo = new StorageRepositoryAdapter($entityTypeManager->getStorage('person'));
 
             $assembler = new DayBriefAssembler(
                 $eventRepo,
@@ -41,7 +42,7 @@ final class SearchToolServiceProvider extends ServiceProvider
 
         $this->singleton(InternalEventController::class, function () {
             return new InternalEventController(
-                $this->resolve(EntityTypeManager::class)->getRepository('mc_event'),
+                new StorageRepositoryAdapter($this->resolve(EntityTypeManager::class)->getStorage('mc_event')),
                 $this->resolve(InternalApiTokenGenerator::class),
                 $this->resolve('tenant_id') ?? 'default',
             );
@@ -51,9 +52,9 @@ final class SearchToolServiceProvider extends ServiceProvider
             $entityTypeManager = $this->resolve(EntityTypeManager::class);
 
             return new InternalSearchController(
-                $entityTypeManager->getRepository('person'),
-                $entityTypeManager->getRepository('commitment'),
-                $entityTypeManager->getRepository('mc_event'),
+                new StorageRepositoryAdapter($entityTypeManager->getStorage('person')),
+                new StorageRepositoryAdapter($entityTypeManager->getStorage('commitment')),
+                new StorageRepositoryAdapter($entityTypeManager->getStorage('mc_event')),
                 $this->resolve(InternalApiTokenGenerator::class),
                 $this->resolve('tenant_id') ?? 'default',
             );

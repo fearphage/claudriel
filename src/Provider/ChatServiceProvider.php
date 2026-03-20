@@ -16,6 +16,7 @@ use Claudriel\Support\GoogleTokenManager;
 use Claudriel\Support\GoogleTokenManagerInterface;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
+use Claudriel\Support\StorageRepositoryAdapter;
 use Waaseyaa\Foundation\ServiceProvider\ServiceProvider;
 use Waaseyaa\Routing\RouteBuilder;
 use Waaseyaa\Routing\WaaseyaaRouter;
@@ -94,7 +95,7 @@ final class ChatServiceProvider extends ServiceProvider
 
         $this->singleton(InternalSessionController::class, function () {
             return new InternalSessionController(
-                $this->resolve(EntityTypeManager::class)->getRepository('chat_session'),
+                new StorageRepositoryAdapter($this->resolve(EntityTypeManager::class)->getStorage('chat_session')),
                 $this->resolve(InternalApiTokenGenerator::class),
                 $_ENV['CLAUDRIEL_DEFAULT_TENANT'] ?? getenv('CLAUDRIEL_DEFAULT_TENANT') ?: 'default',
             );

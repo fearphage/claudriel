@@ -7,6 +7,7 @@ namespace Claudriel\Provider;
 use Claudriel\Controller\InternalPersonController;
 use Claudriel\Domain\Chat\InternalApiTokenGenerator;
 use Waaseyaa\Entity\EntityTypeManager;
+use Claudriel\Support\StorageRepositoryAdapter;
 use Waaseyaa\Foundation\ServiceProvider\ServiceProvider;
 use Waaseyaa\Routing\RouteBuilder;
 use Waaseyaa\Routing\WaaseyaaRouter;
@@ -19,8 +20,8 @@ final class PersonToolServiceProvider extends ServiceProvider
             $entityTypeManager = $this->resolve(EntityTypeManager::class);
 
             return new InternalPersonController(
-                $entityTypeManager->getRepository('person'),
-                $entityTypeManager->getRepository('commitment'),
+                new StorageRepositoryAdapter($entityTypeManager->getStorage('person')),
+                new StorageRepositoryAdapter($entityTypeManager->getStorage('commitment')),
                 $this->resolve(InternalApiTokenGenerator::class),
                 $_ENV['CLAUDRIEL_DEFAULT_TENANT'] ?? getenv('CLAUDRIEL_DEFAULT_TENANT') ?: 'default',
             );
