@@ -40,9 +40,6 @@ final class PublicAccountLifecycleSmokeTest extends TestCase
 {
     public function test_full_public_account_lifecycle_supports_first_authenticated_use(): void
     {
-        putenv('CLAUDRIEL_REGISTRATION_OPEN=1');
-        $_ENV['CLAUDRIEL_REGISTRATION_OPEN'] = '1';
-
         $entityTypeManager = $this->buildEntityTypeManager();
         $mailTransport = new PublicLifecycleMailTransport;
 

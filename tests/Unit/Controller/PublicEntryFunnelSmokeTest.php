@@ -63,7 +63,7 @@ final class PublicEntryFunnelSmokeTest extends TestCase
 
         $anonymousHomepage = $homepage->show();
         self::assertSame(200, $anonymousHomepage->statusCode);
-        self::assertStringContainsString('Join the waitlist', $anonymousHomepage->content);
+        self::assertStringContainsString('Create your account', $anonymousHomepage->content);
         self::assertStringContainsString('href="/signup"', $anonymousHomepage->content);
         self::assertStringContainsString('href="/login"', $anonymousHomepage->content);
 

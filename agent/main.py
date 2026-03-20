@@ -9,57 +9,20 @@ Usage:
 """
 
 import json
+import importlib
+import os
+from pathlib import Path
 import sys
+from typing import Callable
 
 import anthropic
 
-from tools.gmail_list import TOOL_DEF as GMAIL_LIST_DEF, execute as gmail_list_exec
-from tools.gmail_read import TOOL_DEF as GMAIL_READ_DEF, execute as gmail_read_exec
-from tools.gmail_send import TOOL_DEF as GMAIL_SEND_DEF, execute as gmail_send_exec
-from tools.calendar_list import TOOL_DEF as CALENDAR_LIST_DEF, execute as calendar_list_exec
-from tools.calendar_create import TOOL_DEF as CALENDAR_CREATE_DEF, execute as calendar_create_exec
-from tools.judgment_rule_suggest import TOOL_DEF as JUDGMENT_RULE_SUGGEST_DEF, execute as judgment_rule_suggest_exec
-from tools.commitment_list import TOOL_DEF as COMMITMENT_LIST_DEF, execute as commitment_list_exec
-from tools.commitment_update import TOOL_DEF as COMMITMENT_UPDATE_DEF, execute as commitment_update_exec
-from tools.person_search import TOOL_DEF as PERSON_SEARCH_DEF, execute as person_search_exec
-from tools.person_detail import TOOL_DEF as PERSON_DETAIL_DEF, execute as person_detail_exec
-from tools.brief_generate import TOOL_DEF as BRIEF_GENERATE_DEF, execute as brief_generate_exec
-from tools.event_search import TOOL_DEF as EVENT_SEARCH_DEF, execute as event_search_exec
-from tools.search_global import TOOL_DEF as SEARCH_GLOBAL_DEF, execute as search_global_exec
-from tools.workspace_list import TOOL_DEF as WORKSPACE_LIST_DEF, execute as workspace_list_exec
-from tools.workspace_context import TOOL_DEF as WORKSPACE_CONTEXT_DEF, execute as workspace_context_exec
-from tools.schedule_query import TOOL_DEF as SCHEDULE_QUERY_DEF, execute as schedule_query_exec
-from tools.triage_list import TOOL_DEF as TRIAGE_LIST_DEF, execute as triage_list_exec
-from tools.triage_resolve import TOOL_DEF as TRIAGE_RESOLVE_DEF, execute as triage_resolve_exec
 from util.http import PhpApiClient
-
-TOOLS = [GMAIL_LIST_DEF, GMAIL_READ_DEF, GMAIL_SEND_DEF, CALENDAR_LIST_DEF, CALENDAR_CREATE_DEF, JUDGMENT_RULE_SUGGEST_DEF, COMMITMENT_LIST_DEF, COMMITMENT_UPDATE_DEF, PERSON_SEARCH_DEF, PERSON_DETAIL_DEF, BRIEF_GENERATE_DEF, EVENT_SEARCH_DEF, SEARCH_GLOBAL_DEF, WORKSPACE_LIST_DEF, WORKSPACE_CONTEXT_DEF, SCHEDULE_QUERY_DEF, TRIAGE_LIST_DEF, TRIAGE_RESOLVE_DEF]
 
 # Max characters for tool results stored in conversation history.
 # Full results are still emitted via tool_result events to the frontend.
 TOOL_RESULT_MAX_CHARS = 2000
 GMAIL_BODY_MAX_CHARS = 500
-
-EXECUTORS = {
-    "gmail_list": gmail_list_exec,
-    "gmail_read": gmail_read_exec,
-    "gmail_send": gmail_send_exec,
-    "calendar_list": calendar_list_exec,
-    "calendar_create": calendar_create_exec,
-    "judgment_rule_suggest": judgment_rule_suggest_exec,
-    "commitment_list": commitment_list_exec,
-    "commitment_update": commitment_update_exec,
-    "person_search": person_search_exec,
-    "person_detail": person_detail_exec,
-    "brief_generate": brief_generate_exec,
-    "event_search": event_search_exec,
-    "search_global": search_global_exec,
-    "workspace_list": workspace_list_exec,
-    "workspace_context": workspace_context_exec,
-    "schedule_query": schedule_query_exec,
-    "triage_list": triage_list_exec,
-    "triage_resolve": triage_resolve_exec,
-}
 
 DEFAULT_TURN_LIMITS = {
     "quick_lookup": 5,
@@ -69,6 +32,69 @@ DEFAULT_TURN_LIMITS = {
     "general": 25,
     "onboarding": 30,
 }
+
+
+def parse_enabled_tool_names(raw_value: str | None) -> set[str] | None:
+    """Parse a comma-separated allowlist from config."""
+    if raw_value is None:
+        return None
+
+    names = {name.strip() for name in raw_value.split(",") if name.strip()}
+
+    return names or None
+
+
+def discover_tools(
+    package_name: str = "tools",
+    package_path: Path | None = None,
+    enabled_tool_names: set[str] | None = None,
+) -> tuple[list[dict], dict[str, Callable]]:
+    """Discover tool modules that export TOOL_DEF and execute()."""
+    tools_dir = package_path or (Path(__file__).resolve().parent / package_name)
+    tool_defs: list[dict] = []
+    executors: dict[str, Callable] = {}
+
+    importlib.invalidate_caches()
+
+    for module_path in sorted(tools_dir.glob("*.py")):
+        if module_path.name == "__init__.py":
+            continue
+
+        module_name = module_path.stem
+        module = importlib.import_module(f"{package_name}.{module_name}")
+
+        tool_def = getattr(module, "TOOL_DEF", None)
+        executor = getattr(module, "execute", None)
+        if tool_def is None or executor is None or not callable(executor):
+            continue
+
+        tool_name = tool_def.get("name")
+        if not isinstance(tool_name, str) or tool_name == "":
+            continue
+        if enabled_tool_names is not None and tool_name not in enabled_tool_names:
+            continue
+        if tool_name in executors:
+            raise ValueError(f"Duplicate tool name: {tool_name}")
+
+        tool_defs.append(tool_def)
+        executors[tool_name] = executor
+
+    if enabled_tool_names is not None:
+        missing = sorted(enabled_tool_names - executors.keys())
+        if missing:
+            raise ValueError(f"Configured tools not found: {', '.join(missing)}")
+
+    return tool_defs, executors
+
+
+def load_configured_tools() -> tuple[list[dict], dict[str, Callable]]:
+    enabled_tool_names = parse_enabled_tool_names(
+        os.environ.get("CLAUDRIEL_AGENT_TOOLS"),
+    )
+    return discover_tools(enabled_tool_names=enabled_tool_names)
+
+
+TOOLS, EXECUTORS = load_configured_tools()
 
 
 def classify_task_type(messages: list) -> str:

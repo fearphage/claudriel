@@ -12,7 +12,6 @@ use Claudriel\Entity\Account;
 use Claudriel\Entity\AccountPasswordResetToken;
 use Claudriel\Entity\AccountVerificationToken;
 use Claudriel\Entity\Tenant;
-use Claudriel\Entity\WaitlistEntry;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\Foundation\ServiceProvider\ServiceProvider;
@@ -95,19 +94,6 @@ final class AccountServiceProvider extends ServiceProvider
             ],
         ));
 
-        $this->entityType(new EntityType(
-            id: 'waitlist_entry',
-            label: 'Waitlist Entry',
-            class: WaitlistEntry::class,
-            keys: ['id' => 'weid', 'uuid' => 'uuid', 'label' => 'email'],
-            fieldDefinitions: [
-                'weid' => ['type' => 'integer', 'readOnly' => true],
-                'uuid' => ['type' => 'string', 'readOnly' => true],
-                'email' => ['type' => 'email', 'required' => true],
-                'status' => ['type' => 'string'],
-                'created_at' => ['type' => 'timestamp', 'readOnly' => true],
-            ],
-        ));
     }
 
     public function routes(WaaseyaaRouter $router, ?EntityTypeManager $entityTypeManager = null): void
@@ -195,14 +181,6 @@ final class AccountServiceProvider extends ServiceProvider
             ->render()
             ->build();
         $router->addRoute('claudriel.public.login_submit', $loginRoute);
-
-        $waitlistRoute = RouteBuilder::create('/api/waitlist')
-            ->controller(PublicAccountController::class.'::waitlistSignup')
-            ->allowAll()
-            ->methods('POST')
-            ->build();
-        $waitlistRoute->setOption('_csrf', false);
-        $router->addRoute('claudriel.api.waitlist', $waitlistRoute);
 
         $logoutRoute = RouteBuilder::create('/logout')
             ->controller(PublicSessionController::class.'::logout')

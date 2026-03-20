@@ -1,6 +1,6 @@
 {% extends "base.html.twig" %}
 
-{% block title %}Join the Waitlist — Claudriel{% endblock %}
+{% block title %}Create Your Account — Claudriel{% endblock %}
 
 {% block styles %}
     .site-nav { background: transparent; border-bottom: 0; }
@@ -11,13 +11,13 @@
             radial-gradient(circle at 30% 70%, rgba(45, 212, 191, 0.08), transparent 30%),
             linear-gradient(180deg, #0a0c10 0%, #131620 52%, #0a0c10 100%);
     }
-    .waitlist-shell {
+    .signup-shell {
         max-width: 680px;
         margin: 0 auto;
         padding: 4rem 1.4rem 3rem;
         text-align: center;
     }
-    .waitlist-badge {
+    .signup-badge {
         display: inline-block;
         font-size: 0.72rem;
         letter-spacing: 0.14em;
@@ -28,27 +28,37 @@
         padding: 0.35rem 1rem;
         margin-bottom: 1.5rem;
     }
-    .waitlist-shell h1 {
+    .signup-shell h1 {
         font-family: var(--font-display);
         font-size: clamp(2.2rem, 5.5vw, 3.6rem);
         line-height: 1;
         letter-spacing: -0.035em;
         margin-bottom: 0.75rem;
     }
-    .waitlist-shell .lead {
+    .signup-shell .lead {
         font-size: 1.05rem;
         color: var(--text-secondary);
         max-width: 480px;
         margin: 0 auto 2rem;
     }
-    .waitlist-form {
-        display: flex;
-        gap: 0.6rem;
+    .signup-form {
+        display: grid;
+        gap: 0.9rem;
         max-width: 480px;
         margin: 0 auto 1rem;
+        text-align: left;
     }
-    .waitlist-form input[type="email"] {
-        flex: 1;
+    .signup-form label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 0.4rem;
+        color: var(--text-secondary);
+    }
+    .signup-form input[type="text"],
+    .signup-form input[type="email"],
+    .signup-form input[type="password"] {
+        width: 100%;
         padding: 0.85rem 1rem;
         border-radius: 0.65rem;
         border: 1px solid var(--border-emphasis);
@@ -58,15 +68,17 @@
         font-size: 0.95rem;
         transition: border-color 0.15s;
     }
-    .waitlist-form input[type="email"]:focus {
+    .signup-form input[type="text"]:focus,
+    .signup-form input[type="email"]:focus,
+    .signup-form input[type="password"]:focus {
         outline: none;
         border-color: var(--accent-teal);
         box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.12);
     }
-    .waitlist-form input[type="email"]::placeholder {
+    .signup-form input::placeholder {
         color: var(--text-muted);
     }
-    .waitlist-form button {
+    .signup-form button {
         padding: 0.85rem 1.4rem;
         border: 0;
         border-radius: 0.65rem;
@@ -80,28 +92,15 @@
         transition: transform 0.18s;
         white-space: nowrap;
     }
-    .waitlist-form button:hover { transform: translateY(-1px); }
-    .waitlist-form button:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        transform: none;
-    }
-    .waitlist-message {
+    .signup-form button:hover { transform: translateY(-1px); }
+    .signup-message {
         max-width: 480px;
         margin: 0 auto 2rem;
         padding: 0.85rem 1rem;
         border-radius: 0.65rem;
         font-size: 0.9rem;
-        display: none;
     }
-    .waitlist-message.success {
-        display: block;
-        background: rgba(45, 212, 191, 0.12);
-        border: 1px solid rgba(45, 212, 191, 0.25);
-        color: #5eead4;
-    }
-    .waitlist-message.error {
-        display: block;
+    .signup-message.error {
         background: rgba(239, 68, 68, 0.12);
         border: 1px solid rgba(239, 68, 68, 0.25);
         color: #fca5a5;
@@ -142,35 +141,52 @@
         color: var(--text-secondary);
         line-height: 1.5;
     }
-    .waitlist-login {
+    .signup-login {
         margin-top: 2rem;
         font-size: 0.85rem;
         color: var(--text-secondary);
     }
-    .waitlist-login a {
+    .signup-login a {
         color: var(--accent-teal);
         text-decoration: none;
     }
-    .waitlist-login a:hover { text-decoration: underline; }
+    .signup-login a:hover { text-decoration: underline; }
     @media (max-width: 640px) {
-        .waitlist-shell { padding: 2.5rem 1rem 2rem; }
-        .waitlist-form { flex-direction: column; }
-        .waitlist-form button { width: 100%; }
+        .signup-shell { padding: 2.5rem 1rem 2rem; }
+        .signup-form button { width: 100%; }
         .feature-grid { grid-template-columns: 1fr; }
     }
 {% endblock %}
 
 {% block content %}
-    <main class="waitlist-shell">
-        <div class="waitlist-badge">Launching Soon</div>
-        <h1>Your operations, handled.</h1>
-        <p class="lead">An AI-native operating system for people who build AI products. Track commitments, surface priorities, and keep client context current.</p>
+    <main class="signup-shell">
+        <div class="signup-badge">Public Signup</div>
+        <h1>Create your account</h1>
+        <p class="lead">Get into Claudriel directly. Set up your account, verify your email, and start organizing commitments, schedule, and context in one place.</p>
 
-        <div id="waitlist-msg" class="waitlist-message"></div>
+        {% if error %}
+            <div class="signup-message error">{{ error }}</div>
+        {% endif %}
 
-        <form class="waitlist-form" id="waitlist-form" onsubmit="return submitWaitlist(event)">
-            <input type="email" name="email" placeholder="you@email.com" required id="waitlist-email">
-            <button type="submit" id="waitlist-btn">Get Early Access</button>
+        <form class="signup-form" method="post" action="/signup">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+
+            <div>
+                <label for="name">Name</label>
+                <input id="name" type="text" name="name" placeholder="Ada Lovelace" value="{{ name }}" autocomplete="name" required>
+            </div>
+
+            <div>
+                <label for="email">Email</label>
+                <input id="email" type="email" name="email" placeholder="you@email.com" value="{{ email }}" autocomplete="email" required>
+            </div>
+
+            <div>
+                <label for="password">Password</label>
+                <input id="password" type="password" name="password" placeholder="Choose a password" autocomplete="new-password" required>
+            </div>
+
+            <button type="submit">Create account</button>
         </form>
 
         <div class="feature-grid">
@@ -191,52 +207,8 @@
             </article>
         </div>
 
-        <div class="waitlist-login">
+        <div class="signup-login">
             Already have an account? <a href="/login">Log in</a>
         </div>
     </main>
-
-    <script>
-    async function submitWaitlist(e) {
-        e.preventDefault();
-        var btn = document.getElementById('waitlist-btn');
-        var msg = document.getElementById('waitlist-msg');
-        var email = document.getElementById('waitlist-email').value;
-
-        btn.disabled = true;
-        btn.textContent = 'Submitting...';
-        msg.className = 'waitlist-message';
-        msg.style.display = 'none';
-
-        try {
-            var res = await fetch('/api/waitlist', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: email })
-            });
-            var data = await res.json();
-
-            if (data.success) {
-                msg.textContent = data.message;
-                msg.className = 'waitlist-message success';
-                msg.style.display = 'block';
-                document.getElementById('waitlist-form').style.display = 'none';
-            } else {
-                msg.textContent = data.error || 'Something went wrong.';
-                msg.className = 'waitlist-message error';
-                msg.style.display = 'block';
-                btn.disabled = false;
-                btn.textContent = 'Get Early Access';
-            }
-        } catch {
-            msg.textContent = 'Connection error. Please try again.';
-            msg.className = 'waitlist-message error';
-            msg.style.display = 'block';
-            btn.disabled = false;
-            btn.textContent = 'Get Early Access';
-        }
-
-        return false;
-    }
-    </script>
 {% endblock %}

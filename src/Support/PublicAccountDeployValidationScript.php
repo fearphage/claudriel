@@ -41,6 +41,7 @@ curl --silent --show-error --fail \
   __BASE_URL__/signup > "$signup_form_file"
 
 grep -q 'Create your account' "$signup_form_file"
+grep -q 'name="password"' "$signup_form_file"
 
 signup_token=$(php -r '$html = file_get_contents($argv[1]); if (!preg_match("/name=\"_csrf_token\" value=\"([^\"]+)\"/", $html, $matches)) { fwrite(STDERR, "Missing signup CSRF token\n"); exit(1);} echo $matches[1];' "$signup_form_file")
 

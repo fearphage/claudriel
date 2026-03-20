@@ -25,7 +25,7 @@ final class PublicHomepageController
 
         $context = [
             'primary_cta_href' => '/signup',
-            'primary_cta_label' => 'Join the waitlist',
+            'primary_cta_label' => 'Create your account',
             'secondary_cta_href' => '/login',
             'headline' => 'Run your operation. Not your inbox.',
             'subheadline' => 'Claudriel keeps your commitments, schedule, and client context in one place, so your next move is always obvious.',

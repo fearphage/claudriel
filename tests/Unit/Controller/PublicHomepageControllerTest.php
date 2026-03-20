@@ -33,7 +33,7 @@ final class PublicHomepageControllerTest extends TestCase
         $response = $controller->show();
 
         self::assertSame(200, $response->statusCode);
-        self::assertStringContainsString('Join the waitlist', $response->content);
+        self::assertStringContainsString('Create your account', $response->content);
         self::assertStringContainsString('href="/signup"', $response->content);
         self::assertStringContainsString('href="/login"', $response->content);
     }
