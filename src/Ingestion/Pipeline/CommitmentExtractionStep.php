@@ -20,8 +20,15 @@ final class CommitmentExtractionStep implements PipelineStepInterface
         You are an AI assistant extracting commitments from emails.
         Email body: "{$body}"
         Sender: {$fromEmail}
-        Return a JSON array of commitments. Each item: {"title": "...", "confidence": 0.0-1.0}.
+        The recipient is the user (Claudriel account owner).
+
+        Return a JSON array of commitments. Each item: {"title": "...", "confidence": 0.0-1.0, "direction": "inbound" or "outbound"}.
         Confidence > 0.7 means you are confident this is a real commitment.
+
+        Direction rules:
+        - "inbound": the sender is asking the user to do something (a request or task directed at the user)
+        - "outbound": the user has promised or offered to do something for the sender
+
         Return [] if no commitments found. Return only valid JSON, no commentary.
         PROMPT;
         $raw = $this->aiClient->complete($prompt);
