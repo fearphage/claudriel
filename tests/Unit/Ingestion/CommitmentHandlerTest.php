@@ -43,4 +43,29 @@ final class CommitmentHandlerTest extends TestCase
         self::assertSame(0.92, $commitments[0]->get('confidence'));
         self::assertSame('pending', $commitments[0]->get('status'));
     }
+
+    public function test_handler_saves_inbound_commitment_with_direction(): void
+    {
+        $repo = new EntityRepository(
+            new EntityType(id: 'commitment', label: 'Commitment', class: Commitment::class, keys: ['id' => 'cid', 'uuid' => 'uuid', 'label' => 'title']),
+            new InMemoryStorageDriver,
+            new EventDispatcher,
+        );
+        $logRepo = new EntityRepository(
+            new EntityType(id: 'commitment_extraction_log', label: 'Commitment Extraction Log', class: CommitmentExtractionLog::class, keys: ['id' => 'celid', 'uuid' => 'uuid']),
+            new InMemoryStorageDriver,
+            new EventDispatcher,
+        );
+        $handler = new CommitmentHandler($repo, $logRepo);
+        $event = new McEvent(['source' => 'gmail', 'type' => 'message.received', 'payload' => '{}']);
+        $candidates = [
+            ['title' => 'Reply to Alice', 'confidence' => 0.85, 'direction' => 'inbound'],
+        ];
+
+        $handler->handle($candidates, $event, personId: 'person-1', tenantId: 'user-1');
+
+        $commitments = $repo->findBy([]);
+        self::assertCount(1, $commitments);
+        self::assertSame('inbound', $commitments[0]->get('direction'));
+    }
 }
