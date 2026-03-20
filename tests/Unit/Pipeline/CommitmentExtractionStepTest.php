@@ -47,6 +47,27 @@ final class CommitmentExtractionStepTest extends TestCase
         self::assertCount(0, $result->output['commitments']);
     }
 
+    public function test_extraction_returns_direction_for_inbound_commitment(): void
+    {
+        $aiClient = new class
+        {
+            public function complete(string $prompt): string
+            {
+                return json_encode([['title' => 'Send the signed contract', 'confidence' => 0.85, 'direction' => 'inbound']]);
+            }
+        };
+        $step = new CommitmentExtractionStep($aiClient);
+        $context = new PipelineContext(pipelineId: 'test', startedAt: time());
+        $result = $step->process(
+            ['body' => 'I will send you the signed contract by Friday.', 'from_email' => 'client@example.com'],
+            $context
+        );
+        self::assertTrue($result->success);
+        self::assertCount(1, $result->output['commitments']);
+        self::assertArrayHasKey('direction', $result->output['commitments'][0]);
+        self::assertSame('inbound', $result->output['commitments'][0]['direction']);
+    }
+
     public function test_fails_on_invalid_json_from_ai_client(): void
     {
         $aiClient = new class

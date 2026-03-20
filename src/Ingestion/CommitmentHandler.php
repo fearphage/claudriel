@@ -20,7 +20,7 @@ final class CommitmentHandler
         private readonly CommitmentExtractionFailureClassifier $failureClassifier = new CommitmentExtractionFailureClassifier,
     ) {}
 
-    /** @param array<int, array{title: string, confidence: float}> $candidates */
+    /** @param array<int, array{title: string, confidence: float, direction?: string}> $candidates */
     public function handle(array $candidates, McEvent $event, string $personId, string $tenantId): void
     {
         foreach ($candidates as $candidate) {
@@ -33,6 +33,7 @@ final class CommitmentHandler
                 'title' => $candidate['title'],
                 'confidence' => $candidate['confidence'],
                 'status' => 'pending',
+                'direction' => $candidate['direction'] ?? 'outbound',
                 'source_event_id' => $event->id(),
                 'person_id' => $personId,
                 'tenant_id' => $tenantId,

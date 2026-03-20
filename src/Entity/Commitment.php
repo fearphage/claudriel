@@ -24,6 +24,9 @@ final class Commitment extends ContentEntityBase
         if (! array_key_exists('confidence', $values)) {
             $values['confidence'] = 1.0;
         }
+        if (! array_key_exists('direction', $values)) {
+            $values['direction'] = 'outbound';
+        }
         parent::__construct($values, $this->entityTypeId, $this->entityKeys);
     }
 }

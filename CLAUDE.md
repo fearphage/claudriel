@@ -151,3 +151,8 @@ All require HMAC Bearer token via `InternalApiTokenGenerator`. See `docs/specs/a
 - Admin adapter must use native `fetch()` not Nuxt `$fetch()` for backend API calls; `$fetch` resolves paths against `app.baseURL` (`/admin/`), turning `/api/schema/commitment` into `/admin/api/schema/commitment`
 - Do not commit `public/admin/` to git; it is built by CI and listed in `.gitignore`
 - Chat agent runs via Docker per-request (`docker run --rm -i`); requires `AGENT_DOCKER_IMAGE=claudriel-agent` and `CLAUDRIEL_API_URL=https://<domain>` in shared .env; the agent calls internal API routes through Caddy (PHP-FPM uses Unix socket, no TCP port)
+- Commitment `direction` field defaults to `'outbound'`; existing commitments without direction are treated as outbound. Valid values: `'outbound'` (you owe them), `'inbound'` (they owe you)
+- Commitment `fieldDefinitions` live in `CommitmentServiceProvider`, NOT `ClaudrielServiceProvider` (which has a duplicate EntityType registration without fieldDefinitions for DI wiring)
+- `CommitmentCompletionDetector` exists but is not wired into any automated flow; it's a building block for future commitment lifecycle automation
+- `DayBriefAssembler::assemble()` returns `waiting_on` (inbound pending commitments) inside `commitments` key, and `follow_ups` (unanswered emails) at top level; both have corresponding entries in `counts`
+- `InMemoryStorageDriver` uses the entity's id key as storage key; when seeding multiple entities in tests, you MUST set unique IDs (e.g., `'eid' => 1`, `'eid' => 2`) or each `save()` overwrites the previous
