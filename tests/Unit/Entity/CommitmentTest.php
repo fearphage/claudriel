@@ -26,4 +26,16 @@ final class CommitmentTest extends TestCase
         $c = new Commitment(['title' => 'Review PR', 'confidence' => 0.75]);
         self::assertSame(0.75, $c->get('confidence'));
     }
+
+    public function test_commitment_defaults_to_outbound_direction(): void
+    {
+        $c = new Commitment(['title' => 'Follow up']);
+        self::assertSame('outbound', $c->get('direction'));
+    }
+
+    public function test_commitment_accepts_inbound_direction(): void
+    {
+        $c = new Commitment(['title' => 'Waiting on reply', 'direction' => 'inbound']);
+        self::assertSame('inbound', $c->get('direction'));
+    }
 }
