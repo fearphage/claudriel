@@ -21,10 +21,10 @@ final class WorkspaceTest extends TestCase
         self::assertSame('', $workspace->get('description'));
     }
 
-    public function test_metadata_defaults_to_empty_json(): void
+    public function test_saved_context_defaults_to_null(): void
     {
         $workspace = new Workspace;
-        self::assertSame('{}', $workspace->get('metadata'));
+        self::assertNull($workspace->get('saved_context'));
     }
 
     public function test_name_can_be_set(): void
@@ -33,15 +33,15 @@ final class WorkspaceTest extends TestCase
         self::assertSame('Beemok Project', $workspace->get('name'));
     }
 
-    public function test_self_iteration_fields_have_defaults(): void
+    public function test_mode_defaults_to_persistent(): void
     {
         $workspace = new Workspace;
+        self::assertSame('persistent', $workspace->get('mode'));
+    }
 
-        self::assertNull($workspace->get('repo_path'));
-        self::assertNull($workspace->get('repo_url'));
-        self::assertSame('main', $workspace->get('branch'));
-        self::assertSame('gpt-4o-codex', $workspace->get('codex_model'));
-        self::assertNull($workspace->get('last_commit_hash'));
-        self::assertNull($workspace->get('ci_status'));
+    public function test_status_defaults_to_active(): void
+    {
+        $workspace = new Workspace;
+        self::assertSame('active', $workspace->get('status'));
     }
 }
