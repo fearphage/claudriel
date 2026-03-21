@@ -9,6 +9,10 @@ use Claudriel\Entity\Skill;
 use Claudriel\Entity\Workspace;
 use Claudriel\Entity\WorkspaceProject;
 use Claudriel\Entity\WorkspaceRepo;
+use Claudriel\Subscriber\JunctionCascadeSubscriber;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface as SymfonyDispatcher;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Waaseyaa\Database\DatabaseInterface;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Foundation\ServiceProvider\ServiceProvider;
 
@@ -26,16 +30,9 @@ final class WorkspaceServiceProvider extends ServiceProvider
                 'uuid' => ['type' => 'string', 'readOnly' => true],
                 'name' => ['type' => 'string', 'required' => true],
                 'description' => ['type' => 'string'],
+                'saved_context' => ['type' => 'text_long'],
                 'account_id' => ['type' => 'string'],
                 'tenant_id' => ['type' => 'string'],
-                'metadata' => ['type' => 'string'],
-                'repo_path' => ['type' => 'string'],
-                'repo_url' => ['type' => 'string'],
-                'branch' => ['type' => 'string'],
-                'codex_model' => ['type' => 'string'],
-                'last_commit_hash' => ['type' => 'string'],
-                'ci_status' => ['type' => 'string'],
-                'project_id' => ['type' => 'string'],
                 'mode' => ['type' => 'string'],
                 'status' => ['type' => 'string'],
                 'created_at' => ['type' => 'timestamp', 'readOnly' => true],
@@ -110,5 +107,15 @@ final class WorkspaceServiceProvider extends ServiceProvider
                 'created_at' => ['type' => 'timestamp', 'readOnly' => true],
             ],
         ));
+    }
+
+    public function boot(): void
+    {
+        $dispatcher = $this->resolve(EventDispatcherInterface::class);
+        if ($dispatcher instanceof SymfonyDispatcher) {
+            $dispatcher->addSubscriber(new JunctionCascadeSubscriber(
+                $this->resolve(DatabaseInterface::class),
+            ));
+        }
     }
 }
