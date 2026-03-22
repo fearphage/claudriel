@@ -2,6 +2,7 @@
 name: judgment-rule
 description: "Full judgment rule lifecycle management via Claudriel's GraphQL API: create, list, update, delete judgment rules. Use when user says \"new rule\", \"add judgment rule\", \"remember this rule\", \"list rules\", \"show rules\", \"update rule\", \"delete rule\", \"remove rule\", or references any judgment rule CRUD operation."
 effort-level: medium
+model: haiku
 ---
 
 # Judgment Rule Management

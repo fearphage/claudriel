@@ -2,6 +2,7 @@
 name: commitment
 description: "Full commitment lifecycle management via Claudriel's GraphQL API: create, list, update, delete commitments. Use when user says \"new commitment\", \"add commitment\", \"I owe\", \"they owe\", \"list commitments\", \"show commitments\", \"complete commitment\", \"delete commitment\", \"update commitment\", or references any commitment CRUD operation."
 effort-level: medium
+model: haiku
 ---
 
 # Commitment Management

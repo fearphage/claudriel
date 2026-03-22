@@ -2,6 +2,7 @@
 name: weekly-review
 description: Guided weekly reflection across all relationships, commitments, and projects with pattern analysis. Use at end of week, or when user says "weekly review", "end of week", "reflect on this week", "weekly check-in", or "how did my week go".
 effort-level: high
+model: opus
 ---
 
 # Weekly Review

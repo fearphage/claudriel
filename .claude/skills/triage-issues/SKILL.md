@@ -1,6 +1,7 @@
 ---
 name: triage-issues
 description: Use when triaging GitHub issues, reviewing backlog health, checking for stale or incomplete issues, or when session starts and issue status should be checked. Also triggers on "triage issues", "issue health", "backlog review", "check issues".
+model: sonnet
 ---
 
 # Triage Issues

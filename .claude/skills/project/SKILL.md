@@ -2,6 +2,7 @@
 name: project
 description: "Full project lifecycle management via Claudriel's GraphQL API: create, list, update, delete projects. Use when user says \"new project\", \"create project\", \"list projects\", \"show projects\", \"update project\", \"delete project\", \"project status\", or references any project CRUD operation. Not to be confused with new-workspace (workspace entities) or triage-issues (GitHub issues)."
 effort-level: medium
+model: haiku
 ---
 
 # Project Management

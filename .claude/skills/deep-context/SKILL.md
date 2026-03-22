@@ -2,6 +2,7 @@
 name: deep-context
 description: Full-context deep analysis for meeting prep, relationship analysis, or strategic planning. Pulls up to 180 memories across multiple dimensions for comprehensive synthesis. Use when "deep dive", "full context", "everything about", "strategic analysis", or when preparing for important meetings.
 effort-level: max
+model: opus
 ---
 
 # Deep Context

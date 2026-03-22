@@ -2,6 +2,7 @@
 name: schedule-entry
 description: "Full schedule entry lifecycle management via Claudriel's GraphQL API: create, list, update, delete schedule entries. Use when user says \"new schedule entry\", \"add to schedule\", \"schedule [thing]\", \"list schedule\", \"show schedule\", \"reschedule\", \"cancel event\", \"delete schedule entry\", or references any schedule CRUD operation."
 effort-level: medium
+model: haiku
 ---
 
 # Schedule Entry Management

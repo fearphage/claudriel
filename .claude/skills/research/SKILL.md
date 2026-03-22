@@ -3,6 +3,7 @@ name: research
 description: Deep research on a topic with web sources, memory integration, and stored findings. Also handles quick context-aware lookups when current information would improve the conversation. Triggers on "research this", "look into", "find out about", "dig into", "look up", "what's new with", "check current", "any updates on", "latest info".
 argument-hint: "[topic or question]"
 effort-level: high
+model: sonnet
 ---
 
 # Research

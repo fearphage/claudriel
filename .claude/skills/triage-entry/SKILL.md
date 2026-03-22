@@ -2,6 +2,7 @@
 name: triage-entry
 description: "Full triage entry lifecycle management via Claudriel's GraphQL API: create, list, update, delete triage entries. Not to be confused with triage-issues (GitHub issue triage). Use when user says \"new triage entry\", \"triage this\", \"list triage\", \"show triage queue\", \"dismiss triage\", \"process triage\", \"delete triage entry\", or references any triage CRUD operation."
 effort-level: medium
+model: haiku
 ---
 
 # Triage Entry Management

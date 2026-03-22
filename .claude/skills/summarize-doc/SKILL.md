@@ -2,6 +2,7 @@
 name: summarize-doc
 description: Create an executive summary of any document at the appropriate level of detail. Triggers on "summarize this", "main points", "give me the gist".
 effort-level: medium
+model: sonnet
 ---
 
 # Summarize Doc

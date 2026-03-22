@@ -2,6 +2,7 @@
 name: diagnose
 description: Check memory system health and troubleshoot connectivity issues. Use when memory commands aren't working, at session start if something seems wrong, or when user asks about memory status.
 effort-level: low
+model: haiku
 ---
 
 # Diagnose

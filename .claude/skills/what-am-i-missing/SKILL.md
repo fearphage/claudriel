@@ -3,6 +3,7 @@ name: what-am-i-missing
 description: Surface risks, blind spots, overlooked items, and accountability across commitments and relationships. Triggers on "what am I overlooking?", "blind spots", "what's falling through the cracks", "what do I owe?", "am I overdue?", "check my commitments".
 argument-hint: "[person name or 'overdue']"
 effort-level: high
+model: opus
 ---
 
 # What Am I Missing

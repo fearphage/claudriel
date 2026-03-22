@@ -2,6 +2,7 @@
 name: growth-check
 description: Periodic reflection on development, skills, learning, and progress toward goals. Triggers on "am I growing?", "development check", "personal growth review".
 effort-level: low
+model: sonnet
 ---
 
 # Growth Check

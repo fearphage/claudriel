@@ -1,0 +1,46 @@
+{
+  "default": "sonnet",
+  "tiers": {
+    "haiku": "claude-haiku-4-5-20251001",
+    "sonnet": "claude-sonnet-4-6",
+    "opus": "claude-opus-4-6"
+  },
+  "skills": {
+    "commitment": "haiku",
+    "new-person": "haiku",
+    "new-workspace": "haiku",
+    "project": "haiku",
+    "schedule-entry": "haiku",
+    "triage-entry": "haiku",
+    "judgment-rule": "haiku",
+    "databases": "haiku",
+    "fix-duplicates": "haiku",
+    "file-document": "haiku",
+    "diagnose": "haiku",
+
+    "deep-context": "opus",
+    "weekly-review": "opus",
+    "meeting-prep": "opus",
+    "what-am-i-missing": "opus",
+    "meditate": "opus",
+    "capture-meeting": "opus",
+    "ingest-sources": "opus",
+    "memory-audit": "opus",
+
+    "morning-brief": "sonnet",
+    "inbox-check": "sonnet",
+    "research": "sonnet",
+    "brain": "sonnet",
+    "brain-monitor": "sonnet",
+    "client-health": "sonnet",
+    "financial-snapshot": "sonnet",
+    "growth-check": "sonnet",
+    "pipeline-review": "sonnet",
+    "map-connections": "sonnet",
+    "draft-reply": "sonnet",
+    "follow-up-draft": "sonnet",
+    "summarize-doc": "sonnet",
+    "triage-issues": "sonnet",
+    "memory-health": "sonnet"
+  }
+}

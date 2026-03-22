@@ -2,6 +2,7 @@
 name: new-person
 description: "Full person lifecycle management via Claudriel's GraphQL API: create, list, update, delete people. Use when user says \"new person\", \"add [name]\", \"track this person\", \"list people\", \"show contacts\", \"delete person\", \"remove person\", \"update person\", \"rename person\", or references any person CRUD operation."
 effort-level: medium
+model: haiku
 ---
 
 # Person Management

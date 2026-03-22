@@ -3,6 +3,7 @@ name: memory-audit
 description: Show everything Claudriel knows with provenance tracing and entity counts. Triggers on "what do you know?", "show memories", "memory audit", "what do you remember about".
 argument-hint: "[entity name]"
 effort-level: medium
+model: opus
 ---
 
 # Memory Audit

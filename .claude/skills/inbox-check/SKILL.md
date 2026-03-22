@@ -2,6 +2,7 @@
 name: inbox-check
 description: Lightweight inbox triage across all configured email accounts. Dispatches fast subagent to fetch, then reviews with judgment. Use when user says "check my inbox", "any new emails?", "check email".
 effort-level: low
+model: sonnet
 ---
 
 # Inbox Check

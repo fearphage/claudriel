@@ -3,6 +3,7 @@ name: databases
 description: View all Claudriel memory databases, switch between them, manage isolation. Triggers on "which database?", "switch workspace", "show databases", "list databases".
 argument-hint: "[list|use|info|delete] [hash]"
 effort-level: low
+model: haiku
 ---
 
 # Databases

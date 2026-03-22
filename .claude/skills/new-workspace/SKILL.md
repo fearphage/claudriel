@@ -2,6 +2,7 @@
 name: new-workspace
 description: "Full workspace lifecycle management via Claudriel's GraphQL API: create, list, update, delete workspaces. Use when user says \"new workspace\", \"create workspace\", \"list workspaces\", \"show workspaces\", \"delete workspace\", \"remove workspace\", \"rename workspace\", \"update workspace\", or references any workspace CRUD operation."
 effort-level: medium
+model: haiku
 ---
 
 # Workspace Management
