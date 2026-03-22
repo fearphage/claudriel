@@ -4,19 +4,38 @@ declare(strict_types=1);
 
 namespace Claudriel\Tests\Unit\Provider;
 
-use Claudriel\Provider\TelescopeServiceProvider;
 use PHPUnit\Framework\TestCase;
 use Waaseyaa\Telescope\Recorder\CacheRecorder;
 use Waaseyaa\Telescope\Recorder\EventRecorder;
 use Waaseyaa\Telescope\Recorder\QueryRecorder;
 use Waaseyaa\Telescope\Recorder\RequestRecorder;
+use Waaseyaa\Telescope\Storage\SqliteTelescopeStore;
+use Waaseyaa\Telescope\TelescopeServiceProvider;
 
 final class TelescopeServiceProviderTest extends TestCase
 {
+    private function createTelescope(): TelescopeServiceProvider
+    {
+        return new TelescopeServiceProvider(
+            config: [
+                'enabled' => true,
+                'record' => [
+                    'queries' => true,
+                    'events' => true,
+                    'requests' => true,
+                    'cache' => true,
+                    'slow_query_threshold' => 100.0,
+                    'slow_queries_only' => false,
+                ],
+                'ignore_paths' => ['/health', '/api/broadcast/*', '/favicon.ico'],
+            ],
+            store: SqliteTelescopeStore::createInMemory(),
+        );
+    }
+
     public function test_provides_all_recorders_when_enabled(): void
     {
-        $provider = new TelescopeServiceProvider;
-        $telescope = $provider->getTelescope();
+        $telescope = $this->createTelescope();
 
         self::assertTrue($telescope->isEnabled());
         self::assertInstanceOf(QueryRecorder::class, $telescope->getQueryRecorder());
@@ -27,8 +46,7 @@ final class TelescopeServiceProviderTest extends TestCase
 
     public function test_store_persists_and_retrieves_entries(): void
     {
-        $provider = new TelescopeServiceProvider;
-        $telescope = $provider->getTelescope();
+        $telescope = $this->createTelescope();
         $store = $telescope->getStore();
 
         $store->store('test', ['message' => 'hello']);
@@ -40,8 +58,7 @@ final class TelescopeServiceProviderTest extends TestCase
 
     public function test_ignores_health_and_broadcast_paths(): void
     {
-        $provider = new TelescopeServiceProvider;
-        $telescope = $provider->getTelescope();
+        $telescope = $this->createTelescope();
         $recorder = $telescope->getRequestRecorder();
 
         $recorder->record('GET', '/health', 200, 1.0);
