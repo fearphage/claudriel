@@ -6,14 +6,17 @@ import httpx
 class PhpApiClient:
     """Calls PHP internal API endpoints with HMAC auth."""
 
-    def __init__(self, api_base: str, api_token: str, account_id: str) -> None:
+    def __init__(self, api_base: str, api_token: str, account_id: str, tenant_id: str = "") -> None:
+        headers = {
+            "Authorization": f"Bearer {api_token}",
+            "X-Account-Id": account_id,
+            "Content-Type": "application/json",
+        }
+        if tenant_id:
+            headers["X-Tenant-Id"] = tenant_id
         self._client = httpx.Client(
             base_url=api_base.rstrip("/"),
-            headers={
-                "Authorization": f"Bearer {api_token}",
-                "X-Account-Id": account_id,
-                "Content-Type": "application/json",
-            },
+            headers=headers,
             timeout=30.0,
         )
 

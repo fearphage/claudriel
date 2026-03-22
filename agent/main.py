@@ -161,11 +161,12 @@ def main() -> None:
     messages = request.get("messages", [])
     system_prompt = request.get("system", "")
     account_id = request.get("account_id", "")
+    tenant_id = request.get("tenant_id", "")
     api_base = request.get("api_base", "http://localhost:8000")
     api_token = request.get("api_token", "")
     model = request.get("model", "claude-sonnet-4-6")
 
-    api = PhpApiClient(api_base, api_token, account_id)
+    api = PhpApiClient(api_base, api_token, account_id, tenant_id)
     client = anthropic.Anthropic()
 
     # Fetch turn limits from session endpoint, fall back to defaults

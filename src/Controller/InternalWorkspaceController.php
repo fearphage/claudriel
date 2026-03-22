@@ -31,7 +31,7 @@ final class InternalWorkspaceController
 
         $limit = min((int) ($query['limit'] ?? 50), 100);
 
-        $all = $this->workspaceRepo->findBy(['tenant_id' => $this->tenantId]);
+        $all = $this->workspaceRepo->findBy(['tenant_id' => $this->resolveTenantId($httpRequest)]);
 
         $items = [];
         $count = 0;
@@ -63,7 +63,7 @@ final class InternalWorkspaceController
             return $this->jsonError('Workspace UUID required', 400);
         }
 
-        $results = $this->workspaceRepo->findBy(['uuid' => $uuid, 'tenant_id' => $this->tenantId]);
+        $results = $this->workspaceRepo->findBy(['uuid' => $uuid, 'tenant_id' => $this->resolveTenantId($httpRequest)]);
         $workspace = $results[0] ?? null;
 
         if ($workspace === null) {
@@ -106,7 +106,7 @@ final class InternalWorkspaceController
             'description' => $description,
             'mode' => $mode,
             'status' => 'active',
-            'tenant_id' => $this->tenantId,
+            'tenant_id' => $this->resolveTenantId($httpRequest),
         ]);
         $this->workspaceRepo->save($workspace);
 
@@ -130,7 +130,7 @@ final class InternalWorkspaceController
             return $this->jsonError('Workspace UUID required', 400);
         }
 
-        $results = $this->workspaceRepo->findBy(['uuid' => $uuid, 'tenant_id' => $this->tenantId]);
+        $results = $this->workspaceRepo->findBy(['uuid' => $uuid, 'tenant_id' => $this->resolveTenantId($httpRequest)]);
         $workspace = $results[0] ?? null;
 
         if ($workspace === null) {
@@ -161,7 +161,7 @@ final class InternalWorkspaceController
             return $this->jsonError('Invalid repo format. Expected: owner/name', 400);
         }
 
-        $results = $this->workspaceRepo->findBy(['uuid' => $uuid, 'tenant_id' => $this->tenantId]);
+        $results = $this->workspaceRepo->findBy(['uuid' => $uuid, 'tenant_id' => $this->resolveTenantId($httpRequest)]);
         if (($results[0] ?? null) === null) {
             return $this->jsonError('Workspace not found', 404);
         }
@@ -193,6 +193,18 @@ final class InternalWorkspaceController
             random_int(0, 0x3FFF) | 0x8000,
             random_int(0, 0xFFFF), random_int(0, 0xFFFF), random_int(0, 0xFFFF),
         );
+    }
+
+    private function resolveTenantId(mixed $httpRequest): string
+    {
+        if ($httpRequest instanceof Request) {
+            $headerTenant = $httpRequest->headers->get('X-Tenant-Id', '');
+            if ($headerTenant !== '') {
+                return $headerTenant;
+            }
+        }
+
+        return $this->tenantId;
     }
 
     private function authenticate(mixed $httpRequest): ?string
