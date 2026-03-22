@@ -147,10 +147,7 @@ final class ChatStreamController
         }
         usort($sessionMessages, fn ($a, $b) => ($a->get('created_at') ?? '') <=> ($b->get('created_at') ?? ''));
 
-        $apiMessages = array_map(
-            fn ($m) => ['role' => $m->get('role'), 'content' => $m->get('content')],
-            $sessionMessages,
-        );
+        $apiMessages = $this->trimConversationHistory($sessionMessages);
 
         // Build system prompt (tools always available)
         $projectRoot = $this->resolveProjectRoot();
@@ -515,6 +512,73 @@ final class ChatStreamController
             statusCode: $statusCode,
             headers: ['Content-Type' => 'application/json'],
         );
+    }
+
+    /**
+     * Trim conversation history to limit token growth.
+     *
+     * When history exceeds $maxMessages, drops the oldest messages and
+     * truncates older assistant responses to $olderAssistantMaxChars.
+     * The last 4 messages (2 exchanges) are always kept in full.
+     *
+     * @param  list<ChatMessage>  $sessionMessages  Sorted chronologically
+     * @return list<array{role: string, content: string}>
+     */
+    private function trimConversationHistory(array $sessionMessages, int $maxMessages = 20, int $olderAssistantMaxChars = 500): array
+    {
+        $total = count($sessionMessages);
+
+        if ($total <= $maxMessages) {
+            return array_map(
+                fn ($m) => ['role' => $m->get('role'), 'content' => $m->get('content')],
+                $sessionMessages,
+            );
+        }
+
+        // Number of recent messages to keep in full (last 4 = 2 exchanges)
+        $recentCount = min(4, $total);
+        $cutoff = $total - $recentCount;
+
+        $result = [];
+        $olderStart = max(0, $total - $maxMessages);
+        $trimmedCount = $olderStart;
+
+        // Older messages within the cap window: truncate assistant responses
+        for ($i = $olderStart; $i < $cutoff; $i++) {
+            $msg = $sessionMessages[$i];
+            $role = $msg->get('role');
+            $content = (string) $msg->get('content');
+
+            if ($role === 'assistant' && mb_strlen($content) > $olderAssistantMaxChars) {
+                $content = mb_substr($content, 0, $olderAssistantMaxChars).' [truncated]';
+            }
+
+            // Prepend trim notice to the first kept message if messages were dropped
+            if ($result === [] && $trimmedCount > 0 && $role === 'user') {
+                $content = "[Earlier conversation trimmed — {$trimmedCount} messages]\n\n".$content;
+            }
+
+            $result[] = ['role' => $role, 'content' => $content];
+        }
+
+        // If oldest kept message was assistant (no user to prepend to), inject
+        // a user message before it to maintain alternating roles
+        if ($trimmedCount > 0 && $result !== [] && $result[0]['role'] === 'assistant') {
+            array_unshift($result, [
+                'role' => 'user',
+                'content' => "[Earlier conversation trimmed — {$trimmedCount} messages]",
+            ]);
+        }
+
+        // Recent messages: always in full
+        for ($i = $cutoff; $i < $total; $i++) {
+            $result[] = [
+                'role' => $sessionMessages[$i]->get('role'),
+                'content' => $sessionMessages[$i]->get('content'),
+            ];
+        }
+
+        return $result;
     }
 
     private function resolveRequestId(?Request $httpRequest, array $query, string $fallback): string
