@@ -1,129 +1,238 @@
 ---
 name: new-workspace
-description: Create a workspace skeleton for a new project, client, or venture. Gathers details, creates directory with populated templates, validates generated files, populates dashboard, and updates main dashboard. Use when user says "new workspace", "new project", "new client setup".
+description: "Full workspace lifecycle management via Claudriel's GraphQL API: create, list, update, delete workspaces. Use when user says \"new workspace\", \"create workspace\", \"list workspaces\", \"show workspaces\", \"delete workspace\", \"remove workspace\", \"rename workspace\", \"update workspace\", or references any workspace CRUD operation."
 effort-level: medium
 ---
 
-# New Workspace
+# Workspace Management
 
-Create a complete workspace skeleton for a new project, client engagement, or venture.
+Full CRUD lifecycle for Claudriel Workspace entities via GraphQL API.
+
+**Architecture**: This skill orchestrates user intent and calls the GraphQL API at `POST /graphql`. It does NOT create directories, manipulate files, or bypass the entity layer. See `_templates/entity-crud.md` for the base pattern.
 
 ## Trigger
 
-- `/new-workspace [name]`
-- "Set up a new workspace for..."
-- "Create a project for..."
-- "New client setup"
+- "New workspace", "Create a workspace for...", "Set up a project"
+- "List workspaces", "Show my workspaces", "What workspaces do I have?"
+- "Rename workspace...", "Update workspace...", "Change workspace status"
+- "Delete workspace...", "Remove workspace...", "Get rid of that workspace"
 
-## Process
+## Operation Detection
 
-### 1. Gather Details
+| Signal | Operation |
+|--------|-----------|
+| "create", "new", "set up", "start" | **Create** |
+| "list", "show", "what workspaces" | **List** |
+| "rename", "update", "change", "edit" | **Update** |
+| "delete", "remove", "get rid of", "nuke" | **Delete** |
 
-Ask the user for the essentials (don't interrogate, keep it natural):
+If ambiguous, ask. Default assumption for bare workspace mentions is **not** delete.
 
-| Field | Question | Required |
-|-------|----------|----------|
-| **Name** | "What should we call this workspace?" | Yes |
-| **Type** | "Is this a client engagement, product, venture, or something else?" | Yes |
-| **Contact** | "Who's the main contact or sponsor?" | No |
-| **Phase** | "What phase are we starting in?" | No |
-| **Fee** | "Any fee or budget to track?" | No |
+---
 
-Generate a URL-safe slug from the name:
-- Lowercase, hyphens for spaces
-- Remove special characters
-- Example: "Acme Corp Redesign" becomes `acme-corp-redesign`
+## Intent Parsing (All Operations)
 
-### 2. Create Workspace Skeleton
+Before any API call, parse the user's original request:
 
-Create the directory structure under `workspaces/`:
+1. **Extract the workspace name**: The name is usually the first noun phrase or project identifier. Stop at conjunctions ("and", "so", "then") or prepositions that introduce secondary intents.
+   - "create a workspace for Acme Corp and link the repo" → name: "Acme Corp"
+   - "new workspace jonesrussell/me so we can plan" → name: "me" (from the repo name)
+   - "delete the old test workspace" → name: "old test" or resolve via list
 
+2. **Extract secondary intents** and queue them for after the primary operation:
+   - `milestone planning` / `roadmap` / `planning` → open milestone planning after setup
+   - `for <person/entity>` → set as contact/sponsor
+   - `clone <owner/repo>` → note: repo cloning is a separate concern from workspace entity creation
+
+3. **Never use the full user sentence as a field value.** If unsure what the name should be, ask.
+
+---
+
+## Create
+
+### 1. Gather Fields
+
+Ask for anything not already extracted. Skip fields the user already provided:
+
+| Field | GraphQL Input | Required | Default |
+|-------|--------------|----------|---------|
+| **name** | `name` | Yes | — |
+| **description** | `description` | No | `""` |
+| **mode** | `mode` | No | `"persistent"` |
+| **status** | `status` | No | `"active"` |
+
+### 2. Confirm
+
+Show the fields before creating:
 ```
-workspaces/{{slug}}/
-├── Dashboard.md          ← From _templates/Dashboard.md
-├── Timeline.md           ← From _templates/Timeline.md
-├── Pipeline.md           ← From _templates/Pipeline.md (if applicable)
-├── meetings/             ← Empty, ready for meeting captures
-├── deliverables/         ← Empty, ready for deliverable tracking
-├── agreements/           ← Empty, ready for contracts
-├── invoices/             ← Empty, ready for billing
-└── interviews/           ← Empty, for assessment interviews (if applicable)
-```
-
-**Template population:**
-- Copy templates from `workspaces/_templates/`
-- Replace `{{project}}` with the workspace name
-- Replace `{{project-slug}}` with the slug
-- Replace `{{client}}`, `{{sponsor}}` with provided values (or leave as placeholders)
-- Replace `{{filesystem_root}}` with the workspace path
-
-### 3. Validate Generated Files
-
-Before proceeding, verify all generated markdown files:
-
-- Open each generated `.md` file and verify all markdown tables have proper formatting:
-  - Header row, separator row, and data rows must each be on their own line
-  - No merged header+separator lines (corruption signature: `| text |------|` on same line)
-- If any broken tables are found, fix them before proceeding
-
-### 4. Populate Dashboard
-
-Fill in the workspace Dashboard.md with:
-- Project name and quick links
-- Initial phase in the phase tracker
-- Any known deliverables or obligations
-- Dataview queries pointed at the right subdirectories
-
-### 5. Create First Timeline Entry
-
-Add an initial entry to Timeline.md:
-```
-## {{date}} - Workspace Created
-- Workspace set up for {{name}}
-- Initial phase: {{phase}}
-- Contact: [[{{contact}}]]
+Create workspace "Acme Corp"?
+  description: "Client engagement for redesign project"
+  mode: persistent
+  status: active
 ```
 
-### 6. Update Main Dashboard (if exists)
+### 3. Call API
 
-If a main project dashboard exists (e.g., `Home.md` or a top-level dashboard), add a link to the new workspace.
-
-### 7. Confirm
-
-Show the user what was created:
-
-```
-**Workspace Created: {{name}}**
-
-✓ Dashboard with phase tracker and dataview queries
-✓ Timeline with creation entry
-✓ Directory structure for meetings, deliverables, agreements
-✓ All templates validated (no table corruption)
-
-📂 Location: workspaces/{{slug}}/
-
-What would you like to do first?
-- Add a meeting or deliverable
-- Set up phases in the dashboard
-- Create an agreement from template
+```graphql
+mutation {
+  createWorkspace(input: {
+    name: "Acme Corp",
+    description: "Client engagement for redesign project",
+    mode: "persistent",
+    status: "active"
+  }) {
+    id
+    uuid
+    name
+    status
+    created
+  }
+}
 ```
 
-## Output Format
+### 4. Execute Secondary Intents
 
-Keep it clean and actionable. Show what was created, where it lives, and what to do next.
+After creation, execute any queued secondary intents using the new workspace's UUID.
+
+### 5. Report
+
+```
+Workspace created: Acme Corp
+UUID: abc-123-def
+Status: active
+
+What's next?
+```
+
+---
+
+## List
+
+### 1. Call API
+
+```graphql
+query {
+  workspaceList(limit: 50) {
+    total
+    items {
+      id
+      uuid
+      name
+      status
+      mode
+      description
+      created
+    }
+  }
+}
+```
+
+### 2. Present
+
+| Name | Status | Mode | Created |
+|------|--------|------|---------|
+| Acme Corp | active | persistent | 2026-03-15 |
+| Personal Site | active | persistent | 2026-03-20 |
+
+If filters were requested (e.g., "show active workspaces"), apply them in the query or post-filter.
+
+---
+
+## Update
+
+### 1. Resolve Workspace
+
+Match the user's reference against existing workspaces:
+- Search by name via `workspaceList` with filter
+- If exactly one match, use it
+- If multiple matches, present them and ask
+- If no matches, say so
+
+### 2. Determine Changes
+
+Extract what the user wants to change:
+- "rename X to Y" → `name` field
+- "mark X as archived" → `status` field
+- "update description" → `description` field
+
+### 3. Confirm
+
+Show before/after:
+```
+Update workspace "Acme Corp" (uuid: abc-123):
+  name: "Acme Corp" → "Acme Corporation"
+```
+
+### 4. Call API
+
+```graphql
+mutation {
+  updateWorkspace(id: "abc-123-uuid", input: {
+    name: "Acme Corporation"
+  }) {
+    id
+    uuid
+    name
+    status
+  }
+}
+```
+
+### 5. Report Result
+
+---
+
+## Delete
+
+### 1. Resolve Workspace
+
+Same resolution as Update.
+
+### 2. Show What Will Be Deleted
+
+```
+Delete workspace "Old Test Project"?
+  UUID: xyz-789
+  Status: active
+  Created: 2026-01-10
+```
+
+### 3. Require Explicit Confirmation
+
+For destructive operations, require the workspace name echoed back:
+
+"Type the workspace name to confirm deletion: **Old Test Project**"
+
+Do NOT proceed on just "yes".
+
+### 4. Call API
+
+```graphql
+mutation {
+  deleteWorkspace(id: "xyz-789-uuid") {
+    success
+  }
+}
+```
+
+### 5. Report Result
+
+"Workspace 'Old Test Project' deleted."
+
+---
 
 ## Judgment Points
 
-Ask for confirmation on:
-- Workspace name and slug (before creating)
-- Which templates to include (not all workspaces need all templates)
-- Whether to update the main dashboard
+- Confirm field values before create (show what will be sent)
+- Confirm before/after on update
+- Require name echo-back on delete
+- If a workspace has linked entities (commitments, events), warn before deletion
 
 ## Quality Checklist
 
-- [ ] Slug is URL-safe and readable
-- [ ] All templates populated with correct values
-- [ ] All markdown tables render correctly (header, separator, and data rows on separate lines)
-- [ ] Dataview queries point to correct subdirectories
-- [ ] Timeline has initial entry
-- [ ] Main dashboard updated (if applicable)
+- [ ] Intent parsed correctly (name extracted, not full sentence)
+- [ ] Correct GraphQL mutation/query used
+- [ ] Confirmation shown before mutating operations
+- [ ] Delete requires name echo-back, not just "yes"
+- [ ] Secondary intents executed after primary operation
+- [ ] API errors surfaced to user, not swallowed
