@@ -17,6 +17,8 @@ final class CacheServiceProvider extends ServiceProvider
 
     private ?CacheTagsInvalidator $cacheTagsInvalidator = null;
 
+    private ?EntityCacheInvalidator $entityCacheInvalidator = null;
+
     public function register(): void
     {
         // EntityCacheInvalidator wiring requires EventDispatcher access.
@@ -53,16 +55,25 @@ final class CacheServiceProvider extends ServiceProvider
 
     public function getEntityCacheInvalidator(): EntityCacheInvalidator
     {
-        return new EntityCacheInvalidator($this->getCacheTagsInvalidator());
+        if ($this->entityCacheInvalidator === null) {
+            $this->entityCacheInvalidator = new EntityCacheInvalidator($this->getCacheTagsInvalidator());
+        }
+
+        return $this->entityCacheInvalidator;
     }
 
     private function createPdo(): \PDO
     {
         $storageDir = dirname(__DIR__, 2).'/storage';
-        if (! is_dir($storageDir)) {
-            mkdir($storageDir, 0o755, true);
+        if (! is_dir($storageDir) && ! mkdir($storageDir, 0o755, true)) {
+            error_log('Cache: could not create storage/ directory, falling back to in-memory');
+
+            return new \PDO('sqlite::memory:');
         }
 
-        return new \PDO('sqlite:'.$storageDir.'/cache.sqlite');
+        $pdo = new \PDO('sqlite:'.$storageDir.'/cache.sqlite');
+        $pdo->exec('PRAGMA journal_mode=WAL');
+
+        return $pdo;
     }
 }
