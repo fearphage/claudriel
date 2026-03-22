@@ -135,6 +135,8 @@ All require HMAC Bearer token via `InternalApiTokenGenerator`. See `docs/specs/a
 
 ## Critical Gotchas
 
+- **Skills orchestrate, API implements**: Entity CRUD skills (workspace, person, commitment, etc.) must call GraphQL mutations/queries, never create files/directories or manipulate storage directly. Base pattern is in `.claude/skills/_templates/entity-crud.md`
+- **Intent parsing in skills**: Never use the full user sentence as an entity field value. Extract the noun phrase (entity name) and secondary intents separately. See any entity CRUD skill's "Intent Parsing" section for examples.
 - `McEvent` is named to avoid PHP reserved-word conflicts with `Event`
 - `ClaudrielServiceProvider::commands()` creates parallel `SqlEntityStorage` + `StorageRepositoryAdapter` instances alongside domain-provider-registered storage; this dual-instance pattern is intentional (#377)
 - `CommitmentHandler` silently skips candidates with `confidence < 0.7`
