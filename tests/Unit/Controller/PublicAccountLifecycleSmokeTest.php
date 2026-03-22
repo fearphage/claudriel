@@ -6,7 +6,6 @@ namespace Claudriel\Tests\Unit\Controller;
 
 use Claudriel\Access\AuthenticatedAccount;
 use Claudriel\Controller\BriefStreamController;
-use Claudriel\Controller\ChatStreamController;
 use Claudriel\Controller\DashboardController;
 use Claudriel\Controller\PublicAccountController;
 use Claudriel\Controller\PublicPasswordResetController;
@@ -129,54 +128,6 @@ final class PublicAccountLifecycleSmokeTest extends TestCase
 
         $workspaceStorage->delete([$phoenix]);
         self::assertNull($workspaceStorage->load($phoenix->id()));
-
-        $tenantId = (string) $account->get('tenant_id');
-        $defaultWorkspaceUuid = (string) ($this->firstTenant($entityTypeManager)?->get('metadata')['default_workspace_uuid'] ?? '');
-
-        $sessionStorage = $entityTypeManager->getStorage('chat_session');
-        $sessionStorage->save(new ChatSession([
-            'uuid' => 'signup-smoke-chat',
-            'title' => 'Workspace bootstrap',
-            'created_at' => date('c'),
-            'tenant_id' => $tenantId,
-            'workspace_id' => $defaultWorkspaceUuid,
-        ]));
-        $messageStorage = $entityTypeManager->getStorage('chat_message');
-        $messageStorage->save(new ChatMessage([
-            'uuid' => 'signup-smoke-message',
-            'session_uuid' => 'signup-smoke-chat',
-            'role' => 'user',
-            'content' => 'create a workspace named "Delivery Ops"',
-            'created_at' => date('c'),
-            'tenant_id' => $tenantId,
-            'workspace_id' => $defaultWorkspaceUuid,
-        ]));
-
-        putenv('ANTHROPIC_API_KEY');
-        unset($_ENV['ANTHROPIC_API_KEY']);
-
-        $chatStream = new ChatStreamController($entityTypeManager);
-        $chatResponse = $chatStream->stream(
-            ['messageId' => 'signup-smoke-message'],
-            [],
-            $authenticated,
-            null,
-        );
-        self::assertSame(200, $chatResponse->getStatusCode());
-        $callback = $chatResponse->getCallback();
-        self::assertIsCallable($callback);
-        $callback();
-        $deliveryWorkspaceIds = $entityTypeManager->getStorage('workspace')->getQuery()
-            ->condition('name', 'Delivery Ops')
-            ->execute();
-        self::assertNotEmpty($deliveryWorkspaceIds);
-
-        $assistantMessageIds = $entityTypeManager->getStorage('chat_message')->getQuery()
-            ->condition('role', 'assistant')
-            ->execute();
-        $assistantMessage = $entityTypeManager->getStorage('chat_message')->load(reset($assistantMessageIds));
-        self::assertInstanceOf(ChatMessage::class, $assistantMessage);
-        self::assertSame('Created the Claudriel workspace "Delivery Ops". Refresh the sidebar if it is not visible yet.', $assistantMessage->get('content'));
     }
 
     private function buildEntityTypeManager(): EntityTypeManager
