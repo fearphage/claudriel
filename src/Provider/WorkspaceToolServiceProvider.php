@@ -24,7 +24,7 @@ final class WorkspaceToolServiceProvider extends ServiceProvider
                 new StorageRepositoryAdapter($this->resolve(EntityTypeManager::class)->getStorage('workspace')),
                 $this->resolve(InternalApiTokenGenerator::class),
                 $_ENV['CLAUDRIEL_DEFAULT_TENANT'] ?? getenv('CLAUDRIEL_DEFAULT_TENANT') ?: 'default',
-                $this->resolve(GitRepositoryManager::class),
+                new GitRepositoryManager,
             );
         });
 

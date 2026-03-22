@@ -94,6 +94,10 @@ final class InternalWorkspaceController
         }
 
         $mode = $data['mode'] ?? 'persistent';
+        $allowedModes = ['persistent', 'ephemeral'];
+        if (!in_array($mode, $allowedModes, true)) {
+            return $this->jsonError('Invalid mode. Allowed: persistent, ephemeral', 400);
+        }
         $description = $data['description'] ?? '';
 
         $workspace = new Workspace([
@@ -168,7 +172,7 @@ final class InternalWorkspaceController
         try {
             $this->gitManager->clone($repoUrl, $localPath, $branch);
         } catch (\RuntimeException $e) {
-            return $this->jsonError('Clone failed: '.$e->getMessage(), 500);
+            return $this->jsonError('Clone failed', 500);
         }
 
         return $this->jsonResponse([
