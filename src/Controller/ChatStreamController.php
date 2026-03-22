@@ -40,6 +40,8 @@ final class ChatStreamController
      */
     public function stream(array $params = [], array $query = [], ?AccountInterface $account = null, ?Request $httpRequest = null): StreamedResponse|SsrResponse
     {
+        set_time_limit(0);
+
         $resolver = new TenantWorkspaceResolver($this->entityTypeManager);
         try {
             $requestScope = $resolver->resolve($query, $account, $httpRequest);
