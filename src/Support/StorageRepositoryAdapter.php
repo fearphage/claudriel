@@ -61,4 +61,14 @@ final class StorageRepositoryAdapter implements EntityRepositoryInterface
     {
         return count($this->findBy($criteria));
     }
+
+    public function loadRevision(string $entityId, int $revisionId): ?EntityInterface
+    {
+        throw new \LogicException('Revisions are not supported by StorageRepositoryAdapter');
+    }
+
+    public function rollback(string $entityId, int $targetRevisionId): EntityInterface
+    {
+        throw new \LogicException('Revisions are not supported by StorageRepositoryAdapter');
+    }
 }
