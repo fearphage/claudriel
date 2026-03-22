@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "5f77e94198f6835f3d776a03745a14db",
+    "content-hash": "d4db2ade9177840e0aa640c16cfdb5fd",
     "packages": [
         {
             "name": "doctrine/dbal",
@@ -4875,6 +4875,55 @@
             "time": "2026-03-16T21:50:01+00:00"
         },
         {
+            "name": "waaseyaa/mail",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/waaseyaa/mail.git",
+                "reference": "45ca1165261e0c7ae8ec13dd481bff8167da3720"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/waaseyaa/mail/zipball/45ca1165261e0c7ae8ec13dd481bff8167da3720",
+                "reference": "45ca1165261e0c7ae8ec13dd481bff8167da3720",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.4",
+                "waaseyaa/foundation": "^0.1"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^10.5",
+                "twig/twig": "^3.0"
+            },
+            "suggest": {
+                "twig/twig": "Required for TwigMailRenderer template support"
+            },
+            "default-branch": true,
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "0.1.x-dev",
+                    "dev-develop/v1.1": "0.1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Waaseyaa\\Mail\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPL-2.0-or-later"
+            ],
+            "description": "Transport-agnostic mail API for Waaseyaa",
+            "support": {
+                "issues": "https://github.com/waaseyaa/mail/issues",
+                "source": "https://github.com/waaseyaa/mail/tree/v0.1.0-alpha.10"
+            },
+            "time": "2026-03-16T21:50:01+00:00"
+        },
+        {
             "name": "waaseyaa/path",
             "version": "dev-main",
             "source": {
@@ -5120,7 +5169,7 @@
         },
         {
             "name": "waaseyaa/state",
-            "version": "v0.1.0-alpha.41",
+            "version": "dev-main",
             "source": {
                 "type": "git",
                 "url": "https://github.com/waaseyaa/state.git",
@@ -5139,6 +5188,7 @@
             "require-dev": {
                 "phpunit/phpunit": "^10.5"
             },
+            "default-branch": true,
             "type": "library",
             "extra": {
                 "branch-alias": {
@@ -5158,7 +5208,7 @@
             "description": "Key-value state storage for Waaseyaa",
             "support": {
                 "issues": "https://github.com/waaseyaa/state/issues",
-                "source": "https://github.com/waaseyaa/state/tree/v0.1.0-alpha.41"
+                "source": "https://github.com/waaseyaa/state/tree/v0.1.0-alpha.21"
             },
             "time": "2026-03-18T23:44:26+00:00"
         },
@@ -5712,10 +5762,12 @@
         "waaseyaa/foundation": 20,
         "waaseyaa/github": 20,
         "waaseyaa/graphql": 20,
+        "waaseyaa/mail": 20,
         "waaseyaa/path": 20,
         "waaseyaa/queue": 20,
         "waaseyaa/routing": 20,
         "waaseyaa/ssr": 20,
+        "waaseyaa/state": 20,
         "waaseyaa/telescope": 20,
         "waaseyaa/user": 20
     },
