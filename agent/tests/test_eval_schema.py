@@ -23,12 +23,11 @@ def test_valid_basic_eval():
     assert errors == []
 
 
-def test_missing_required_fields():
-    """Missing schema_version or skill fails."""
-    data = {"tests": []}
+def test_missing_tests_and_prompts():
+    """Missing both tests and prompts fails."""
+    data = {"skill": "test"}
     errors = validate_eval_file(data, "bad.yaml")
-    assert any("schema_version" in e.message for e in errors)
-    assert any("skill" in e.message for e in errors)
+    assert any("tests or prompts" in e.message for e in errors)
 
 
 def test_invalid_assertion_type():

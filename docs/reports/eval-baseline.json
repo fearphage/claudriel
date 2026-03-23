@@ -1,0 +1,71 @@
+{
+  "timestamp": "2026-03-23T00:19:53.574362+00:00",
+  "mode": "deterministic",
+  "skills": {
+    "capture-meeting": {
+      "tests_run": 1,
+      "tests_passed": 1,
+      "average_score": 5.0,
+      "failures": []
+    },
+    "commitment": {
+      "tests_run": 3,
+      "tests_passed": 3,
+      "average_score": 5.0,
+      "failures": []
+    },
+    "diagnose": {
+      "tests_run": 1,
+      "tests_passed": 1,
+      "average_score": 5.0,
+      "failures": []
+    },
+    "judgment-rule": {
+      "tests_run": 3,
+      "tests_passed": 3,
+      "average_score": 5.0,
+      "failures": []
+    },
+    "meditate": {
+      "tests_run": 1,
+      "tests_passed": 1,
+      "average_score": 5.0,
+      "failures": []
+    },
+    "morning-brief": {
+      "tests_run": 1,
+      "tests_passed": 1,
+      "average_score": 5.0,
+      "failures": []
+    },
+    "new-person": {
+      "tests_run": 3,
+      "tests_passed": 3,
+      "average_score": 5.0,
+      "failures": []
+    },
+    "new-workspace": {
+      "tests_run": 3,
+      "tests_passed": 3,
+      "average_score": 5.0,
+      "failures": []
+    },
+    "schedule-entry": {
+      "tests_run": 3,
+      "tests_passed": 3,
+      "average_score": 5.0,
+      "failures": []
+    },
+    "triage-entry": {
+      "tests_run": 3,
+      "tests_passed": 3,
+      "average_score": 5.0,
+      "failures": []
+    }
+  },
+  "totals": {
+    "tests_run": 22,
+    "tests_passed": 22,
+    "pass_rate": 1.0
+  }
+}

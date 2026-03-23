@@ -20,10 +20,16 @@ VALID_ASSERTION_TYPES = {
     "no_conjunction_split",
     "echo_back_required",
     "offers_alternative",
+    "no_file_operations",
+    "secondary_intent_queued",
 }
 
-REQUIRED_TOP_LEVEL = {"schema_version", "skill", "tests"}
-REQUIRED_TEST_FIELDS = {"name", "operation", "input"}
+# skill is recommended but not required (can be inferred from directory)
+REQUIRED_TOP_LEVEL: set[str] = set()
+# Files must have either "tests" or "prompts" key
+# Trajectory/multi-turn evals use "turns" with nested input instead of top-level "input"
+REQUIRED_TEST_FIELDS_BASIC = {"name", "operation", "input"}
+REQUIRED_TEST_FIELDS_TURN = {"name"}
 
 
 @dataclass
@@ -41,10 +47,24 @@ def validate_eval_file(data: dict[str, Any], filename: str) -> list[ValidationEr
         if field not in data:
             errors.append(ValidationError(filename, f"Missing required field: {field}"))
 
-    tests = data.get("tests", [])
+    tests = data.get("tests", data.get("prompts", []))
     if not isinstance(tests, list):
-        errors.append(ValidationError(filename, "tests must be a list"))
+        errors.append(ValidationError(filename, "tests/prompts must be a list"))
         return errors
+    if "tests" not in data and "prompts" not in data:
+        errors.append(ValidationError(filename, "Missing required field: tests or prompts"))
+        return errors
+
+    is_prompts_format = "prompts" in data and "tests" not in data
+    if is_prompts_format:
+        # prompts-format evals have different structure, skip test-level field checks
+        return errors
+
+    eval_type = data.get("eval_type", "basic")
+    is_turn_based = eval_type in ("trajectory", "multi-turn") or any(
+        "turns" in t for t in tests if isinstance(t, dict)
+    )
+    required_fields = REQUIRED_TEST_FIELDS_TURN if is_turn_based else REQUIRED_TEST_FIELDS_BASIC
 
     seen_names: set[str] = set()
     for i, test in enumerate(tests):
@@ -52,7 +72,7 @@ def validate_eval_file(data: dict[str, Any], filename: str) -> list[ValidationEr
             errors.append(ValidationError(filename, f"Test {i} must be a mapping"))
             continue
 
-        for field in REQUIRED_TEST_FIELDS:
+        for field in required_fields:
             if field not in test:
                 errors.append(ValidationError(filename, f"Test {i}: missing required field: {field}"))
 
