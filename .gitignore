@@ -60,3 +60,6 @@ agent/.venv/
 !.codex/skills/*/SKILL.md
 .nuxtrc
 evals/node_modules/
+
+.build/
+
