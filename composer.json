@@ -25,6 +25,7 @@
         "waaseyaa/routing": "dev-main",
         "waaseyaa/ssr": "dev-main",
         "waaseyaa/state": "dev-main",
+        "waaseyaa/taxonomy": "dev-main",
         "waaseyaa/telescope": "dev-main",
         "waaseyaa/user": "dev-main"
     },
@@ -73,6 +74,7 @@
                 "Claudriel\\Provider\\StateServiceProvider",
                 "Claudriel\\Provider\\MailServiceProvider",
                 "Waaseyaa\\Relationship\\RelationshipServiceProvider",
+                "Waaseyaa\\Taxonomy\\TaxonomyServiceProvider",
                 "Claudriel\\Provider\\AiVectorServiceProvider",
                 "Claudriel\\Provider\\ClaudrielServiceProvider",
                 "Claudriel\\Provider\\I18nServiceProvider",
