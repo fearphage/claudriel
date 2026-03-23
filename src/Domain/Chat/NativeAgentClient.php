@@ -182,8 +182,8 @@ class NativeAgentClient
                     ];
                 }
 
-                // Check if approaching limit
-                if ($turnsConsumed >= $turnLimit - 1 && $toolCalls !== []) {
+                // Check if approaching limit (toolCalls is guaranteed non-empty here)
+                if ($turnsConsumed >= $turnLimit - 1) {
                     if ($onNeedsContinuation !== null) {
                         $onNeedsContinuation([
                             'turns_consumed' => $turnsConsumed,
@@ -343,7 +343,6 @@ class NativeAgentClient
     {
         $headerString = implode("\r\n", $headers)."\r\n";
 
-        /** @phpstan-ignore isset.variable, booleanAnd.alwaysTrue, function.alreadyNarrowedType */
         $context = stream_context_create([
             'http' => [
                 'method' => 'POST',
