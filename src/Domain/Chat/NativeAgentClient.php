@@ -136,8 +136,16 @@ class NativeAgentClient
                     break;
                 }
 
-                // Append assistant message to history
-                $messages[] = ['role' => 'assistant', 'content' => $response['content']];
+                // Append assistant message to history.
+                // Ensure tool_use input is always an object (PHP json_encode turns [] into JSON array).
+                $assistantContent = array_map(static function (array $block): array {
+                    if (($block['type'] ?? '') === 'tool_use' && ($block['input'] ?? null) === []) {
+                        $block['input'] = new \stdClass();
+                    }
+
+                    return $block;
+                }, $response['content'] ?? []);
+                $messages[] = ['role' => 'assistant', 'content' => $assistantContent];
 
                 // Execute each tool call
                 $toolResults = [];
