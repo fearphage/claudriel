@@ -25,7 +25,9 @@ trait LinkedRepoLookup
             return null;
         }
 
-        $repoUuid = (string) $junctions[0]->get('repo_uuid');
+        $junction = $junctions[0];
+        assert($junction instanceof WorkspaceRepo);
+        $repoUuid = (string) $junction->get('repo_uuid');
         $repos = $this->repoRepository->findBy(['uuid' => $repoUuid]);
         $repo = $repos[0] ?? null;
 
