@@ -13,6 +13,7 @@ use Waaseyaa\AI\Vector\EmbeddingStorageInterface;
 use Waaseyaa\AI\Vector\SqliteEmbeddingStorage;
 use Waaseyaa\Api\ResourceSerializer;
 use Waaseyaa\Database\DatabaseInterface;
+use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\Entity\EntityTypeManagerInterface;
 use Waaseyaa\Foundation\ServiceProvider\ServiceProvider;
 use Waaseyaa\Mcp\Auth\BearerTokenAuth;
@@ -126,7 +127,7 @@ final class McpServiceProvider extends ServiceProvider
         ));
     }
 
-    public function routes(WaaseyaaRouter $router): void
+    public function routes(WaaseyaaRouter $router, ?EntityTypeManager $entityTypeManager = null): void
     {
         $provider = new McpRouteProvider;
         $provider->registerRoutes($router);

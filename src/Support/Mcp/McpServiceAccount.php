@@ -14,6 +14,7 @@ use Waaseyaa\Access\AccountInterface;
  */
 final readonly class McpServiceAccount implements AccountInterface
 {
+    /** @phpstan-ignore return.unusedType */
     public function id(): int|string
     {
         return 'mcp-service';
@@ -35,11 +36,13 @@ final readonly class McpServiceAccount implements AccountInterface
         return true;
     }
 
+    /** @phpstan-ignore return.unusedType */
     public function getTenantId(): ?string
     {
         return $_ENV['CLAUDRIEL_DEFAULT_TENANT'] ?? getenv('CLAUDRIEL_DEFAULT_TENANT') ?: 'default';
     }
 
+    /** @phpstan-ignore return.unusedType */
     public function getUuid(): ?string
     {
         return null;
