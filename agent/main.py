@@ -38,6 +38,18 @@ RATE_LIMIT_MAX_RETRIES = 3
 RATE_LIMIT_INITIAL_BACKOFF = 5  # seconds
 RATE_LIMIT_MAX_BACKOFF = 60  # seconds
 
+# Model fallback chains: degrade on rate limit, escalate on API error
+MODEL_DEGRADATION = {
+    "claude-opus-4-6": "claude-sonnet-4-6",
+    "claude-sonnet-4-6": "claude-haiku-4-5-20251001",
+    "claude-haiku-4-5-20251001": None,
+}
+MODEL_ESCALATION = {
+    "claude-haiku-4-5-20251001": "claude-sonnet-4-6",
+    "claude-sonnet-4-6": "claude-opus-4-6",
+    "claude-opus-4-6": None,
+}
+
 
 def parse_enabled_tool_names(raw_value: str | None) -> set[str] | None:
     """Parse a comma-separated allowlist from config."""
@@ -197,10 +209,11 @@ def main() -> None:
             turns_consumed += 1
 
             response = None
+            current_model = model
             for attempt in range(RATE_LIMIT_MAX_RETRIES + 1):
                 try:
                     response = client.messages.create(
-                        model=model,
+                        model=current_model,
                         max_tokens=4096,
                         system=cached_system,
                         messages=messages,
@@ -209,6 +222,12 @@ def main() -> None:
                     break
                 except anthropic.RateLimitError as e:
                     if attempt >= RATE_LIMIT_MAX_RETRIES:
+                        # Retries exhausted: try degrading to a lower-tier model
+                        fallback = MODEL_DEGRADATION.get(current_model)
+                        if fallback:
+                            emit("progress", phase="fallback", summary=f"Rate limit exhausted on {current_model}, falling back to {fallback}", level="warning")
+                            current_model = fallback
+                            continue
                         raise
                     retry_after = getattr(e.response, "headers", {}).get("retry-after")
                     try:
@@ -217,11 +236,19 @@ def main() -> None:
                         wait = None
                     if wait is None:
                         wait = min(RATE_LIMIT_INITIAL_BACKOFF * (2 ** attempt), RATE_LIMIT_MAX_BACKOFF)
-                    emit("progress", phase="rate_limit", summary=f"Rate limited, retrying in {int(wait)}s...", level="warning")
+                    emit("progress", phase="rate_limit", summary=f"Rate limited on {current_model}, retrying in {int(wait)}s...", level="warning")
                     time.sleep(wait)
+                except anthropic.APIError:
+                    # API error (not rate limit): try escalating to a higher-tier model
+                    fallback = MODEL_ESCALATION.get(current_model)
+                    if fallback:
+                        emit("progress", phase="fallback", summary=f"API error on {current_model}, escalating to {fallback}", level="warning")
+                        current_model = fallback
+                        continue
+                    raise
 
             if response is None:
-                emit("error", message="Failed to get API response after retries")
+                emit("error", message="Failed to get API response after retries and fallbacks")
                 break
 
             # Collect text and tool_use blocks from the response
