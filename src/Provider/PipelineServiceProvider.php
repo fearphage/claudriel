@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Claudriel\Provider;
 
+use Claudriel\Controller\Pipeline\PipelineFetchController;
+use Claudriel\Controller\Pipeline\PipelinePdfController;
+use Claudriel\Controller\Pipeline\PipelineQualifyController;
 use Claudriel\Entity\FilteredProspect;
 use Claudriel\Entity\PipelineConfig;
 use Claudriel\Entity\Prospect;
@@ -12,6 +15,7 @@ use Claudriel\Entity\ProspectAudit;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\Foundation\ServiceProvider\ServiceProvider;
+use Waaseyaa\Routing\RouteBuilder;
 use Waaseyaa\Routing\WaaseyaaRouter;
 
 final class PipelineServiceProvider extends ServiceProvider
@@ -134,6 +138,48 @@ final class PipelineServiceProvider extends ServiceProvider
     public function routes(WaaseyaaRouter $router, ?EntityTypeManager $entityTypeManager = null): void
     {
         // Pipeline CRUD is served by /api/graphql.
-        // Custom action routes (fetch, qualify, PDF) will be added in Phase 3.
+        // Custom action routes below handle fetch, qualify, and PDF operations.
+
+        $fetchRoute = RouteBuilder::create('/api/pipeline/{workspace_uuid}/fetch')
+            ->controller(PipelineFetchController::class.'::fetch')
+            ->allowAll()
+            ->methods('POST')
+            ->build();
+        $fetchRoute->setOption('_csrf', false);
+        $router->addRoute('claudriel.pipeline.fetch', $fetchRoute);
+
+        $qualifyRoute = RouteBuilder::create('/api/pipeline/prospects/{uuid}/qualify')
+            ->controller(PipelineQualifyController::class.'::qualify')
+            ->allowAll()
+            ->methods('POST')
+            ->build();
+        $qualifyRoute->setOption('_csrf', false);
+        $router->addRoute('claudriel.pipeline.qualify', $qualifyRoute);
+
+        $generatePdfRoute = RouteBuilder::create('/api/pipeline/prospects/{uuid}/generate-pdf')
+            ->controller(PipelinePdfController::class.'::generate')
+            ->allowAll()
+            ->methods('POST')
+            ->build();
+        $generatePdfRoute->setOption('_csrf', false);
+        $router->addRoute('claudriel.pipeline.generate_pdf', $generatePdfRoute);
+
+        $router->addRoute(
+            'claudriel.pipeline.preview_pdf',
+            RouteBuilder::create('/api/pipeline/prospects/{uuid}/preview-pdf')
+                ->controller(PipelinePdfController::class.'::preview')
+                ->allowAll()
+                ->methods('GET')
+                ->build(),
+        );
+
+        $router->addRoute(
+            'claudriel.pipeline.tex',
+            RouteBuilder::create('/api/pipeline/prospects/{uuid}/tex')
+                ->controller(PipelinePdfController::class.'::tex')
+                ->allowAll()
+                ->methods('GET')
+                ->build(),
+        );
     }
 }
