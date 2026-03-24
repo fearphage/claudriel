@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Claudriel\Domain\DayBrief\Assembler;
 
 use Claudriel\Domain\Git\GitOperator;
+use Claudriel\Domain\Pipeline\ProspectReminderDetector;
 use Claudriel\Support\DriftDetector;
 use Claudriel\Support\FollowUpMonitor;
 use Claudriel\Support\SchedulePayloadNormalizer;
@@ -32,6 +33,7 @@ final class DayBriefAssembler
         private readonly ?GitOperator $gitOperator = null,
         private readonly ?FollowUpMonitor $followUpMonitor = null,
         private readonly ?WorkspaceRepoResolver $repoResolver = null,
+        private readonly ?EntityRepositoryInterface $prospectRepo = null,
     ) {}
 
     /** @return array{schedule: array, schedule_timeline: array, schedule_summary: string, temporal_awareness: array<string, mixed>, temporal_suggestions: list<array{type: string, title: string, summary: string}>, job_hunt: array, people: array, triage: array, creators: array, notifications: array, commitments: array{pending: array, drifting: array, waiting_on: array}, follow_ups: list<array{thread_id: string, subject: string, sent_at: string, recipient: string}>, counts: array{job_alerts: int, messages: int, triage: int, due_today: int, drifting: int, waiting_on: int, follow_ups: int, github?: int}, github?: array{mentions: list<array{repo: string, title: string, from: string, subject_type: string, occurred: mixed}>, review_requests: list<array{repo: string, title: string, from: string, occurred: mixed}>, ci_failures: list<array{repo: string, title: string, occurred: mixed}>, activity: list<array{repo: string, title: string, type: mixed, occurred: mixed}>}, generated_at: string, time_snapshot: array<string, int|string>, matched_skills: array, workspaces: array, workspace_status: ?array{last_commit: ?string, has_changes: bool, is_drifted: bool}} */
@@ -193,6 +195,15 @@ final class DayBriefAssembler
             $github['activity'] = array_slice($github['activity'], 0, 10);
             $result['github'] = $github;
             $result['counts']['github'] = $githubTotal;
+        }
+
+        if ($this->prospectRepo !== null) {
+            $detector = new ProspectReminderDetector($this->prospectRepo);
+            $closingSoon = $detector->findClosingSoon($tenantId);
+            if ($closingSoon !== []) {
+                $result['closing_soon'] = $closingSoon;
+                $result['counts']['closing_soon'] = count($closingSoon);
+            }
         }
 
         return $result;
