@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import type { EntityDetailConfig, SidebarSection } from '~/composables/useEntityDetailConfig'
 import { useRelationshipData } from '~/composables/useRelationshipData'
+import { useEntity } from '~/composables/useEntity'
 import MetadataCard from './MetadataCard.vue'
 import RelationshipPanel from './RelationshipPanel.vue'
 import ActivityTimeline from './ActivityTimeline.vue'
+import LinkDialog from './LinkDialog.vue'
 
 const props = defineProps<{
   config: EntityDetailConfig
@@ -44,6 +46,60 @@ function selectSection(key: string) {
 const currentSection = computed<SidebarSection | undefined>(() =>
   props.config.sidebar.find((s) => s.key === activeSection.value),
 )
+
+// Link dialog state
+const linkDialogOpen = ref(false)
+const linkDialogTargetType = ref('')
+const { create } = useEntity()
+
+function openLinkDialog(targetType: string) {
+  linkDialogTargetType.value = targetType
+  linkDialogOpen.value = true
+}
+
+async function handleLinkSelected(targetId: string) {
+  // Find the junction type and fields for the current action
+  const action = props.config.actions?.find((a) => a.targetType === linkDialogTargetType.value)
+  if (!action) return
+
+  // Determine junction type from sidebar config
+  const section = props.config.sidebar.find((s) => s.query?.resolveType === action.targetType)
+  if (!section?.query) return
+
+  const junctionType = section.query.entityType
+  const parentField = section.query.filterField
+  const targetField = section.query.resolveField ?? `${action.targetType}_uuid`
+
+  try {
+    await create(junctionType, {
+      [parentField]: props.entity.uuid,
+      [targetField]: targetId,
+    })
+    // Refresh counts
+    refreshCounts()
+    // If the active section matches, re-fetch items
+    if (activeSection.value === section.key) {
+      activeSection.value = ''
+      await nextTick()
+      activeSection.value = section.key
+    }
+  } catch (e: any) {
+    emit('error', e.message ?? 'Failed to link entity')
+  }
+
+  linkDialogOpen.value = false
+}
+
+function refreshCounts() {
+  for (const section of props.config.sidebar) {
+    if (section.query) {
+      const { count, fetchCount } = useRelationshipData(section.query, props.entity.uuid)
+      fetchCount().then(() => {
+        sectionCounts.value = { ...sectionCounts.value, [section.key]: count.value }
+      })
+    }
+  }
+}
 </script>
 
 <template>
@@ -58,6 +114,7 @@ const currentSection = computed<SidebarSection | undefined>(() =>
           v-for="action in config.actions"
           :key="action.label"
           class="btn btn-sm"
+          @click="action.targetType && openLinkDialog(action.targetType)"
         >
           {{ action.label }}
         </button>
@@ -123,6 +180,13 @@ const currentSection = computed<SidebarSection | undefined>(() =>
         </template>
       </main>
     </div>
+
+    <LinkDialog
+      :target-type="linkDialogTargetType"
+      :open="linkDialogOpen"
+      @selected="handleLinkSelected"
+      @close="linkDialogOpen = false"
+    />
   </div>
 </template>
 
