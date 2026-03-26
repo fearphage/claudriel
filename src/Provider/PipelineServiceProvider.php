@@ -4,15 +4,24 @@ declare(strict_types=1);
 
 namespace Claudriel\Provider;
 
+use Claudriel\Command\PipelineFetchCommand;
+use Claudriel\Command\PipelineMigrateCommand;
+use Claudriel\Command\PipelineQualifyCommand;
 use Claudriel\Controller\Pipeline\PipelineFetchController;
 use Claudriel\Controller\Pipeline\PipelineNormalizeDraftController;
 use Claudriel\Controller\Pipeline\PipelinePdfController;
 use Claudriel\Controller\Pipeline\PipelineQualifyController;
+use Claudriel\Domain\Pipeline\NorthCloudLeadFetcher;
+use Claudriel\Domain\Pipeline\PipelineNorthCloudLeadImportService;
 use Claudriel\Entity\FilteredProspect;
 use Claudriel\Entity\PipelineConfig;
 use Claudriel\Entity\Prospect;
 use Claudriel\Entity\ProspectAttachment;
 use Claudriel\Entity\ProspectAudit;
+use Claudriel\Ingestion\Handler\ProspectIngestHandler;
+use Claudriel\Ingestion\NorthCloudLeadNormalizer;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Waaseyaa\Database\DatabaseInterface;
 use Waaseyaa\Entity\EntityType;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\Entity\EntityTypeManagerInterface;
@@ -24,10 +33,21 @@ final class PipelineServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->singleton(PipelineNorthCloudLeadImportService::class, function () {
+            $entityTypeManager = $this->resolve(EntityTypeManagerInterface::class);
+
+            return new PipelineNorthCloudLeadImportService(
+                $entityTypeManager,
+                new NorthCloudLeadFetcher,
+                new NorthCloudLeadNormalizer,
+                new ProspectIngestHandler($entityTypeManager),
+                $this->createPipelineAiClient(),
+            );
+        });
+
         $this->singleton(PipelineFetchController::class, function () {
             return new PipelineFetchController(
-                $this->resolve(EntityTypeManagerInterface::class),
-                $this->createPipelineAiClient(),
+                $this->resolve(PipelineNorthCloudLeadImportService::class),
             );
         });
 
@@ -156,6 +176,23 @@ final class PipelineServiceProvider extends ServiceProvider
                 'updated_at' => ['type' => 'timestamp', 'readOnly' => true],
             ],
         ));
+    }
+
+    public function commands(
+        EntityTypeManager $entityTypeManager,
+        DatabaseInterface $database,
+        EventDispatcherInterface $dispatcher,
+    ): array {
+        return [
+            new PipelineFetchCommand(
+                $this->resolve(PipelineNorthCloudLeadImportService::class),
+            ),
+            new PipelineQualifyCommand(
+                $entityTypeManager,
+                $this->createPipelineAiClient(),
+            ),
+            new PipelineMigrateCommand($entityTypeManager),
+        ];
     }
 
     public function routes(WaaseyaaRouter $router, ?EntityTypeManager $entityTypeManager = null): void
