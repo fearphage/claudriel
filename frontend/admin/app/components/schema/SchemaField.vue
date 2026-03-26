@@ -42,14 +42,37 @@ const widgetComponent = computed(() => {
 </script>
 
 <template>
-  <component
-    :is="widgetComponent"
-    :model-value="modelValue"
-    :label="label"
-    :description="description"
-    :required="required"
-    :disabled="isDisabled"
-    :schema="schema"
-    @update:model-value="emit('update:modelValue', $event)"
-  />
+  <div class="schema-field" :class="{ 'schema-field--restricted': isDisabled }">
+    <component
+      :is="widgetComponent"
+      :model-value="modelValue"
+      :label="label"
+      :description="description"
+      :required="required"
+      :disabled="isDisabled"
+      :schema="schema"
+      @update:model-value="emit('update:modelValue', $event)"
+    />
+    <span v-if="isDisabled" class="restricted-badge">Read only</span>
+  </div>
 </template>
+
+<style scoped>
+.schema-field {
+  position: relative;
+}
+
+.restricted-badge {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ui-color-primary-700, #1d4ed8);
+  background: color-mix(in srgb, var(--ui-color-primary-100, #dbeafe) 75%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ui-color-primary-500, #3b82f6) 35%, transparent);
+  border-radius: 999px;
+  padding: 0.15rem 0.45rem;
+}
+</style>

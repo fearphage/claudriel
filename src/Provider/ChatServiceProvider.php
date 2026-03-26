@@ -13,6 +13,7 @@ use Claudriel\Controller\InternalSessionController;
 use Claudriel\Domain\Chat\InternalApiTokenGenerator;
 use Claudriel\Entity\ChatMessage;
 use Claudriel\Entity\ChatSession;
+use Claudriel\Entity\ChatTokenUsage;
 use Claudriel\Support\GitHubTokenManager;
 use Claudriel\Support\GitHubTokenManagerInterface;
 use Claudriel\Support\GoogleTokenManager;
@@ -70,6 +71,27 @@ final class ChatServiceProvider extends ServiceProvider
             ],
         ));
 
+        $this->entityType(new EntityType(
+            id: 'chat_token_usage',
+            label: 'Chat Token Usage',
+            class: ChatTokenUsage::class,
+            keys: ['id' => 'ctuid', 'uuid' => 'uuid', 'label' => 'session_uuid'],
+            fieldDefinitions: [
+                'ctuid' => ['type' => 'integer', 'readOnly' => true],
+                'uuid' => ['type' => 'string', 'readOnly' => true],
+                'session_uuid' => ['type' => 'string', 'required' => true],
+                'turn_number' => ['type' => 'integer'],
+                'model' => ['type' => 'string'],
+                'input_tokens' => ['type' => 'integer'],
+                'output_tokens' => ['type' => 'integer'],
+                'cache_read_tokens' => ['type' => 'integer'],
+                'cache_write_tokens' => ['type' => 'integer'],
+                'tenant_id' => ['type' => 'string'],
+                'workspace_id' => ['type' => 'string'],
+                'created_at' => ['type' => 'timestamp', 'readOnly' => true],
+            ],
+        ));
+
         $this->singleton(GoogleTokenManagerInterface::class, function () {
             $clientId = $_ENV['GOOGLE_CLIENT_ID'] ?? getenv('GOOGLE_CLIENT_ID') ?: '';
             $clientSecret = $_ENV['GOOGLE_CLIENT_SECRET'] ?? getenv('GOOGLE_CLIENT_SECRET') ?: '';
@@ -97,10 +119,13 @@ final class ChatServiceProvider extends ServiceProvider
         });
 
         $this->singleton(InternalSessionController::class, function () {
+            $entityTypeManager = $this->resolve(EntityTypeManager::class);
+
             return new InternalSessionController(
-                new StorageRepositoryAdapter($this->resolve(EntityTypeManager::class)->getStorage('chat_session')),
+                new StorageRepositoryAdapter($entityTypeManager->getStorage('chat_session')),
                 $this->resolve(InternalApiTokenGenerator::class),
                 $_ENV['CLAUDRIEL_DEFAULT_TENANT'] ?? getenv('CLAUDRIEL_DEFAULT_TENANT') ?: 'default',
+                $entityTypeManager,
             );
         });
 

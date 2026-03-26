@@ -57,6 +57,52 @@
     </div>
   </section>
 
+  <section style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+    <h2 style="font-size: 16px; font-weight: 600; margin-bottom: 16px; color: var(--text-primary);">Chat Turn Limits</h2>
+
+    <form method="post" action="/api/settings/chat-turn-limits" style="margin-top: 8px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; background: var(--bg-elevated); border-radius: 8px;">
+        <label for="daily-turn-ceiling" style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">Daily turn ceiling</label>
+        <input
+          id="daily-turn-ceiling"
+          name="daily_turn_ceiling"
+          type="number"
+          min="1"
+          step="1"
+          value="{{ daily_turn_ceiling }}"
+          data-testid="daily-turn-ceiling"
+          style="width: 140px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-primary);"
+          required
+        />
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px;">
+        {% for taskType in ['quick_lookup','email_compose','brief_generation','research','general','onboarding'] %}
+          <div style="display: flex; flex-direction: column; gap: 6px; padding: 14px 14px; background: var(--bg-elevated); border-radius: 8px;">
+            <label for="turn-limit-{{ taskType }}" style="font-size: 13px; color: var(--text-secondary); font-weight: 500; text-transform: none;">
+              {{ taskType }}
+            </label>
+            <input
+              id="turn-limit-{{ taskType }}"
+              name="turn_limits[{{ taskType }}]"
+              type="number"
+              min="1"
+              step="1"
+              value="{{ chat_turn_limits[taskType] ?? 0 }}"
+              data-testid="turn-limit-{{ taskType }}"
+              style="width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-surface); color: var(--text-primary);"
+              required
+            />
+          </div>
+        {% endfor %}
+      </div>
+
+      <button type="submit" style="margin-top: 18px; padding: 10px 16px; background: var(--accent-blue); border: none; color: #fff; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;">
+        Save Chat Turn Settings
+      </button>
+    </form>
+  </section>
+
   <a href="/dashboard" style="color: var(--text-secondary); font-size: 14px; text-decoration: none;">&larr; Back to Dashboard</a>
 </div>
 

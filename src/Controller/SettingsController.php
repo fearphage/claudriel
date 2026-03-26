@@ -6,6 +6,7 @@ namespace Claudriel\Controller;
 
 use Claudriel\Access\AuthenticatedAccount;
 use Claudriel\Support\AuthenticatedAccountSessionResolver;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Twig\Environment;
 use Waaseyaa\Access\AccountInterface;
@@ -14,6 +15,17 @@ use Waaseyaa\SSR\SsrResponse;
 
 final class SettingsController
 {
+    private const DEFAULT_TURN_LIMITS = [
+        'quick_lookup' => 5,
+        'email_compose' => 15,
+        'brief_generation' => 10,
+        'research' => 40,
+        'general' => 25,
+        'onboarding' => 30,
+    ];
+
+    private const DEFAULT_DAILY_CEILING = 500;
+
     public function __construct(
         private readonly EntityTypeManager $entityTypeManager,
         private readonly ?Environment $twig = null,
@@ -132,6 +144,12 @@ final class SettingsController
         $githubUsername = $githubConnected ? ($githubIntegration->get('provider_email') ?? $githubIntegration->get('name') ?? '') : '';
         $githubConnectedAt = $githubConnected ? ($githubIntegration->get('created_at') ?? '') : '';
 
+        $chatTurnLimits = self::DEFAULT_TURN_LIMITS;
+        $dailyTurnCeiling = self::DEFAULT_DAILY_CEILING;
+        if ($authenticatedAccount !== null) {
+            [$chatTurnLimits, $dailyTurnCeiling] = $this->resolveChatTurnSettings($authenticatedAccount);
+        }
+
         if ($this->twig !== null) {
             $html = $this->twig->render('settings.html.twig', [
                 'google_connected' => $googleConnected,
@@ -140,6 +158,8 @@ final class SettingsController
                 'github_connected' => $githubConnected,
                 'github_username' => $githubUsername,
                 'github_connected_at' => $githubConnectedAt,
+                'chat_turn_limits' => $chatTurnLimits,
+                'daily_turn_ceiling' => $dailyTurnCeiling,
             ]);
 
             return new SsrResponse(
@@ -160,7 +180,65 @@ final class SettingsController
                 'username' => $githubUsername,
                 'connected_at' => $githubConnectedAt,
             ],
+            'chat' => [
+                'turn_limits' => $chatTurnLimits,
+                'daily_turn_ceiling' => $dailyTurnCeiling,
+            ],
         ]);
+    }
+
+    public function saveChatTurnSettings(array $params, array $query, AccountInterface $account, Request $httpRequest): SsrResponse|RedirectResponse
+    {
+        $authenticatedAccount = $this->resolveAccount($account);
+        if ($authenticatedAccount === null) {
+            return $this->json(['error' => 'Not authenticated'], 401);
+        }
+
+        $payload = $httpRequest->request->all();
+
+        $dailyTurnCeilingRaw = $payload['daily_turn_ceiling'] ?? self::DEFAULT_DAILY_CEILING;
+        $dailyTurnCeiling = is_numeric($dailyTurnCeilingRaw)
+            ? max(1, (int) $dailyTurnCeilingRaw)
+            : self::DEFAULT_DAILY_CEILING;
+
+        $turnLimitsRaw = $payload['turn_limits'] ?? null;
+        if (! is_array($turnLimitsRaw)) {
+            $turnLimitsRaw = [];
+        }
+
+        $allowed = array_keys(self::DEFAULT_TURN_LIMITS);
+        $turnLimits = self::DEFAULT_TURN_LIMITS;
+        foreach ($allowed as $taskType) {
+            if (! array_key_exists($taskType, $turnLimitsRaw)) {
+                continue;
+            }
+            $value = $turnLimitsRaw[$taskType];
+            if (! is_numeric($value)) {
+                continue;
+            }
+            $turnLimits[$taskType] = max(1, (int) $value);
+        }
+
+        $acc = $authenticatedAccount->account();
+        $settings = $acc->get('settings');
+        if (! is_array($settings) && is_string($settings)) {
+            try {
+                $decoded = json_decode($settings, true, 512, JSON_THROW_ON_ERROR);
+                $settings = is_array($decoded) ? $decoded : [];
+            } catch (\Throwable) {
+                $settings = [];
+            }
+        }
+        if (! is_array($settings)) {
+            $settings = [];
+        }
+
+        $settings['turn_limits'] = $turnLimits;
+        $settings['daily_turn_ceiling'] = $dailyTurnCeiling;
+        $acc->set('settings', $settings);
+        $this->entityTypeManager->getStorage('account')->save($acc);
+
+        return new RedirectResponse('/settings');
     }
 
     private function findGoogleIntegration(string $accountUuid): ?object
@@ -206,6 +284,51 @@ final class SettingsController
         }
 
         return (new AuthenticatedAccountSessionResolver($this->entityTypeManager))->resolve();
+    }
+
+    /**
+     * @return array{0: array<string, int>, 1: int}
+     */
+    private function resolveChatTurnSettings(AuthenticatedAccount $authenticatedAccount): array
+    {
+        $settings = $authenticatedAccount->account()->get('settings');
+        if (! is_array($settings) && ! is_string($settings)) {
+            return [self::DEFAULT_TURN_LIMITS, self::DEFAULT_DAILY_CEILING];
+        }
+
+        if (is_string($settings)) {
+            try {
+                $decoded = json_decode($settings, true, 512, JSON_THROW_ON_ERROR);
+                $settings = is_array($decoded) ? $decoded : [];
+            } catch (\Throwable) {
+                $settings = [];
+            }
+        }
+
+        $dailyTurnCeiling = self::DEFAULT_DAILY_CEILING;
+        $dailyRaw = $settings['daily_turn_ceiling'] ?? null;
+        if (is_numeric($dailyRaw)) {
+            $dailyTurnCeiling = max(1, (int) $dailyRaw);
+        }
+
+        $turnLimitsRaw = $settings['turn_limits'] ?? null;
+        if (! is_array($turnLimitsRaw)) {
+            return [self::DEFAULT_TURN_LIMITS, $dailyTurnCeiling];
+        }
+
+        $turnLimits = self::DEFAULT_TURN_LIMITS;
+        foreach (array_keys(self::DEFAULT_TURN_LIMITS) as $taskType) {
+            if (! array_key_exists($taskType, $turnLimitsRaw)) {
+                continue;
+            }
+            $value = $turnLimitsRaw[$taskType];
+            if (! is_numeric($value)) {
+                continue;
+            }
+            $turnLimits[$taskType] = max(1, (int) $value);
+        }
+
+        return [$turnLimits, $dailyTurnCeiling];
     }
 
     private function json(mixed $data, int $statusCode = 200): SsrResponse

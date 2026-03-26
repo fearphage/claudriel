@@ -59,8 +59,8 @@ function formatDate(iso: string): string {
 .event-type-badge {
   display: inline-block;
   padding: 0.1em 0.5em;
-  background: #ede9fe;
-  color: #5b21b6;
+  background: color-mix(in srgb, var(--ui-color-primary-100, #dbeafe) 72%, transparent);
+  color: var(--ui-color-primary-700, #1d4ed8);
   border-radius: 0.25rem;
   font-size: 0.8em;
   font-family: monospace;
@@ -70,12 +70,15 @@ function formatDate(iso: string): string {
   background: none;
   border: none;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--ui-color-gray-600, #4b5563);
   font-size: 0.8em;
   padding: 0.1em 0.3em;
 }
-.btn-inline:hover { color: #111827; }
-.details-row td { background: #f9fafb; padding: 0.5rem 1rem; }
+.btn-inline:hover { color: var(--ui-color-gray-900, #111827); }
+.details-row td {
+  background: color-mix(in srgb, var(--ui-color-gray-100, #f3f4f6) 55%, transparent);
+  padding: 0.5rem 1rem;
+}
 .json-pre {
   margin: 0;
   font-size: 0.8em;
@@ -84,5 +87,5 @@ function formatDate(iso: string): string {
   max-height: 12rem;
   overflow-y: auto;
 }
-.empty { color: #9ca3af; }
+.empty { color: var(--ui-color-gray-500, #6b7280); }
 </style>

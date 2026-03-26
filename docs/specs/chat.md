@@ -1,143 +1,91 @@
 # Chat Specification
 
-## File Map
+## Current Runtime
 
-| File | Purpose |
-|------|---------|
-| `src/Domain/Chat/AnthropicChatClient.php` | Handles non-streaming (`complete()`) and SSE streaming (`stream()`) to Anthropic API |
-| `src/Domain/Chat/ChatSystemPromptBuilder.php` | Assembles system prompt from personality, user context, and brief data |
-| `src/Entity/ChatSession.php` | Conversation thread entity (uuid, title) |
-| `src/Entity/ChatMessage.php` | Individual message entity (session_uuid, role, content) |
-| `src/Controller/ChatController.php` | `GET /chat` (UI) and `POST /api/chat/send` (message creation) |
-| `src/Controller/ChatStreamController.php` | `GET /stream/chat/{messageId}` (SSE streaming response) |
-| `src/Controller/StorageRepositoryAdapter.php` | Bridges EntityTypeManager storage to EntityRepositoryInterface |
+Chat uses `NativeAgentClient` (direct Anthropic Messages API calls with tool use), not the older `AnthropicChatClient` stream loop.
 
-## Interface Signatures
+Core files:
 
-```php
-// AnthropicChatClient
-public function __construct(string $apiKey, string $model = 'claude-sonnet-4-20250514')
-public function complete(string $systemPrompt, array $messages): string
-public function stream(string $systemPrompt, array $messages, callable $onToken): void
+- `src/Controller/ChatController.php` — creates sessions/messages (`POST /api/chat/send`)
+- `src/Controller/ChatStreamController.php` — streams responses (`GET /stream/chat/{messageId}`)
+- `src/Domain/Chat/NativeAgentClient.php` — agent loop, tool execution, retries/fallbacks, continuation signal
+- `src/Entity/ChatSession.php`, `src/Entity/ChatMessage.php`, `src/Entity/ChatTokenUsage.php`
 
-// ChatSystemPromptBuilder
-public function __construct(string $rootPath, DayBriefAssembler $briefAssembler)
-public function build(string $tenantId, ?object $activeWorkspace = null): string
-// $activeWorkspace: optional Workspace entity; when provided, build() prepends workspace context to the prompt
+## Long-Context Policy (#407, #409)
 
-// ChatController
-public function send(ServerRequestInterface $request): ResponseInterface
+Conversation history is compacted before each model call:
 
-// ChatStreamController
-public function stream(ServerRequestInterface $request, array $params): void
-```
+- max 20 messages per turn
+- last 4 messages (2 exchanges) always preserved in full
+- older assistant messages truncated to 500 chars with `[truncated]`
+- if older messages are dropped, prepend trim marker:
+  `[Earlier conversation trimmed — N messages]`
+- tool results are truncated to 2000 chars
+- `gmail_read` body is truncated to 500 chars
 
-## Data Flow
+This keeps context bounded while retaining short-term coherence.
 
-```
-User sends message:
-  POST /api/chat/send
-    → ChatController::send()
-    → creates/loads ChatSession
-    → saves user ChatMessage (role='user')
-    → returns JSON { session_uuid, message_id }
+## Model Selection
 
-Client opens SSE stream:
-  GET /stream/chat/{messageId}
-    → ChatStreamController::stream()
-    → loads ChatSession + all ChatMessages for conversation history
-    → ChatSystemPromptBuilder::build($tenantId)
-        → reads CLAUDE.md personality
-        → reads context/me.md user context
-        → calls DayBriefAssembler::assemble() for current brief
-        → concatenates into system prompt
-    → AnthropicChatClient::stream($systemPrompt, $messages, $onToken)
-        → POST to Anthropic API with stream: true
-        → parses SSE chunks from API
-        → calls $onToken(string) per content_block_delta
-    → emits SSE events: chat-token, chat-done, chat-error
-    → saves assistant ChatMessage (role='assistant')
-```
+Model resolution order in `ChatStreamController`:
 
-## SSE Event Format
+1. workspace-level `workspace.anthropic_model` (allowed list only)
+2. global `ANTHROPIC_MODEL`
+3. hard default `claude-sonnet-4-6`
 
-```
-event: chat-token
-data: {"token": "partial text"}
+Allowed models:
 
-event: chat-done
-data: {"message": "full assistant response"}
+- `claude-opus-4-6`
+- `claude-sonnet-4-6`
+- `claude-haiku-4-5-20251001`
 
-event: chat-error
-data: {"error": "error description"}
-```
+## Continuation + Turn Budget (#310)
 
-Uses output buffering (`ob_flush()` + `flush()`) for real-time delivery. Sets headers: `Content-Type: text/event-stream`, `Cache-Control: no-cache`, `Connection: keep-alive`.
+`NativeAgentClient` enforces per-task turn limits:
 
-## System Prompt Assembly
+- quick_lookup: 5
+- email_compose: 15
+- brief_generation: 10
+- research: 40
+- general: 25
+- onboarding: 30
 
-`ChatSystemPromptBuilder::build()` concatenates three sources:
+When a turn budget is nearly exhausted and tools are still needed, stream emits:
 
-1. **Personality**: reads `CLAUDE.md` from `$rootPath` (the `CLAUDRIEL_ROOT` env var or project root)
-2. **User context**: reads `context/me.md` from `$rootPath`
-3. **Daily brief**: calls `DayBriefAssembler::assemble()` and formats result as text summary
+- `chat-needs-continuation` with `session_uuid`, `turns_consumed`, and prompt text.
 
-If any file is missing, that section is silently omitted.
+The chat UI (`templates/chat.html.twig`) shows Continue/Stop controls and calls:
 
-## Entity Keys
+- `POST /api/internal/session/{id}/continue`
 
-```php
-// ChatSession
-entityTypeId: 'chat_session'
-entityKeys: [id => csid, uuid, label => title]
+to increment `continued_count` and compute a new budget, respecting a daily ceiling.
 
-// ChatMessage
-entityTypeId: 'chat_message'
-entityKeys: [id => cmid, uuid]
-```
+## Telemetry (#408)
 
-## Routes
+Per-turn usage from Anthropic `usage` is persisted as `chat_token_usage`:
 
-| Method | Path | Controller | Purpose |
-|--------|------|-----------|---------|
-| `GET` | `/chat` | `DashboardController::show` | Chat UI (redirects to dashboard) |
-| `POST` | `/api/chat/send` | `ChatController::send` | Create message |
-| `GET` | `/stream/chat/{messageId}` | `ChatStreamController::stream` | SSE stream |
+- `session_uuid`, `turn_number`, `model`
+- `input_tokens`, `output_tokens`
+- `cache_read_tokens`, `cache_write_tokens`
+- `tenant_id`, `workspace_id`, `created_at`
+
+`ChatSession` is also updated during streaming with:
+
+- `turns_consumed`
+- `turn_limit_applied`
+- `task_type`
+- `model`
+
+## SSE Events
+
+- `chat-token` — streamed assistant text chunks
+- `chat-progress` — normalized progress updates (phase/summary/level)
+- `chat-needs-continuation` — turn-limit continuation request
+- `chat-done` — completion marker + full response
+- `chat-error` — error payload
 
 ## Environment Variables
 
-| Variable | Required | Default | Purpose |
-|----------|----------|---------|---------|
-| `ANTHROPIC_API_KEY` | Yes | — | API authentication |
-| `ANTHROPIC_MODEL` | No | `claude-sonnet-4-20250514` | Model selection |
-| `CLAUDRIEL_ROOT` | No | project root | Base path for personality/context files |
-
-## Dependencies
-
-```php
-ChatStreamController(
-    EntityTypeManager $etm,    // for loading sessions and messages
-    DayBriefAssembler $brief   // passed to ChatSystemPromptBuilder
-)
-
-ChatController(
-    EntityTypeManager $etm     // for saving sessions and messages
-)
-
-AnthropicChatClient(
-    string $apiKey,
-    string $model
-)
-
-ChatSystemPromptBuilder(
-    string $rootPath,
-    DayBriefAssembler $briefAssembler
-)
-```
-
-## Critical Notes
-
-- `StorageRepositoryAdapter` wraps `EntityTypeManager` to provide `EntityRepositoryInterface` for chat entities
-- Streaming uses PHP output buffering, not a dedicated SSE library
-- The system prompt includes the full daily brief data, making each chat response context-aware
-- `ChatMessage` has no `label` key (unlike most other entities), only `id` and `uuid`
+- `ANTHROPIC_API_KEY` (required for live chat)
+- `ANTHROPIC_MODEL` (optional global default)
+- `CLAUDRIEL_ROOT` (optional prompt/context root override)

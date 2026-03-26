@@ -17,10 +17,10 @@ function severityClass(severity: string): string {
 }
 
 function scoreColor(score: number): string {
-  if (score >= 75) return '#16a34a'
-  if (score >= 50) return '#ca8a04'
-  if (score >= 25) return '#ea580c'
-  return '#dc2626'
+  if (score >= 75) return 'var(--ui-color-success-600, #16a34a)'
+  if (score >= 50) return 'var(--ui-color-warning-600, #ca8a04)'
+  if (score >= 25) return 'var(--ui-color-orange-600, #ea580c)'
+  return 'var(--ui-color-danger-600, #dc2626)'
 }
 </script>
 
@@ -92,22 +92,22 @@ function scoreColor(score: number): string {
 <style scoped>
 .validation-card { display: flex; flex-direction: column; gap: 1rem; }
 .score-row { display: flex; align-items: center; gap: 0.5rem; }
-.score-label { font-weight: 600; color: #374151; }
+.score-label { font-weight: 600; color: var(--ui-color-gray-700, #374151); }
 .score-value { font-size: 1.5rem; font-weight: 700; }
 .components { display: flex; flex-direction: column; gap: 0.5rem; }
 .component-row { display: grid; grid-template-columns: 12rem 1fr 2.5rem; align-items: center; gap: 0.5rem; }
-.component-label { font-size: 0.875rem; color: #6b7280; }
+.component-label { font-size: 0.875rem; color: var(--ui-color-gray-600, #4b5563); }
 .component-value { text-align: right; font-size: 0.875rem; font-weight: 600; }
-.progress-track { height: 0.5rem; background: #f3f4f6; border-radius: 0.25rem; overflow: hidden; }
+.progress-track { height: 0.5rem; background: var(--ui-color-gray-100, #f3f4f6); border-radius: 0.25rem; overflow: hidden; }
 .progress-bar { height: 100%; border-radius: 0.25rem; transition: width 0.3s ease; }
 .issues h3 { font-size: 0.9rem; font-weight: 600; margin: 0 0 0.5rem; }
 .issues ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
 .issue { display: flex; gap: 0.5rem; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.85rem; }
-.issue--critical { background: #fee2e2; color: #991b1b; }
-.issue--high     { background: #ffedd5; color: #9a3412; }
-.issue--medium   { background: #dbeafe; color: #1e40af; }
-.issue--low      { background: #dcfce7; color: #166534; }
+.issue--critical { background: color-mix(in srgb, var(--ui-color-danger-100, #fee2e2) 75%, transparent); color: var(--ui-color-danger-800, #991b1b); }
+.issue--high     { background: color-mix(in srgb, var(--ui-color-orange-100, #ffedd5) 75%, transparent); color: var(--ui-color-orange-800, #9a3412); }
+.issue--medium   { background: color-mix(in srgb, var(--ui-color-primary-100, #dbeafe) 75%, transparent); color: var(--ui-color-primary-800, #1e40af); }
+.issue--low      { background: color-mix(in srgb, var(--ui-color-success-100, #dcfce7) 75%, transparent); color: var(--ui-color-success-800, #166534); }
 .issue-type { font-weight: 600; min-width: 6rem; }
-.recommendation { font-size: 0.875rem; padding: 0.5rem; background: #f9fafb; border-radius: 0.25rem; border-left: 3px solid #6b7280; }
-.empty { color: #9ca3af; }
+.recommendation { font-size: 0.875rem; padding: 0.5rem; background: var(--ui-color-gray-50, #f9fafb); border-radius: 0.25rem; border-left: 3px solid var(--ui-color-gray-500, #6b7280); }
+.empty { color: var(--ui-color-gray-500, #6b7280); }
 </style>

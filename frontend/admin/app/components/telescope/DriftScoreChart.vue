@@ -2,10 +2,10 @@
 const props = defineProps<{ score: number }>()
 
 const barColor = computed(() => {
-  if (props.score >= 75) return '#16a34a'
-  if (props.score >= 50) return '#ca8a04'
-  if (props.score >= 25) return '#ea580c'
-  return '#dc2626'
+  if (props.score >= 75) return 'var(--ui-color-success-600, #16a34a)'
+  if (props.score >= 50) return 'var(--ui-color-warning-600, #ca8a04)'
+  if (props.score >= 25) return 'var(--ui-color-orange-600, #ea580c)'
+  return 'var(--ui-color-danger-600, #dc2626)'
 })
 
 const barWidth = computed(() => `${Math.max(0, Math.min(100, props.score))}%`)
@@ -36,7 +36,7 @@ const barWidth = computed(() => `${Math.max(0, Math.min(100, props.score))}%`)
 .drift-track {
   flex: 1;
   height: 1rem;
-  background: #f3f4f6;
+  background: var(--ui-color-gray-100, #f3f4f6);
   border-radius: 0.5rem;
   overflow: hidden;
 }

@@ -74,16 +74,18 @@ async function onSubmit() {
     <div v-if="schemaLoading" class="loading">{{ t('loading') }}</div>
     <div v-else-if="schemaError" class="error">{{ schemaError }}</div>
     <div v-else-if="loadError" class="error">{{ loadError }}</div>
-    <form v-else @submit.prevent="onSubmit">
-      <SchemaField
-        v-for="[fieldName, fieldSchema] in editableFields"
-        :key="fieldName"
-        :name="fieldName"
-        :schema="fieldSchema"
-        :disabled="!!fieldSchema['x-access-restricted']"
-        :model-value="formData[fieldName] ?? ''"
-        @update:model-value="(val: any) => { if (!fieldSchema['x-access-restricted']) formData[fieldName] = val }"
-      />
+    <form v-else class="editorial-form" @submit.prevent="onSubmit">
+      <div class="fields-grid">
+        <SchemaField
+          v-for="[fieldName, fieldSchema] in editableFields"
+          :key="fieldName"
+          :name="fieldName"
+          :schema="fieldSchema"
+          :disabled="!!fieldSchema['x-access-restricted']"
+          :model-value="formData[fieldName] ?? ''"
+          @update:model-value="(val: any) => { if (!fieldSchema['x-access-restricted']) formData[fieldName] = val }"
+        />
+      </div>
 
       <div class="form-actions">
         <button
@@ -98,3 +100,27 @@ async function onSubmit() {
     </form>
   </div>
 </template>
+
+<style scoped>
+.editorial-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.fields-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 960px) {
+  .fields-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+</style>

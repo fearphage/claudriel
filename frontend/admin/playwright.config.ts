@@ -18,7 +18,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
+    command: 'sh -c "PHP_CLI_SERVER_WORKERS=4 php -S 0.0.0.0:8081 -t /home/jones/dev/claudriel/public & npm run dev"',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,

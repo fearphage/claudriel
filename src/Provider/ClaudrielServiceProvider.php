@@ -567,6 +567,15 @@ final class ClaudrielServiceProvider extends ServiceProvider
                 ->build(),
         );
 
+        // Settings save: chat turn limits
+        $chatTurnLimitsSaveRoute = RouteBuilder::create('/api/settings/chat-turn-limits')
+            ->controller(SettingsController::class.'::saveChatTurnSettings')
+            ->allowAll()
+            ->methods('POST')
+            ->build();
+        $chatTurnLimitsSaveRoute->setOption('_csrf', false);
+        $router->addRoute('claudriel.api.settings.chat_turn_limits', $chatTurnLimitsSaveRoute);
+
         // Workspace API: repo connection and drift detection
         $driftControllerFactory = fn (): WorkspaceDriftController => new WorkspaceDriftController(
             $entityTypeManager,

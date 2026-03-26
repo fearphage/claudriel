@@ -828,6 +828,70 @@
             margin-bottom: 0.5rem;
         }
 
+        /* ── Agent Continuation UI ── */
+        .continuation-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            background: var(--bg-surface);
+            border: 1px solid var(--accent-blue);
+            border-radius: var(--radius-md);
+            margin-bottom: 1rem;
+        }
+
+        .continuation-bar .continuation-message {
+            flex: 1;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+        }
+
+        .continuation-bar .continuation-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .continuation-bar button {
+            padding: 0.5rem 1.25rem;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            font-family: var(--font-body);
+            white-space: nowrap;
+        }
+
+        .btn-continue {
+            background: var(--accent-blue);
+            color: #fff;
+        }
+
+        .btn-continue:hover {
+            background: #4a7de0;
+        }
+
+        .btn-cancel {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border) !important;
+        }
+
+        .btn-cancel:hover {
+            background: var(--bg-hover);
+        }
+
+        .limit-reached {
+            color: #f87171;
+            font-size: 0.85rem;
+            padding: 0.6rem 0.85rem;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: var(--radius-sm);
+            margin-bottom: 1rem;
+        }
+
         .input-area {
             padding: 0.85rem 1.25rem;
             border-top: 1px solid var(--border);
@@ -1231,6 +1295,9 @@
         var sessionId = null;
         var sending = false;
         var chatSource = null;
+        var continuationPending = false;
+        var continuationBarEl = null;
+        var limitReachedEl = null;
 
         // ── Panel Toggle ──
         var panelKey = 'claudriel_panel_collapsed';
@@ -2364,7 +2431,137 @@
             messagesEl.scrollTop = messagesEl.scrollHeight;
         }
 
-        function sendMessage(messageOverride) {
+        function removeContinuationBar() {
+            if (continuationBarEl) {
+                continuationBarEl.remove();
+                continuationBarEl = null;
+            }
+        }
+
+        function removeLimitReached() {
+            if (limitReachedEl) {
+                limitReachedEl.remove();
+                limitReachedEl = null;
+            }
+        }
+
+        function showLimitReached() {
+            continuationPending = false;
+            removeContinuationBar();
+            removeLimitReached();
+
+            if (inputEl) inputEl.disabled = false;
+            sendBtn.disabled = false;
+
+            var el = document.createElement('div');
+            el.className = 'limit-reached';
+            el.textContent = 'Daily turn limit reached. Please try again tomorrow.';
+            messagesEl.appendChild(el);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+            limitReachedEl = el;
+        }
+
+        function showContinuationBar(sessionUuid, turnsConsumed, agentMessage) {
+            continuationPending = true;
+            removeContinuationBar();
+            removeLimitReached();
+
+            if (inputEl) inputEl.disabled = true;
+            sendBtn.disabled = true;
+
+            var bar = document.createElement('div');
+            bar.className = 'continuation-bar';
+
+            var info = document.createElement('div');
+            info.className = 'continuation-message';
+            info.textContent = agentMessage || 'The agent needs more turns to complete this task.';
+
+            var meta = document.createElement('div');
+            meta.className = 'continuation-meta';
+            meta.textContent = (turnsConsumed || 0) + ' turns used';
+
+            var infoWrap = document.createElement('div');
+            infoWrap.appendChild(info);
+            infoWrap.appendChild(meta);
+
+            var continueBtn = document.createElement('button');
+            continueBtn.className = 'btn-continue';
+            continueBtn.textContent = 'Continue';
+            continueBtn.addEventListener('click', function() {
+                handleContinue(sessionUuid);
+            });
+
+            var cancelBtn = document.createElement('button');
+            cancelBtn.className = 'btn-cancel';
+            cancelBtn.textContent = 'Stop';
+            cancelBtn.addEventListener('click', function() {
+                continuationPending = false;
+                removeContinuationBar();
+                removeLimitReached();
+                if (inputEl) inputEl.disabled = false;
+                sendBtn.disabled = false;
+            });
+
+            bar.appendChild(infoWrap);
+            bar.appendChild(continueBtn);
+            bar.appendChild(cancelBtn);
+            messagesEl.appendChild(bar);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+
+            continuationBarEl = bar;
+        }
+
+        async function handleContinue(sessionUuid) {
+            var barEl = continuationBarEl;
+            var metaEl = barEl ? barEl.querySelector('.continuation-meta') : null;
+            removeLimitReached();
+            continuationPending = false;
+
+            if (inputEl) inputEl.disabled = false;
+            sendBtn.disabled = false;
+
+            if (!sessionUuid) {
+                showError('Session ID required for continuation.');
+                return;
+            }
+
+            try {
+                var res = await fetch(`/api/internal/session/${sessionUuid}/continue`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+
+                if (res.status === 429) {
+                    showLimitReached();
+                    return;
+                }
+
+                if (!res.ok) {
+                    var errData = await res.json().catch(function() { return {}; });
+                    showError(errData.error || `Could not continue (${res.status}).`);
+                    sendBtn.disabled = false;
+                    if (inputEl) inputEl.disabled = false;
+                    return;
+                }
+
+                var data = await res.json().catch(function() { return {}; });
+                if (metaEl && typeof data.daily_turns_used !== 'undefined') {
+                    metaEl.textContent = data.daily_turns_used + ' / ' + data.daily_ceiling + ' used today, +' + data.new_turn_budget + ' new turns';
+                }
+                removeContinuationBar();
+
+                // Start a new chat stream for continuation.
+                await sendMessage('[continue]', { appendUser: false });
+            } catch (err) {
+                showError('Network error while continuing. Please try again.');
+                sendBtn.disabled = false;
+                if (inputEl) inputEl.disabled = false;
+            }
+        }
+
+        function sendMessage(messageOverride, options) {
+            options = options || {};
+            var appendUser = options.appendUser !== false;
             var message = messageOverride || inputEl.value.trim();
             if (!message) {
                 return Promise.resolve(false);
@@ -2378,7 +2575,9 @@
             if (!messageOverride) inputEl.value = '';
             inputEl.style.height = 'auto';
 
-            appendMessage('user', message);
+            if (appendUser) {
+                appendMessage('user', message);
+            }
             showThinking();
 
             var payload = { message: message };
@@ -2437,6 +2636,9 @@
 
                     function finish() {
                         sending = false;
+                        if (continuationPending) {
+                            return;
+                        }
                         sendBtn.disabled = false;
                         inputEl.focus();
                     }
@@ -2457,6 +2659,18 @@
                         try {
                             revealAssistant();
                             appendProgressSummary(assistantMsg, JSON.parse(e.data));
+                        } catch (err) {}
+                    });
+
+                    chatSource.addEventListener('chat-needs-continuation', function(e) {
+                        try {
+                            var data = JSON.parse(e.data);
+                            revealAssistant();
+                            showContinuationBar(
+                                data.session_uuid || sessionId,
+                                data.turns_consumed || 0,
+                                data.message || 'The agent needs more turns to complete this task.'
+                            );
                         } catch (err) {}
                     });
 

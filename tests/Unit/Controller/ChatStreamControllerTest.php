@@ -10,6 +10,7 @@ use Claudriel\Domain\Chat\NativeAgentClient;
 use Claudriel\Entity\Account;
 use Claudriel\Entity\ChatMessage;
 use Claudriel\Entity\ChatSession;
+use Claudriel\Entity\ChatTokenUsage;
 use Claudriel\Entity\Commitment;
 use Claudriel\Entity\McEvent;
 use Claudriel\Entity\Person;
@@ -185,6 +186,11 @@ final class ChatStreamControllerTest extends TestCase
                         ?\Closure $onProgress = null,
                         ?string $model = null,
                         ?\Closure $onNeedsContinuation = null,
+                        ?\Closure $onTelemetry = null,
+                        ?string $taskTypeOverride = null,
+                        ?int $turnLimitOverride = null,
+                        int $turnsConsumedStart = 0,
+                        ?array $turnLimitsOverride = null,
                     ): void {
                         $this->captureRef = $accountId;
                         $onToken('Done.');
@@ -313,6 +319,11 @@ final class ChatStreamControllerTest extends TestCase
                         ?\Closure $onProgress = null,
                         ?string $model = null,
                         ?\Closure $onNeedsContinuation = null,
+                        ?\Closure $onTelemetry = null,
+                        ?string $taskTypeOverride = null,
+                        ?int $turnLimitOverride = null,
+                        int $turnsConsumedStart = 0,
+                        ?array $turnLimitsOverride = null,
                     ): void {
                         $this->captureRef = $model;
                         $onToken('Done.');
@@ -364,6 +375,11 @@ final class ChatStreamControllerTest extends TestCase
                 ?\Closure $onProgress = null,
                 ?string $model = null,
                 ?\Closure $onNeedsContinuation = null,
+                ?\Closure $onTelemetry = null,
+                ?string $taskTypeOverride = null,
+                ?int $turnLimitOverride = null,
+                int $turnsConsumedStart = 0,
+                ?array $turnLimitsOverride = null,
             ): void {
                 if ($onProgress !== null) {
                     $onProgress([
@@ -377,6 +393,143 @@ final class ChatStreamControllerTest extends TestCase
                 $onDone('Today looks clear.');
             }
         };
+    }
+
+    public function test_trim_conversation_history_truncates_older_assistant_messages(): void
+    {
+        $etm = $this->buildEntityTypeManager();
+        $controller = new ChatStreamController($etm);
+
+        $messages = [];
+        for ($i = 1; $i <= 24; $i++) {
+            $role = $i % 2 === 0 ? 'assistant' : 'user';
+            $content = $role === 'assistant'
+                ? str_repeat('A', 520)." #{$i}"
+                : "User message {$i}";
+
+            $messages[] = new ChatMessage([
+                'uuid' => 'trim-msg-'.$i,
+                'session_uuid' => 'trim-sess',
+                'role' => $role,
+                'content' => $content,
+                'created_at' => date('c', 1700000000 + $i),
+                'tenant_id' => 'default',
+            ]);
+        }
+
+        $method = new \ReflectionMethod(ChatStreamController::class, 'trimConversationHistory');
+        $method->setAccessible(true);
+        /** @var list<array{role: string, content: string}> $trimmed */
+        $trimmed = $method->invoke($controller, $messages);
+
+        self::assertCount(20, $trimmed);
+        self::assertStringContainsString('[Earlier conversation trimmed', $trimmed[0]['content']);
+        self::assertStringContainsString('[truncated]', $trimmed[1]['content']);
+        self::assertGreaterThan(500, strlen($messages[1]->get('content')));
+    }
+
+    public function test_stream_records_turn_metadata_and_token_usage(): void
+    {
+        $originalKey = getenv('ANTHROPIC_API_KEY');
+        putenv('ANTHROPIC_API_KEY=test-key');
+
+        $etm = $this->buildEntityTypeManager();
+        $sessionStorage = $etm->getStorage('chat_session');
+        $sessionStorage->save(new ChatSession([
+            'uuid' => 'sess-telemetry',
+            'title' => 'Telemetry Session',
+            'created_at' => date('c'),
+            'tenant_id' => 'default',
+        ]));
+
+        $msgStorage = $etm->getStorage('chat_message');
+        $msgStorage->save(new ChatMessage([
+            'uuid' => 'msg-telemetry',
+            'session_uuid' => 'sess-telemetry',
+            'role' => 'user',
+            'content' => 'research token usage',
+            'created_at' => date('c'),
+            'tenant_id' => 'default',
+        ]));
+
+        $controller = new ChatStreamController(
+            $etm,
+            agentClientFactory: static fn (): NativeAgentClient => new class('fake-key') extends NativeAgentClient
+            {
+                public function __construct(string $apiKey)
+                {
+                    parent::__construct($apiKey);
+                }
+
+                public function stream(
+                    string $systemPrompt,
+                    array $messages,
+                    string $accountId,
+                    string $tenantId,
+                    string $apiBase,
+                    string $apiToken,
+                    \Closure $onToken,
+                    \Closure $onDone,
+                    \Closure $onError,
+                    ?\Closure $onProgress = null,
+                    ?string $model = null,
+                    ?\Closure $onNeedsContinuation = null,
+                    ?\Closure $onTelemetry = null,
+                    ?string $taskTypeOverride = null,
+                    ?int $turnLimitOverride = null,
+                    int $turnsConsumedStart = 0,
+                    ?array $turnLimitsOverride = null,
+                ): void {
+                    if ($onTelemetry !== null) {
+                        $onTelemetry([
+                            'turn_number' => 3,
+                            'task_type' => 'research',
+                            'model' => 'claude-sonnet-4-6',
+                            'turn_limit' => 40,
+                            'usage' => [
+                                'input_tokens' => 120,
+                                'output_tokens' => 45,
+                                'cache_read_input_tokens' => 20,
+                                'cache_creation_input_tokens' => 10,
+                            ],
+                        ]);
+                    }
+                    $onToken('Done.');
+                    $onDone('Done.');
+                }
+            },
+        );
+
+        $response = $controller->stream(['messageId' => 'msg-telemetry'], [], null, null);
+        self::assertInstanceOf(StreamedResponse::class, $response);
+
+        ob_start();
+        ob_start();
+        $callback = $response->getCallback();
+        self::assertIsCallable($callback);
+        $callback();
+        ob_end_flush();
+        ob_get_clean();
+
+        $sessionIds = $sessionStorage->getQuery()->condition('uuid', 'sess-telemetry')->execute();
+        $session = $sessionStorage->load(reset($sessionIds));
+        self::assertSame(3, $session->get('turns_consumed'));
+        self::assertSame(40, $session->get('turn_limit_applied'));
+        self::assertSame('research', $session->get('task_type'));
+        self::assertSame('claude-sonnet-4-6', $session->get('model'));
+
+        $usageStorage = $etm->getStorage('chat_token_usage');
+        $usageIds = $usageStorage->getQuery()->condition('session_uuid', 'sess-telemetry')->execute();
+        self::assertNotEmpty($usageIds);
+        $usage = $usageStorage->load(reset($usageIds));
+        self::assertSame(120, $usage->get('input_tokens'));
+        self::assertSame(45, $usage->get('output_tokens'));
+
+        if ($originalKey !== false) {
+            putenv("ANTHROPIC_API_KEY={$originalKey}");
+        } else {
+            putenv('ANTHROPIC_API_KEY');
+        }
     }
 
     private function buildEntityTypeManager(): EntityTypeManager
@@ -405,6 +558,7 @@ final class ChatStreamControllerTest extends TestCase
             new EntityType(id: 'skill', label: 'Skill', class: Skill::class, keys: ['id' => 'sid', 'uuid' => 'uuid', 'label' => 'name']),
             new EntityType(id: 'chat_session', label: 'Chat Session', class: ChatSession::class, keys: ['id' => 'csid', 'uuid' => 'uuid', 'label' => 'title']),
             new EntityType(id: 'chat_message', label: 'Chat Message', class: ChatMessage::class, keys: ['id' => 'cmid', 'uuid' => 'uuid']),
+            new EntityType(id: 'chat_token_usage', label: 'Chat Token Usage', class: ChatTokenUsage::class, keys: ['id' => 'ctuid', 'uuid' => 'uuid']),
             new EntityType(id: 'workspace', label: 'Workspace', class: Workspace::class, keys: ['id' => 'wid', 'uuid' => 'uuid', 'label' => 'name']),
         ];
     }

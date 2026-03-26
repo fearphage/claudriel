@@ -19,6 +19,7 @@ const LABEL_FIELDS: Record<string, string> = {
   prospect_attachment: 'filename',
   filtered_prospect: 'title',
   pipeline_config: 'name',
+  chat_token_usage: 'session_uuid',
 }
 
 /** Fields that are TextValue types (text_long) and need { value } wrapping for mutations. */
@@ -64,6 +65,7 @@ const GRAPHQL_FIELDS: Record<string, string> = {
   prospect_audit: 'uuid prospect_uuid action payload { value } confirmed_at tenant_id created_at',
   filtered_prospect: 'uuid external_id title description { value } reject_reason import_batch workspace_uuid tenant_id created_at',
   pipeline_config: 'uuid name workspace_uuid source_type source_url sectors { value } company_profile { value } qualification_prompt_override { value } auto_qualify tenant_id created_at updated_at',
+  chat_token_usage: 'uuid session_uuid turn_number model input_tokens output_tokens cache_read_tokens cache_write_tokens tenant_id workspace_id created_at',
 }
 
 function toPascalCase(s: string): string {

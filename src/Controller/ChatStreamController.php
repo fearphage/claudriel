@@ -37,6 +37,7 @@ use Claudriel\Temporal\TimeSnapshot;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Waaseyaa\Access\AccountInterface;
+use Waaseyaa\Entity\ContentEntityInterface;
 use Waaseyaa\Entity\EntityTypeManager;
 use Waaseyaa\SSR\SsrResponse;
 
@@ -177,6 +178,8 @@ final class ChatStreamController
         $workspace = $workspaceUuid !== null ? $this->findWorkspaceByUuid($workspaceUuid, $tenantId) : null;
         $activeWorkspace = $workspace?->get('name');
         $resolvedModel = $this->resolveChatModel($workspace);
+
+        [$taskTypeOverride, $turnLimitOverride, $turnsConsumedStart] = $this->resolveSessionTurnBudgetOverrides($sessionUuid);
         $systemPrompt = $promptBuilder->build($tenantId, activeWorkspace: is_string($activeWorkspace) ? $activeWorkspace : null, snapshot: $snapshot);
 
         $onToken = function (string $token): void {
@@ -218,9 +221,13 @@ final class ChatStreamController
                 'message' => $payload['message'] ?? 'The agent needs more turns to complete this task.',
             ]);
         };
+        $onTelemetry = function (array $payload) use ($sessionUuid, $tenantId, $workspaceUuid): void {
+            $this->recordTurnTelemetry($sessionUuid, $tenantId, $workspaceUuid, $payload);
+        };
 
         $authenticatedAccount = $this->resolveAuthenticatedAccount($account);
         $accountId = $authenticatedAccount?->getUuid() ?? $tenantId;
+        $turnLimitsOverride = $this->resolveAccountTurnLimitsOverride($authenticatedAccount);
 
         $this->emitSseEvent('chat-progress', [
             'phase' => 'prepare',
@@ -243,6 +250,11 @@ final class ChatStreamController
             onProgress: $onProgress,
             model: $resolvedModel,
             onNeedsContinuation: $onNeedsContinuation,
+            onTelemetry: $onTelemetry,
+            taskTypeOverride: $taskTypeOverride,
+            turnLimitOverride: $turnLimitOverride,
+            turnsConsumedStart: $turnsConsumedStart,
+            turnLimitsOverride: $turnLimitsOverride,
         );
     }
 
@@ -693,6 +705,55 @@ final class ChatStreamController
         return (new AuthenticatedAccountSessionResolver($this->entityTypeManager))->resolve();
     }
 
+    private function resolveAccountTurnLimitsOverride(?AuthenticatedAccount $authenticatedAccount): ?array
+    {
+        if ($authenticatedAccount === null) {
+            return null;
+        }
+
+        $account = $authenticatedAccount->account();
+        $settings = $account->get('settings');
+        if (! is_array($settings) && ! is_string($settings)) {
+            return null;
+        }
+
+        if (is_string($settings)) {
+            try {
+                $decoded = json_decode($settings, true, 512, JSON_THROW_ON_ERROR);
+                $settings = is_array($decoded) ? $decoded : [];
+            } catch (\Throwable) {
+                $settings = [];
+            }
+        }
+
+        $rawTurnLimits = $settings['turn_limits'] ?? null;
+        if (! is_array($rawTurnLimits)) {
+            return null;
+        }
+
+        $allowed = [
+            'quick_lookup' => true,
+            'email_compose' => true,
+            'brief_generation' => true,
+            'research' => true,
+            'general' => true,
+            'onboarding' => true,
+        ];
+
+        $normalized = [];
+        foreach ($rawTurnLimits as $taskType => $value) {
+            if (! isset($allowed[$taskType])) {
+                continue;
+            }
+            if (! is_numeric($value)) {
+                continue;
+            }
+            $normalized[$taskType] = max(1, (int) $value);
+        }
+
+        return $normalized !== [] ? $normalized : null;
+    }
+
     private function resolveMessageTenantId(mixed $message): string
     {
         $tenantId = $message instanceof ChatMessage ? $message->get('tenant_id') : null;
@@ -808,5 +869,118 @@ final class ChatStreamController
         $headerTimezone = $httpRequest?->headers->get('X-Timezone');
 
         return is_string($headerTimezone) && $headerTimezone !== '' ? $headerTimezone : null;
+    }
+
+    /**
+     * @return array{0: ?string, 1: ?int, 2: int}
+     */
+    private function resolveSessionTurnBudgetOverrides(string $sessionUuid): array
+    {
+        try {
+            $sessionStorage = $this->entityTypeManager->getStorage('chat_session');
+        } catch (\Throwable) {
+            return [null, null, 0];
+        }
+
+        $sessionIds = $sessionStorage->getQuery()->condition('uuid', $sessionUuid)->execute();
+        if ($sessionIds === []) {
+            return [null, null, 0];
+        }
+
+        $session = $sessionStorage->load(reset($sessionIds));
+        if (! $session instanceof ContentEntityInterface) {
+            return [null, null, 0];
+        }
+
+        $taskType = $session->get('task_type');
+        $taskTypeOverride = is_string($taskType) && $taskType !== '' ? $taskType : null;
+
+        $turnLimitRaw = $session->get('turn_limit_applied');
+        $turnLimitOverride = is_int($turnLimitRaw) ? $turnLimitRaw : (is_numeric($turnLimitRaw) ? (int) $turnLimitRaw : null);
+        if ($turnLimitOverride !== null && $turnLimitOverride <= 0) {
+            $turnLimitOverride = null;
+        }
+
+        $turnsConsumedRaw = $session->get('turns_consumed');
+        $turnsConsumedStart = is_numeric($turnsConsumedRaw) ? (int) $turnsConsumedRaw : 0;
+
+        return [$taskTypeOverride, $turnLimitOverride, $turnsConsumedStart];
+    }
+
+    private function recordTurnTelemetry(string $sessionUuid, string $tenantId, ?string $workspaceUuid, array $payload): void
+    {
+        $turnNumber = (int) ($payload['turn_number'] ?? 0);
+        $turnLimit = (int) ($payload['turn_limit'] ?? 0);
+        $taskType = (string) ($payload['task_type'] ?? 'general');
+        $model = (string) ($payload['model'] ?? '');
+        $usage = is_array($payload['usage'] ?? null) ? $payload['usage'] : [];
+
+        $this->updateSessionTurnMetadata($sessionUuid, $turnNumber, $turnLimit, $taskType, $model);
+        $this->saveTokenUsage($sessionUuid, $tenantId, $workspaceUuid, $turnNumber, $model, $usage);
+    }
+
+    private function updateSessionTurnMetadata(string $sessionUuid, int $turnNumber, int $turnLimit, string $taskType, string $model): void
+    {
+        try {
+            $sessionStorage = $this->entityTypeManager->getStorage('chat_session');
+        } catch (\Throwable) {
+            return;
+        }
+
+        $sessionIds = $sessionStorage->getQuery()->condition('uuid', $sessionUuid)->execute();
+        if ($sessionIds === []) {
+            return;
+        }
+
+        $session = $sessionStorage->load(reset($sessionIds));
+        if (! $session instanceof ContentEntityInterface) {
+            return;
+        }
+
+        $session->set('turns_consumed', $turnNumber);
+        $session->set('turn_limit_applied', $turnLimit);
+        if ($taskType !== '') {
+            $session->set('task_type', $taskType);
+        }
+        if ($model !== '') {
+            $session->set('model', $model);
+        }
+        $sessionStorage->save($session);
+    }
+
+    private function saveTokenUsage(
+        string $sessionUuid,
+        string $tenantId,
+        ?string $workspaceUuid,
+        int $turnNumber,
+        string $model,
+        array $usage,
+    ): void {
+        try {
+            $storage = $this->entityTypeManager->getStorage('chat_token_usage');
+        } catch (\Throwable) {
+            return;
+        }
+
+        $entityClass = '\\Claudriel\\Entity\\ChatTokenUsage';
+        if (! class_exists($entityClass)) {
+            return;
+        }
+
+        $entry = new $entityClass([
+            'uuid' => $this->generateUuid(),
+            'session_uuid' => $sessionUuid,
+            'turn_number' => $turnNumber,
+            'model' => $model !== '' ? $model : null,
+            'input_tokens' => (int) ($usage['input_tokens'] ?? 0),
+            'output_tokens' => (int) ($usage['output_tokens'] ?? 0),
+            'cache_read_tokens' => (int) ($usage['cache_read_input_tokens'] ?? 0),
+            'cache_write_tokens' => (int) ($usage['cache_creation_input_tokens'] ?? 0),
+            'tenant_id' => $tenantId,
+            'workspace_id' => $workspaceUuid,
+            'created_at' => (new \DateTimeImmutable)->format('c'),
+        ]);
+
+        $storage->save($entry);
     }
 }

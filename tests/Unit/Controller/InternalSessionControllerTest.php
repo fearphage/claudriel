@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Claudriel\Tests\Unit\Controller;
 
+use Claudriel\Access\AuthenticatedAccount;
 use Claudriel\Controller\InternalSessionController;
 use Claudriel\Domain\Chat\InternalApiTokenGenerator;
+use Claudriel\Entity\Account;
 use Claudriel\Entity\ChatSession;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -64,6 +66,24 @@ final class InternalSessionControllerTest extends TestCase
         self::assertSame(25, $data['turn_limits']['general']);
         self::assertSame(30, $data['turn_limits']['onboarding']);
         self::assertSame(500, $data['daily_ceiling']);
+    }
+
+    public function test_limits_accepts_authenticated_account_without_bearer_token(): void
+    {
+        $controller = $this->makeController();
+        $request = Request::create('/api/internal/session/limits');
+        $account = new AuthenticatedAccount(new Account([
+            'aid' => 1,
+            'uuid' => 'acct-1',
+            'name' => 'Tester',
+            'email' => 'test@example.com',
+            'status' => 'active',
+            'email_verified_at' => date('c'),
+        ]));
+
+        $response = $controller->getLimits(httpRequest: $request, account: $account);
+
+        self::assertSame(200, $response->statusCode);
     }
 
     public function test_continue_grants_new_budget(): void

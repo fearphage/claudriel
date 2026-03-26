@@ -65,6 +65,11 @@ class NativeAgentClient
      * @param  Closure(string): void  $onError
      * @param  Closure(array): void|null  $onProgress
      * @param  Closure(array): void|null  $onNeedsContinuation
+     * @param  Closure(array): void|null  $onTelemetry
+     * @param  ?string  $taskTypeOverride  Preserve task type for turn budgeting/telemetry
+     * @param  ?int  $turnLimitOverride  Override per-call turn budget for this stream call
+     * @param  int  $turnsConsumedStart  Starting cumulative turn count (for continuation)
+     * @param  ?array<string, int|float|string>  $turnLimitsOverride  Optional per-task turn limit map
      */
     public function stream(
         string $systemPrompt,
@@ -79,16 +84,35 @@ class NativeAgentClient
         ?Closure $onProgress = null,
         ?string $model = null,
         ?Closure $onNeedsContinuation = null,
+        ?Closure $onTelemetry = null,
+        ?string $taskTypeOverride = null,
+        ?int $turnLimitOverride = null,
+        int $turnsConsumedStart = 0,
+        ?array $turnLimitsOverride = null,
     ): void {
         $currentModel = $model ?? $this->model;
-        $taskType = $this->classifyTaskType($messages);
-        $turnLimit = self::DEFAULT_TURN_LIMITS[$taskType] ?? self::DEFAULT_TURN_LIMITS['general'];
+        $taskType = $taskTypeOverride ?? $this->classifyTaskType($messages);
+        $computedTurnLimit = null;
+        if ($turnLimitsOverride !== null) {
+            $candidate = $turnLimitsOverride[$taskType] ?? null;
+            if (is_numeric($candidate)) {
+                $computedTurnLimit = max(1, (int) $candidate);
+            }
+        }
+        if ($computedTurnLimit === null) {
+            $computedTurnLimit = self::DEFAULT_TURN_LIMITS[$taskType] ?? self::DEFAULT_TURN_LIMITS['general'];
+        }
+
+        $turnLimit = $turnLimitOverride ?? $computedTurnLimit;
+        if ($turnLimit <= 0) {
+            $turnLimit = $computedTurnLimit;
+        }
 
         $toolDefinitions = $this->buildToolDefinitions();
         $toolExecutors = $this->buildToolExecutors();
 
         $fullResponse = '';
-        $turnsConsumed = 0;
+        $turnsConsumed = max(0, $turnsConsumedStart);
 
         try {
             for ($turn = 0; $turn < $turnLimit; $turn++) {
@@ -111,6 +135,17 @@ class NativeAgentClient
                     $onError('Failed to get API response after retries and fallbacks');
 
                     return;
+                }
+
+                $usage = $response['usage'] ?? null;
+                if (is_array($usage) && $onTelemetry !== null) {
+                    $onTelemetry([
+                        'turn_number' => $turnsConsumed,
+                        'task_type' => $taskType,
+                        'model' => $currentModel,
+                        'usage' => $usage,
+                        'turn_limit' => $turnLimit,
+                    ]);
                 }
 
                 $textParts = [];
@@ -199,8 +234,10 @@ class NativeAgentClient
                     ];
                 }
 
-                // Check if approaching limit (toolCalls is guaranteed non-empty here)
-                if ($turnsConsumed >= $turnLimit - 1) {
+                // Check if approaching limit (toolCalls is guaranteed non-empty here).
+                // $turnsConsumed is cumulative across continuations, so we must compare within-call.
+                $turnsWithinCall = $turn + 1;
+                if ($turnLimit > 1 && $turnsWithinCall >= $turnLimit - 1) {
                     if ($onNeedsContinuation !== null) {
                         $onNeedsContinuation([
                             'turns_consumed' => $turnsConsumed,
