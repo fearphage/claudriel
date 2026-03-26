@@ -35,7 +35,7 @@
     },
     "waaseyaa": {
       "command": "node",
-      "args": ["vendor/waaseyaa/mcp/server.js"],
+      "args": ["../waaseyaa/mcp/server.js"],
       "cwd": "."
     }
   }
