@@ -13,7 +13,7 @@ fi
 echo "Setting up ${LIVE_DIR} with symlinks to ${DEV_DIR}..."
 
 # Back up any existing data files
-for data_item in waaseyaa.sqlite .env; do
+for data_item in .env; do
     if [[ -f "${LIVE_DIR}/${data_item}" ]] && [[ ! -L "${LIVE_DIR}/${data_item}" ]]; then
         echo "  Preserving ${data_item}"
         cp "${LIVE_DIR}/${data_item}" "/tmp/claudriel-backup-${data_item}"
@@ -41,7 +41,7 @@ done
 mkdir -p "${LIVE_DIR}/storage"
 
 # Restore backed-up data
-for data_item in waaseyaa.sqlite .env; do
+for data_item in .env; do
     if [[ -f "/tmp/claudriel-backup-${data_item}" ]]; then
         mv "/tmp/claudriel-backup-${data_item}" "${LIVE_DIR}/${data_item}"
     fi

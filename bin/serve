@@ -7,7 +7,7 @@ DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 # Ensure data files exist (Docker won't create them)
 mkdir -p "${DIR}/storage"
-[[ -f "${DIR}/waaseyaa.sqlite" ]] || touch "${DIR}/waaseyaa.sqlite"
+[[ -f "${DIR}/storage/waaseyaa.sqlite" ]] || touch "${DIR}/storage/waaseyaa.sqlite"
 [[ -f "${DIR}/.env" ]] || { cp "${DIR}/.env.example" "${DIR}/.env" 2>/dev/null && echo "Created .env from .env.example — edit with your ANTHROPIC_API_KEY"; }
 
 echo "Claudriel dashboard → http://localhost:${PORT}"

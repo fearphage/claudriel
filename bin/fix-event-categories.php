@@ -4,9 +4,9 @@
 /**
  * One-time migration: re-categorize existing mc_event rows using EventCategorizer logic.
  *
- * Usage: php bin/fix-event-categories.php [path/to/waaseyaa.sqlite]
+ * Usage: php bin/fix-event-categories.php [path/to/storage/waaseyaa.sqlite]
  */
-$dbPath = $argv[1] ?? dirname(__DIR__).'/waaseyaa.sqlite';
+$dbPath = $argv[1] ?? dirname(__DIR__).'/storage/waaseyaa.sqlite';
 
 if (! file_exists($dbPath)) {
     fwrite(STDERR, "Database not found: {$dbPath}\n");

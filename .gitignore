@@ -9,7 +9,7 @@ storage/framework/entity-audit.jsonl
 storage/framework/packages.php
 storage/brief-session.txt
 config/active/
-waaseyaa.sqlite
+storage/waaseyaa.sqlite
 storage/claudriel.sqlite
 .worktrees/
 node_modules/

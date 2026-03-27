@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 return [
     // SQLite database path. Null means "resolve in kernel":
-    // WAASEYAA_DB env var -> {projectRoot}/waaseyaa.sqlite fallback.
+    // WAASEYAA_DB env var -> {projectRoot}/storage/waaseyaa.sqlite fallback.
     // Set an explicit path here to override both.
-    'database' => null,
+    'database' => __DIR__.'/../storage/waaseyaa.sqlite',
 
     // Config sync directory. Override with WAASEYAA_CONFIG_DIR env var.
     'config_dir' => getenv('WAASEYAA_CONFIG_DIR') ?: __DIR__.'/sync',

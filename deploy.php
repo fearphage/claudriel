@@ -39,7 +39,7 @@ set('deploy_validation_base_url', 'https://claudriel.northcloud.one');
 // Shared filesystem
 // ---------------------------------------------------------------------------
 
-set('shared_files', ['.env', 'waaseyaa.sqlite']);
+set('shared_files', ['.env']);
 set('shared_dirs', ['storage', 'logs']);
 set('writable_dirs', ['storage', 'logs', 'cache']);
 
@@ -85,7 +85,7 @@ desc('Ensure shared runtime directories exist');
 task('deploy:runtime_dirs', function (): void {
     run('mkdir -p {{deploy_path}}/shared/storage');
     run('mkdir -p {{deploy_path}}/shared/logs');
-    run('touch {{deploy_path}}/shared/waaseyaa.sqlite');
+    run('touch {{deploy_path}}/shared/storage/waaseyaa.sqlite');
     run('mkdir -p {{release_path}}/cache');
 });
 

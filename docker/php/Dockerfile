@@ -17,5 +17,4 @@ RUN python3 -m venv /srv/agent-venv \
     && rm /tmp/agent-requirements.txt
 
 RUN ln -s /srv/data/.env /srv/.env \
-    && ln -s /srv/data/storage /srv/storage \
-    && ln -s /srv/data/waaseyaa.sqlite /srv/waaseyaa.sqlite
+    && ln -s /srv/data/storage /srv/storage
