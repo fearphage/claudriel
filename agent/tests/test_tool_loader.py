@@ -5,8 +5,9 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-import main
 import pytest
+
+import main
 
 
 def _write_tool(path: Path, body: str) -> None:
