@@ -66,17 +66,30 @@ final class ClaudrielSurfaceHost extends AbstractAdminSurfaceHost
     {
         $catalog = new CatalogBuilder;
 
-        $catalog->defineEntity('workspace', 'Workspace')->group('structure');
-        $catalog->defineEntity('project', 'Project')->group('structure');
-        $catalog->defineEntity('person', 'Person')->group('people');
-        $catalog->defineEntity('commitment', 'Commitment')->group('workflows');
-        $catalog->defineEntity('schedule_entry', 'Schedule Entry')->group('workflows');
-        $catalog->defineEntity('triage_entry', 'Triage Entry')->group('workflows');
-        $catalog->defineEntity('pipeline_config', 'Pipeline Config')->group('workflows');
-        $catalog->defineEntity('prospect', 'Prospect')->group('workflows');
-        $catalog->defineEntity('filtered_prospect', 'Filtered Prospect')->group('workflows');
-        $catalog->defineEntity('prospect_attachment', 'Prospect Attachment')->group('workflows');
-        $catalog->defineEntity('prospect_audit', 'Prospect Audit')->group('workflows');
+        $catalog->defineEntity('workspace', 'Workspace')->group('structure')
+            ->description('Isolated contexts for clients or domains');
+        $catalog->defineEntity('project', 'Project')->group('structure')
+            ->description('Track ongoing work and link to repos');
+        $catalog->defineEntity('repo', 'Repo')->group('structure')
+            ->description('Git repositories linked to projects and workspaces');
+        $catalog->defineEntity('person', 'Person')->group('people')
+            ->description('Contacts, clients, and collaborators');
+        $catalog->defineEntity('commitment', 'Commitment')->group('workflows')
+            ->description('Promises made and received');
+        $catalog->defineEntity('schedule_entry', 'Schedule Entry')->group('workflows')
+            ->description('Meetings and time-blocked events');
+        $catalog->defineEntity('triage_entry', 'Triage Entry')->group('workflows')
+            ->description('Inbox items awaiting a decision');
+        $catalog->defineEntity('pipeline_config', 'Pipeline Config')->group('workflows')
+            ->description('Lead pipeline settings per workspace');
+        $catalog->defineEntity('prospect', 'Prospect')->group('workflows')
+            ->description('Leads moving through the pipeline');
+        $catalog->defineEntity('filtered_prospect', 'Filtered Prospect')->group('workflows')
+            ->description('Leads rejected by the filter step');
+        $catalog->defineEntity('prospect_attachment', 'Prospect Attachment')->group('workflows')
+            ->description('Files attached to prospects');
+        $catalog->defineEntity('prospect_audit', 'Prospect Audit')->group('workflows')
+            ->description('Audit trail for prospect changes');
 
         return $catalog;
     }
@@ -122,6 +135,7 @@ final class ClaudrielSurfaceHost extends AbstractAdminSurfaceHost
             return [
                 'id' => $typeId,
                 'label' => $entry['label'],
+                'description' => $entry['description'] ?? null,
                 'keys' => $definition instanceof EntityType ? $definition->getKeys() : ['id' => 'id'],
                 'group' => $entry['group'] ?? 'other',
                 'disabled' => false,

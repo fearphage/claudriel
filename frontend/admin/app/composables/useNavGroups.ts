@@ -1,6 +1,7 @@
 export interface EntityTypeInfo {
   id: string
   label: string
+  description?: string | null
   keys: Record<string, string>
   group?: string | null
   disabled?: boolean

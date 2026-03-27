@@ -193,9 +193,18 @@ export const claudrielHostAdapter: HostAdapter = {
       const fields = fieldsFor(type)
       const limit = typeof query.page?.limit === 'number' ? query.page.limit : 50
       const offset = typeof query.page?.offset === 'number' ? query.page.offset : 0
+      const filter = Array.isArray(query.filter) ? query.filter : undefined
+      const varDefs = ['$limit: Int', '$offset: Int']
+      const args = ['limit: $limit', 'offset: $offset']
+      const variables: Record<string, any> = { limit, offset }
+      if (filter) {
+        varDefs.push('$filter: [FilterInput!]')
+        args.push('filter: $filter')
+        variables.filter = filter
+      }
       const data = await graphqlFetch<Record<string, { items: Record<string, any>[]; total: number }>>(
-        `query($limit: Int, $offset: Int) { ${listField}(limit: $limit, offset: $offset) { items { ${fields} } total } }`,
-        { limit, offset },
+        `query(${varDefs.join(', ')}) { ${listField}(${args.join(', ')}) { items { ${fields} } total } }`,
+        variables,
       )
       const result = data[listField]
       if (!result) throw new Error(`GraphQL: no data returned for ${type} list`)
