@@ -2,14 +2,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { userSchema } from '../../fixtures/schemas'
 
+const mockSchemaTransport = vi.fn()
+
+vi.mock('~/host/useHostAdapter', () => ({
+  useHostAdapter: () => ({
+    transport: {
+      schema: (type: string) => mockSchemaTransport(type),
+    },
+  }),
+}))
+
 // Reset modules before each test so the module-level schemaCache starts fresh.
 beforeEach(() => {
   vi.resetModules()
+  mockSchemaTransport.mockReset()
 })
 
 describe('sortedProperties', () => {
   it('returns all properties sorted by x-weight when editable=false', async () => {
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ meta: { schema: userSchema } }))
+    mockSchemaTransport.mockResolvedValue(userSchema)
     const { useSchema } = await import('~/composables/useSchema')
     const { fetch, sortedProperties } = useSchema('user')
     await fetch()
@@ -20,7 +31,7 @@ describe('sortedProperties', () => {
   })
 
   it('excludes system readOnly fields when editable=true', async () => {
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ meta: { schema: userSchema } }))
+    mockSchemaTransport.mockResolvedValue(userSchema)
     const { useSchema } = await import('~/composables/useSchema')
     const { fetch, sortedProperties } = useSchema('user')
     await fetch()
@@ -31,7 +42,7 @@ describe('sortedProperties', () => {
   })
 
   it('keeps x-access-restricted fields when editable=true', async () => {
-    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ meta: { schema: userSchema } }))
+    mockSchemaTransport.mockResolvedValue(userSchema)
     const { useSchema } = await import('~/composables/useSchema')
     const { fetch, sortedProperties } = useSchema('user')
     await fetch()
@@ -44,26 +55,24 @@ describe('sortedProperties', () => {
 
 describe('useSchema fetch and caching', () => {
   it('sets schema.value on successful fetch', async () => {
-    const mockFetch = vi.fn().mockResolvedValue({ meta: { schema: userSchema } })
-    vi.stubGlobal('$fetch', mockFetch)
+    mockSchemaTransport.mockResolvedValue(userSchema)
     const { useSchema } = await import('~/composables/useSchema')
     const { schema, fetch } = useSchema('user_fresh')
     await fetch()
     expect(schema.value?.title).toBe('User')
   })
 
-  it('does not call $fetch a second time for the same entity type', async () => {
-    const mockFetch = vi.fn().mockResolvedValue({ meta: { schema: userSchema } })
-    vi.stubGlobal('$fetch', mockFetch)
+  it('does not call transport.schema a second time for the same entity type', async () => {
+    mockSchemaTransport.mockResolvedValue(userSchema)
     const { useSchema } = await import('~/composables/useSchema')
     const instance = useSchema('user_cache')
     await instance.fetch()
     await instance.fetch()
-    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockSchemaTransport).toHaveBeenCalledTimes(1)
   })
 
-  it('sets error.value when $fetch rejects', async () => {
-    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(new Error('Network failure')))
+  it('sets error.value when schema fetch rejects', async () => {
+    mockSchemaTransport.mockRejectedValue(new Error('Network failure'))
     const { useSchema } = await import('~/composables/useSchema')
     const { error, fetch } = useSchema('user_error')
     await fetch()
@@ -71,13 +80,12 @@ describe('useSchema fetch and caching', () => {
   })
 
   it('clears cache after invalidate()', async () => {
-    const mockFetch = vi.fn().mockResolvedValue({ meta: { schema: userSchema } })
-    vi.stubGlobal('$fetch', mockFetch)
+    mockSchemaTransport.mockResolvedValue(userSchema)
     const { useSchema } = await import('~/composables/useSchema')
     const instance = useSchema('user_invalidate')
     await instance.fetch()
     instance.invalidate()
     await instance.fetch()
-    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(mockSchemaTransport).toHaveBeenCalledTimes(2)
   })
 })

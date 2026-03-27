@@ -1,3 +1,4 @@
+// Legacy Waaseyaa JSON:API mocks — Claudriel e2e uses ./claudrielSession.ts instead.
 // packages/admin/e2e/fixtures/routes.ts
 import type { Page } from '@playwright/test'
 import { entityTypes } from '../../tests/fixtures/entityTypes'

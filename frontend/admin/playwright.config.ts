@@ -1,14 +1,16 @@
-// packages/admin/playwright.config.ts
 import { defineConfig, devices } from '@playwright/test'
+
+// Nuxt app uses app.baseURL `/admin/` — tests use paths relative to this origin.
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000/admin'
 
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  reporter: 'html',
+  reporter: process.env.CI ? 'line' : 'html',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL,
     trace: 'on-first-retry',
   },
   projects: [
@@ -18,8 +20,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'sh -c "PHP_CLI_SERVER_WORKERS=4 php -S 0.0.0.0:8081 -t /home/jones/dev/claudriel/public & npm run dev"',
-    url: 'http://localhost:3000',
+    // From frontend/admin: PHP serves claudriel public/; Nuxt dev on :3000 with /admin base.
+    command:
+      'sh -c "PHP_CLI_SERVER_WORKERS=4 php -S 0.0.0.0:8081 -t ../../public & npm run dev"',
+    url: 'http://localhost:3000/admin',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
   },

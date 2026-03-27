@@ -1,6 +1,6 @@
 // packages/admin/e2e/telescope-codified-context.spec.ts
 import { test, expect } from '@playwright/test'
-import { mockUserMeRoute } from './fixtures/routes'
+import { mockClaudrielSession } from './fixtures/claudrielSession'
 
 const mockSessions = [
   {
@@ -79,7 +79,7 @@ async function mockAllRoutes(page: import('@playwright/test').Page) {
 
 test.describe('Telescope: Codified Context', () => {
   test.beforeEach(async ({ page }) => {
-    await mockUserMeRoute(page)
+    await mockClaudrielSession(page)
     await mockAllRoutes(page)
   })
 
@@ -92,8 +92,8 @@ test.describe('Telescope: Codified Context', () => {
 
   test('shows severity badges with correct values', async ({ page }) => {
     await page.goto('/telescope/codified-context')
-    await expect(page.getByText('low')).toBeVisible()
-    await expect(page.getByText('high')).toBeVisible()
+    await expect(page.locator('.badge--low').first()).toBeVisible()
+    await expect(page.locator('.badge--high').first()).toBeVisible()
   })
 
   test('shows drift score in session list', async ({ page }) => {
@@ -104,8 +104,8 @@ test.describe('Telescope: Codified Context', () => {
 
   test('navigates to session detail on link click', async ({ page }) => {
     await page.goto('/telescope/codified-context')
-    await page.locator(`a[href="/telescope/codified-context/sess-abcdef12"]`).click()
-    await expect(page).toHaveURL('/telescope/codified-context/sess-abcdef12')
+    await page.locator(`a[href="/admin/telescope/codified-context/sess-abcdef12"]`).click()
+    await expect(page).toHaveURL(/\/admin\/telescope\/codified-context\/sess-abcdef12\/?$/)
   })
 
   test('detail page shows session metadata', async ({ page }) => {

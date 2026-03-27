@@ -46,6 +46,24 @@ function wrapTextValues(type: string, attrs: Record<string, any>): Record<string
   return out
 }
 
+/**
+ * Admin surface catalog entity IDs (must match ClaudrielSurfaceHost::buildCatalog).
+ * Used by tests to ensure every catalog type has GraphQL field maps.
+ */
+export const CLAUDRIEL_ADMIN_CATALOG_ENTITY_IDS = [
+  'workspace',
+  'project',
+  'person',
+  'commitment',
+  'schedule_entry',
+  'triage_entry',
+  'pipeline_config',
+  'prospect',
+  'filtered_prospect',
+  'prospect_attachment',
+  'prospect_audit',
+] as const
+
 /** Fields to request per GraphQL entity type. */
 const GRAPHQL_FIELDS: Record<string, string> = {
   commitment: 'uuid title status workflow_state confidence direction due_date person_uuid source tenant_id importance_score access_count last_accessed_at created_at updated_at',
@@ -67,6 +85,11 @@ const GRAPHQL_FIELDS: Record<string, string> = {
   filtered_prospect: 'uuid external_id title description { value } reject_reason import_batch workspace_uuid tenant_id created_at',
   pipeline_config: 'uuid name workspace_uuid source_type source_url sectors { value } company_profile { value } qualification_prompt_override { value } auto_qualify leads_api_bearer tenant_id created_at updated_at',
   chat_token_usage: 'uuid session_uuid turn_number model input_tokens output_tokens cache_read_tokens cache_write_tokens tenant_id workspace_id created_at',
+}
+
+/** @internal Tests: ensure admin catalog IDs have GraphQL field lists. */
+export function getGraphqlFieldsMapForTests(): Readonly<Record<string, string>> {
+  return GRAPHQL_FIELDS
 }
 
 function toPascalCase(s: string): string {

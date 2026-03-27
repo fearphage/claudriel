@@ -103,3 +103,33 @@ jobs:
 
       - name: Build vendored admin bundle
         run: npm run build
+
+  admin-e2e:
+    name: Admin E2E (Playwright smoke)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: claudriel/frontend/admin
+    steps:
+      - name: Checkout claudriel
+        uses: actions/checkout@v4
+        with:
+          path: claudriel
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '25'
+          cache: npm
+          cache-dependency-path: claudriel/frontend/admin/package-lock.json
+
+      - name: Install frontend/admin dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Run Playwright e2e
+        env:
+          CI: true
+        run: npm run test:e2e

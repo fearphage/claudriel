@@ -74,18 +74,20 @@ onMounted(fetchCounts)
 .ingest-widget {
   margin-bottom: 24px;
   padding: 20px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 10px);
 }
 .ingest-widget-title {
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 12px;
+  font-family: var(--font-display, inherit);
+  color: var(--text-primary);
 }
 .ingest-widget-empty {
   font-size: 14px;
-  color: var(--color-muted);
+  color: var(--text-muted);
 }
 .ingest-widget-counters {
   display: flex;
@@ -99,26 +101,26 @@ onMounted(fetchCounts)
   padding: 12px;
   border-radius: 6px;
   text-decoration: none;
-  color: var(--color-text);
-  background: var(--color-bg);
+  color: var(--text-primary);
+  background: var(--bg-elevated);
   transition: border-color 0.15s;
   border: 1px solid transparent;
 }
-.ingest-counter:hover { border-color: var(--color-primary); }
+.ingest-counter:hover { border-color: var(--accent-amber); }
 .ingest-counter-value {
   font-size: 24px;
   font-weight: 700;
 }
 .ingest-counter-label {
   font-size: 12px;
-  color: var(--color-muted);
+  color: var(--text-muted);
   margin-top: 4px;
 }
-.ingest-counter--failed .ingest-counter-value { color: var(--color-danger, #c00); }
-.ingest-counter--pending_review .ingest-counter-value { color: var(--color-warning, #b86e00); }
-.ingest-counter--approved .ingest-counter-value { color: var(--color-success, #080); }
+.ingest-counter--failed .ingest-counter-value { color: var(--accent-red); }
+.ingest-counter--pending_review .ingest-counter-value { color: var(--accent-amber); }
+.ingest-counter--approved .ingest-counter-value { color: var(--accent-green); }
 .ingest-widget-loading {
   font-size: 13px;
-  color: var(--color-muted);
+  color: var(--text-muted);
 }
 </style>

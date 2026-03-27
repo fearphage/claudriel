@@ -35,15 +35,18 @@ const { entityTypes } = useAuth()
   gap: 16px;
 }
 .card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 10px);
   padding: 20px;
   text-decoration: none;
-  color: var(--color-text);
-  transition: border-color 0.15s;
+  color: var(--text-primary);
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.card:hover { border-color: var(--color-primary); }
-.card-title { font-size: 18px; margin-bottom: 4px; }
-.card-sub { font-size: 13px; color: var(--color-muted); }
+.card:hover {
+  border-color: var(--border-emphasis);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.card-title { font-size: 18px; margin-bottom: 4px; font-family: var(--font-display, inherit); }
+.card-sub { font-size: 13px; color: var(--text-muted); }
 </style>
