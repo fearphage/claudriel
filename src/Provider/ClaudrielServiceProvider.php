@@ -135,7 +135,7 @@ final class ClaudrielServiceProvider extends ServiceProvider
         // per-domain providers registered in composer.json extra.waaseyaa.providers:
         //   AccountServiceProvider, IngestionServiceProvider, CommitmentServiceProvider,
         //   ChatServiceProvider, DayBriefServiceProvider, WorkspaceServiceProvider,
-        //   OperationsServiceProvider, TemporalServiceProvider
+        //   OperationsServiceProvider, TemporalServiceProvider, CodeTaskServiceProvider
     }
 
     public function graphqlMutationOverrides(EntityTypeManager $entityTypeManager): array
