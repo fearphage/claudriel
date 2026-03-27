@@ -171,6 +171,7 @@ final class PipelineServiceProvider extends ServiceProvider
                 'company_profile' => ['type' => 'text_long'],
                 'qualification_prompt_override' => ['type' => 'text_long'],
                 'auto_qualify' => ['type' => 'boolean'],
+                'leads_api_bearer' => ['type' => 'string'],
                 'tenant_id' => ['type' => 'string'],
                 'created_at' => ['type' => 'timestamp', 'readOnly' => true],
                 'updated_at' => ['type' => 'timestamp', 'readOnly' => true],

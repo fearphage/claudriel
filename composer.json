@@ -79,6 +79,7 @@
                 "Waaseyaa\\Taxonomy\\TaxonomyServiceProvider",
                 "Claudriel\\Provider\\AiVectorServiceProvider",
                 "Claudriel\\Provider\\PipelineServiceProvider",
+                "Claudriel\\Provider\\ProspectToolServiceProvider",
                 "Claudriel\\Provider\\McpServiceProvider",
                 "Claudriel\\Provider\\ClaudrielServiceProvider",
                 "Claudriel\\Provider\\I18nServiceProvider",

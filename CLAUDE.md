@@ -136,11 +136,14 @@ See `docs/specs/workflow.md` for milestone list and versioning model.
 ## Internal API Routes (agent subprocess)
 
 ```
-GET  /api/internal/gmail/list         # List Gmail messages
-GET  /api/internal/gmail/read/{id}    # Read a Gmail message
-POST /api/internal/gmail/send         # Send a Gmail message
-GET  /api/internal/calendar/list      # List calendar events
-POST /api/internal/calendar/create    # Create calendar event
+GET  /api/internal/gmail/list              # List Gmail messages
+GET  /api/internal/gmail/read/{id}         # Read a Gmail message
+POST /api/internal/gmail/send              # Send a Gmail message
+GET  /api/internal/calendar/list           # List calendar events
+POST /api/internal/calendar/create         # Create calendar event
+GET  /api/internal/prospects/list          # List prospects (workspace_uuid query)
+POST /api/internal/prospects/{uuid}/update # Update prospect stage / notes
+POST /api/internal/pipeline/fetch-leads    # Import leads from North Cloud for workspace
 ```
 
 All require HMAC Bearer token via `InternalApiTokenGenerator`. See `docs/specs/agent-subprocess.md`.
@@ -201,6 +204,7 @@ All require HMAC Bearer token via `InternalApiTokenGenerator`. See `docs/specs/a
 - Pipeline entity types (prospect, prospect_attachment, prospect_audit, filtered_prospect, pipeline_config) are registered in `PipelineServiceProvider`, not `ClaudrielServiceProvider`
 - Pipeline POST controllers require `CLAUDRIEL_API_KEY` bearer token; GET routes (preview, tex) are public
 - `PipelineConfig::company_profile` is a JSON string with keys: name, title, company, address, postal_code, phone, email
+- North Cloud publisher exposes `GET /api/leads` (optional bearer `LEADS_API_KEY`); Claudriel uses `PipelineConfig.source_url` + optional `leads_api_bearer` or env `NORTHCLOUD_LEADS_BEARER` when fetching
 - `PipelineConfig::sectors` is a JSON array of canonical sector strings; `SectorNormalizer::CANONICAL_SECTORS` is the authoritative list
 - `ProspectIngestHandler` deduplicates by `external_id` + `workspace_uuid`, not content hash; existing prospects are skipped entirely (no update)
 - `ProspectWorkflowPreset` has 7 states (lead > qualified > contacted > proposal > negotiation > won/lost); use `ProspectStageManager` for validated transitions

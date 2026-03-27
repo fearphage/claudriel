@@ -58,6 +58,8 @@ final class PipelineNorthCloudLeadImportService
             $description = (string) ($hit['description'] ?? '');
             $sector = (string) ($hit['sector'] ?? $hit['category'] ?? '');
 
+            /** @var array<string, mixed>|null */
+            $filterDataForIngest = null;
             if ($filterStep !== null && $autoQualify) {
                 $filterResult = $filterStep->process([
                     'title' => $title,
@@ -80,10 +82,15 @@ final class PipelineNorthCloudLeadImportService
 
                         continue;
                     }
+
+                    $filterDataForIngest = $filterData;
                 }
             }
 
             $data = $this->normalizer->normalize($hit, $tenantId, $workspaceUuid);
+            if ($filterDataForIngest !== null) {
+                $data = $this->applyFilterQualificationToIngestPayload($data, $filterDataForIngest);
+            }
             $result = $this->ingestHandler->handle($data);
 
             if (($result['status'] ?? '') === 'created') {
@@ -142,5 +149,27 @@ final class PipelineNorthCloudLeadImportService
             'tenant_id' => $tenantId,
         ]);
         $storage->save($entity);
+    }
+
+    /**
+     * @param  array{source: string, type: string, payload: array<string, mixed>, timestamp: string, tenant_id: string, trace_id: string|null}  $data
+     * @param  array<string, mixed>  $filter
+     * @return array{source: string, type: string, payload: array<string, mixed>, timestamp: string, tenant_id: string, trace_id: string|null}
+     */
+    private function applyFilterQualificationToIngestPayload(array $data, array $filter): array
+    {
+        $payload = $data['payload'];
+        $payload['qualify_rating'] = (int) ($filter['rating'] ?? 0);
+        $payload['qualify_keywords'] = json_encode($filter['keywords'] ?? [], JSON_THROW_ON_ERROR);
+        $payload['qualify_confidence'] = (float) ($filter['confidence'] ?? 0.0);
+        $payload['qualify_notes'] = (string) ($filter['summary'] ?? '');
+        $payload['qualify_raw'] = json_encode($filter, JSON_THROW_ON_ERROR);
+        $normalizedSector = (string) ($filter['sector'] ?? '');
+        if ($normalizedSector !== '') {
+            $payload['sector'] = SectorNormalizer::normalize($normalizedSector);
+        }
+        $data['payload'] = $payload;
+
+        return $data;
     }
 }

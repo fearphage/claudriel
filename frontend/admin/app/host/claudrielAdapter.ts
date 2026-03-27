@@ -65,7 +65,7 @@ const GRAPHQL_FIELDS: Record<string, string> = {
   prospect_attachment: 'uuid prospect_uuid filename storage_path content_type workspace_uuid tenant_id created_at',
   prospect_audit: 'uuid prospect_uuid action payload { value } confirmed_at tenant_id created_at',
   filtered_prospect: 'uuid external_id title description { value } reject_reason import_batch workspace_uuid tenant_id created_at',
-  pipeline_config: 'uuid name workspace_uuid source_type source_url sectors { value } company_profile { value } qualification_prompt_override { value } auto_qualify tenant_id created_at updated_at',
+  pipeline_config: 'uuid name workspace_uuid source_type source_url sectors { value } company_profile { value } qualification_prompt_override { value } auto_qualify leads_api_bearer tenant_id created_at updated_at',
   chat_token_usage: 'uuid session_uuid turn_number model input_tokens output_tokens cache_read_tokens cache_write_tokens tenant_id workspace_id created_at',
 }
 

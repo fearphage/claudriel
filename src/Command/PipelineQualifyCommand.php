@@ -56,8 +56,9 @@ final class PipelineQualifyCommand extends Command
         $step = new LeadQualificationStep($this->aiClient);
         $companyProfile = '';
 
-        if (is_string($workspaceUuid) && $workspaceUuid !== '') {
-            $config = $this->loadPipelineConfig($workspaceUuid);
+        $workspaceForConfig = is_string($workspaceUuid) && $workspaceUuid !== '' ? $workspaceUuid : (string) ($prospects[0]->get('workspace_uuid') ?? '');
+        if ($workspaceForConfig !== '') {
+            $config = $this->loadPipelineConfig($workspaceForConfig);
             if ($config instanceof PipelineConfig) {
                 $companyProfile = (string) ($config->get('company_profile') ?? '');
             }

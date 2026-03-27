@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Claudriel\Controller\Pipeline;
 
+use Claudriel\Entity\PipelineConfig;
 use Claudriel\Entity\Prospect;
 use Claudriel\Pipeline\LeadQualificationStep;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -42,12 +43,26 @@ final class PipelineQualifyController
             return new JsonResponse(['error' => 'Prospect not found'], 404);
         }
 
+        $companyProfile = '';
+        $wsUuid = (string) ($prospect->get('workspace_uuid') ?? '');
+        if ($wsUuid !== '') {
+            $pcStorage = $this->entityTypeManager->getStorage('pipeline_config');
+            $pcQuery = $pcStorage->getQuery();
+            $pcQuery->accessCheck(false);
+            $pcQuery->condition('workspace_uuid', $wsUuid);
+            $pcIds = $pcQuery->execute();
+            $pc = $pcIds !== [] ? $pcStorage->load(reset($pcIds)) : null;
+            if ($pc instanceof PipelineConfig) {
+                $companyProfile = (string) ($pc->get('company_profile') ?? '');
+            }
+        }
+
         $step = new LeadQualificationStep($this->aiClient);
         $result = $step->process([
             'title' => (string) ($prospect->get('name') ?? ''),
             'description' => (string) ($prospect->get('description') ?? ''),
             'sector' => (string) ($prospect->get('sector') ?? ''),
-            'company_profile' => '',
+            'company_profile' => $companyProfile,
         ], new PipelineContext('qualify-'.$uuid, time()));
 
         if (! $result->success) {

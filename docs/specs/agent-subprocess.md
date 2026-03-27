@@ -58,6 +58,9 @@ All tools live in `agent/tools/` and delegate to the PHP backend via `PhpApiClie
 | `gmail_send` | `gmail_send.py` | `POST /api/internal/gmail/send` |
 | `calendar_list` | `calendar_list.py` | `GET /api/internal/calendar/list` |
 | `calendar_create` | `calendar_create.py` | `POST /api/internal/calendar/create` |
+| `prospect_list` | `prospect_list.py` | `GET /api/internal/prospects/list` |
+| `prospect_update` | `prospect_update.py` | `POST /api/internal/prospects/{uuid}/update` |
+| `pipeline_fetch_leads` | `pipeline_fetch_leads.py` | `POST /api/internal/pipeline/fetch-leads` |
 
 ## HMAC Authentication
 

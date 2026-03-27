@@ -12,6 +12,12 @@ from tools.calendar_list import TOOL_DEF as CALENDAR_LIST_DEF
 from tools.calendar_list import execute as calendar_list_run
 from tools.calendar_create import TOOL_DEF as CALENDAR_CREATE_DEF
 from tools.calendar_create import execute as calendar_create_run
+from tools.prospect_list import TOOL_DEF as PROSPECT_LIST_DEF
+from tools.prospect_list import execute as prospect_list_run
+from tools.prospect_update import TOOL_DEF as PROSPECT_UPDATE_DEF
+from tools.prospect_update import execute as prospect_update_run
+from tools.pipeline_fetch_leads import TOOL_DEF as PIPELINE_FETCH_DEF
+from tools.pipeline_fetch_leads import execute as pipeline_fetch_run
 
 
 # -----------------------------------------------------------------------
@@ -19,14 +25,20 @@ from tools.calendar_create import execute as calendar_create_run
 # -----------------------------------------------------------------------
 
 def test_all_tool_defs_have_name_and_schema():
-    for tool in [GMAIL_LIST_DEF, GMAIL_READ_DEF, GMAIL_SEND_DEF, CALENDAR_LIST_DEF, CALENDAR_CREATE_DEF]:
+    for tool in [
+        GMAIL_LIST_DEF, GMAIL_READ_DEF, GMAIL_SEND_DEF, CALENDAR_LIST_DEF, CALENDAR_CREATE_DEF,
+        PROSPECT_LIST_DEF, PROSPECT_UPDATE_DEF, PIPELINE_FETCH_DEF,
+    ]:
         assert "name" in tool
         assert "input_schema" in tool
         assert "description" in tool
 
 
 def test_tool_names_are_unique():
-    names = [t["name"] for t in [GMAIL_LIST_DEF, GMAIL_READ_DEF, GMAIL_SEND_DEF, CALENDAR_LIST_DEF, CALENDAR_CREATE_DEF]]
+    names = [t["name"] for t in [
+        GMAIL_LIST_DEF, GMAIL_READ_DEF, GMAIL_SEND_DEF, CALENDAR_LIST_DEF, CALENDAR_CREATE_DEF,
+        PROSPECT_LIST_DEF, PROSPECT_UPDATE_DEF, PIPELINE_FETCH_DEF,
+    ]]
     assert len(names) == len(set(names))
 
 
@@ -127,6 +139,30 @@ def test_calendar_create_sends_required_fields():
     assert call_args[0][0] == "/api/internal/calendar/create"
     payload = call_args[1]["json_data"] if "json_data" in call_args[1] else call_args[0][1]
     assert payload["title"] == "Standup"
+
+
+def test_prospect_list_calls_endpoint():
+    api = MagicMock()
+    api.get.return_value = {"prospects": []}
+
+    prospect_list_run(api, {"workspace_uuid": "ws-1", "limit": 10})
+
+    api.get.assert_called_once_with("/api/internal/prospects/list", params={
+        "workspace_uuid": "ws-1",
+        "limit": 10,
+    })
+
+
+def test_pipeline_fetch_leads_posts():
+    api = MagicMock()
+    api.post.return_value = {"imported": 0}
+
+    pipeline_fetch_run(api, {"workspace_uuid": "ws-2"})
+
+    api.post.assert_called_once_with(
+        "/api/internal/pipeline/fetch-leads",
+        json_data={"workspace_uuid": "ws-2"},
+    )
 
 
 def test_calendar_create_parses_attendees():

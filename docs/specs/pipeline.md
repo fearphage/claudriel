@@ -1,6 +1,43 @@
-# AI Pipeline Specification
+# Pipeline specifications (leads + AI steps)
 
-## File Map
+This document covers **(A) North Cloud → Claudriel sales leads** and **(B) Waaseyaa AI pipeline steps** used for commitments and workspace classification.
+
+## A. North Cloud leads → Claudriel entities
+
+### Flow
+
+```
+North Cloud GET /api/leads → NorthCloudLeadFetcher → PipelineNorthCloudLeadImportService
+  → LeadFilterStep (optional, when auto_qualify + AI client) → ProspectIngestHandler (lead.imported)
+  → McEvent + Prospect + Person
+```
+
+### North Cloud (publisher API)
+
+- **Route:** `GET /api/leads` (public on publisher; optional `Authorization: Bearer` when `LEADS_API_KEY` is set).
+- **Response:** `{ "items": [ { "id", "title", "description", "contact_name", "contact_email", "url", "closing_date", "budget", "sector", ... } ] }`.
+- **Storage:** `claudriel_leads` table (`publisher/migrations/007_claudriel_leads.*`); empty until rows are inserted.
+
+### Claudriel configuration
+
+- **`PipelineConfig`** per workspace: `source_url` (base URL of North Cloud publisher, e.g. `https://publisher.example.com:8070`), `sectors` (JSON array), `company_profile` (JSON string for AI prompts), `auto_qualify`, optional **`leads_api_bearer`** (or env `NORTHCLOUD_LEADS_BEARER`) sent as `Authorization` when fetching `/api/leads`.
+- **Import:** `POST /api/pipeline/{workspace_uuid}/fetch` (Bearer `CLAUDRIEL_API_KEY`) or CLI `claudriel:pipeline:fetch`, or agent `pipeline_fetch_leads` → `POST /api/internal/pipeline/fetch-leads` (HMAC).
+- **Filtered leads:** irrelevant AI filter results → `FilteredProspect`.
+- **Qualify on import:** When `LeadFilterStep` succeeds and the lead is relevant, rating/keywords/confidence/summary are written to new `Prospect` `qualify_*` fields.
+
+### Access
+
+- **`PipelineLeadEntityAccessPolicy`** — tenant-scoped access for `prospect`, `pipeline_config`, `filtered_prospect`, `prospect_attachment`, `prospect_audit`.
+
+### Agent tools
+
+See `docs/specs/agent-subprocess.md`: `prospect_list`, `prospect_update`, `pipeline_fetch_leads`.
+
+---
+
+## B. AI pipeline steps (Waaseyaa `PipelineStepInterface`)
+
+## File Map (commitment extraction + classification)
 
 | File | Purpose |
 |------|---------|

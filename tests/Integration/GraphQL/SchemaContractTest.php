@@ -269,6 +269,7 @@ final class SchemaContractTest extends TestCase
                 'company_profile' => ['type' => 'text_long'],
                 'qualification_prompt_override' => ['type' => 'text_long'],
                 'auto_qualify' => ['type' => 'boolean'],
+                'leads_api_bearer' => ['type' => 'string'],
                 'tenant_id' => ['type' => 'string'],
                 'created_at' => ['type' => 'timestamp', 'readOnly' => true],
                 'updated_at' => ['type' => 'timestamp', 'readOnly' => true],
@@ -801,7 +802,7 @@ final class SchemaContractTest extends TestCase
 
         self::assertInstanceOf(ObjectType::class, $type);
 
-        $expectedFields = ['id', 'uuid', 'name', 'workspace_uuid', 'source_type', 'source_url', 'sectors', 'company_profile', 'auto_qualify', 'tenant_id', 'created_at', 'updated_at'];
+        $expectedFields = ['id', 'uuid', 'name', 'workspace_uuid', 'source_type', 'source_url', 'sectors', 'company_profile', 'qualification_prompt_override', 'auto_qualify', 'leads_api_bearer', 'tenant_id', 'created_at', 'updated_at'];
         foreach ($expectedFields as $fieldName) {
             self::assertTrue($type->hasField($fieldName), "PipelineConfig missing field: {$fieldName}");
         }

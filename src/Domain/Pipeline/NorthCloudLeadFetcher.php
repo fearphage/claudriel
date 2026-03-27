@@ -22,10 +22,19 @@ final class NorthCloudLeadFetcher
 
         $url = rtrim($sourceUrl, '/').'/api/leads';
 
+        $headers = "Accept: application/json\r\n";
+        $bearer = (string) ($config->get('leads_api_bearer') ?? '');
+        if ($bearer === '') {
+            $bearer = $_ENV['NORTHCLOUD_LEADS_BEARER'] ?? getenv('NORTHCLOUD_LEADS_BEARER') ?: '';
+        }
+        if ($bearer !== '') {
+            $headers .= 'Authorization: Bearer '.$bearer."\r\n";
+        }
+
         $context = stream_context_create([
             'http' => [
                 'method' => 'GET',
-                'header' => "Accept: application/json\r\n",
+                'header' => $headers,
                 'timeout' => 30,
                 'ignore_errors' => true,
             ],

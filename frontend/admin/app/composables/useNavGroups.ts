@@ -37,6 +37,11 @@ const defaultGroupById: Record<string, string> = {
   menu_link: 'structure',
   workflow: 'workflows',
   pipeline: 'workflows',
+  pipeline_config: 'workflows',
+  prospect: 'workflows',
+  filtered_prospect: 'workflows',
+  prospect_attachment: 'workflows',
+  prospect_audit: 'workflows',
 }
 
 export function groupEntityTypes(entityTypes: EntityTypeInfo[]): ResolvedNavGroup[] {

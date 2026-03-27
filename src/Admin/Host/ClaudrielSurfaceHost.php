@@ -72,6 +72,11 @@ final class ClaudrielSurfaceHost extends AbstractAdminSurfaceHost
         $catalog->defineEntity('commitment', 'Commitment')->group('workflows');
         $catalog->defineEntity('schedule_entry', 'Schedule Entry')->group('workflows');
         $catalog->defineEntity('triage_entry', 'Triage Entry')->group('workflows');
+        $catalog->defineEntity('pipeline_config', 'Pipeline Config')->group('workflows');
+        $catalog->defineEntity('prospect', 'Prospect')->group('workflows');
+        $catalog->defineEntity('filtered_prospect', 'Filtered Prospect')->group('workflows');
+        $catalog->defineEntity('prospect_attachment', 'Prospect Attachment')->group('workflows');
+        $catalog->defineEntity('prospect_audit', 'Prospect Audit')->group('workflows');
 
         return $catalog;
     }

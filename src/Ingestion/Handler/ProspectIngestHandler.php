@@ -59,7 +59,7 @@ final class ProspectIngestHandler implements IngestHandlerInterface
 
         if ($isNew) {
             $sector = (string) ($payload['sector'] ?? '');
-            $prospect = new Prospect([
+            $prospectValues = [
                 'name' => (string) ($payload['name'] ?? ''),
                 'description' => (string) ($payload['description'] ?? ''),
                 'contact_name' => (string) ($payload['contact_name'] ?? ''),
@@ -71,7 +71,23 @@ final class ProspectIngestHandler implements IngestHandlerInterface
                 'external_id' => $externalId,
                 'workspace_uuid' => $workspaceUuid,
                 'tenant_id' => $data['tenant_id'] ?? null,
-            ]);
+            ];
+            if (isset($payload['qualify_rating'])) {
+                $prospectValues['qualify_rating'] = (int) $payload['qualify_rating'];
+            }
+            if (isset($payload['qualify_keywords'])) {
+                $prospectValues['qualify_keywords'] = (string) $payload['qualify_keywords'];
+            }
+            if (isset($payload['qualify_confidence'])) {
+                $prospectValues['qualify_confidence'] = (float) $payload['qualify_confidence'];
+            }
+            if (isset($payload['qualify_notes'])) {
+                $prospectValues['qualify_notes'] = (string) $payload['qualify_notes'];
+            }
+            if (isset($payload['qualify_raw'])) {
+                $prospectValues['qualify_raw'] = (string) $payload['qualify_raw'];
+            }
+            $prospect = new Prospect($prospectValues);
 
             // Upsert Person from contact info before first save
             $personUuid = null;
