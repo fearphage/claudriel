@@ -40,7 +40,8 @@ export function useLanguage() {
   function entityLabel(id: string, fallback: string): string {
     const key = `entity_type_${id}`
     const msg = messages[currentLocale.value]?.[key]
-    return msg !== undefined ? msg : fallback
+    if (msg !== undefined) return msg
+    return fallback.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
   }
 
   const locale = computed(() => currentLocale.value)
