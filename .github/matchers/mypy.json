@@ -1,13 +1,16 @@
 {
     "problemMatcher": [
         {
-            "owner": "black",
-            "severity": "warning",
+            "owner": "mypy",
+            "severity": "notice",
             "pattern": [
                 {
-                    "regexp": "^(would reformat) (.+)$",
-                    "message": 1,
-                    "file": 2
+                    "regexp": "^(.+?):(\\d+):(?:(\\d+):)? (?:(error|warning)|[a-z]+): (.+)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
                 }
             ]
         }

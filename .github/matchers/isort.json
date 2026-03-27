@@ -1,13 +1,13 @@
 {
     "problemMatcher": [
         {
-            "owner": "black",
-            "severity": "warning",
+            "owner": "isort",
             "pattern": [
                 {
-                    "regexp": "^(would reformat) (.+)$",
-                    "message": 1,
-                    "file": 2
+                    "regexp": "^([A-Z]+): (.+?) (.+)$",
+                    "severity": 1,
+                    "file": 2,
+                    "message": 3
                 }
             ]
         }
