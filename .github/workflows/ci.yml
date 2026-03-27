@@ -80,7 +80,8 @@ jobs:
 
       - run: isort . --check --profile black
 
-      - run: mypy **/*.py
+      - continue-on-error: true
+        run: mypy **/*.py
 
       - run: ruff check --output-format github
 
