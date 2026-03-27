@@ -78,6 +78,7 @@
                 "Waaseyaa\\Relationship\\RelationshipServiceProvider",
                 "Waaseyaa\\Taxonomy\\TaxonomyServiceProvider",
                 "Claudriel\\Provider\\AiVectorServiceProvider",
+                "Claudriel\\Provider\\CodeTaskServiceProvider",
                 "Claudriel\\Provider\\PipelineServiceProvider",
                 "Claudriel\\Provider\\ProspectToolServiceProvider",
                 "Claudriel\\Provider\\McpServiceProvider",
