@@ -26,7 +26,10 @@ trait GoogleApiTrait
             return ['error' => 'Google API request failed'];
         }
 
-        return json_decode($response, true) ?? ['error' => 'Invalid Google API response'];
+        /** @phpstan-ignore isset.variable, booleanAnd.alwaysTrue, function.alreadyNarrowedType */
+        $statusCode = isset($http_response_header) ? $this->parseHttpStatusCode($http_response_header) : 0;
+
+        return $this->parseGoogleResponse($response, $statusCode);
     }
 
     private function googleApiPost(string $url, string $accessToken, array $data): array
@@ -46,6 +49,53 @@ trait GoogleApiTrait
             return ['error' => 'Google API request failed'];
         }
 
-        return json_decode($response, true) ?? ['error' => 'Invalid Google API response'];
+        /** @phpstan-ignore isset.variable, booleanAnd.alwaysTrue, function.alreadyNarrowedType */
+        $statusCode = isset($http_response_header) ? $this->parseHttpStatusCode($http_response_header) : 0;
+
+        return $this->parseGoogleResponse($response, $statusCode);
+    }
+
+    /**
+     * @param  list<string>  $headers
+     */
+    private function parseHttpStatusCode(array $headers): int
+    {
+        if ($headers === []) {
+            return 0;
+        }
+
+        if (preg_match('/HTTP\/\S+\s+(\d{3})/', $headers[0], $matches)) {
+            return (int) $matches[1];
+        }
+
+        return 0;
+    }
+
+    private function parseGoogleResponse(string $response, int $statusCode): array
+    {
+        $decoded = json_decode($response, true) ?? ['error' => 'Invalid Google API response'];
+
+        if ($statusCode >= 400 && isset($decoded['error'])) {
+            $error = $decoded['error'];
+            $message = is_array($error) ? ($error['message'] ?? 'Unknown error') : (string) $error;
+            $code = is_array($error) ? ($error['code'] ?? $statusCode) : $statusCode;
+            $errorStatus = is_array($error) ? ($error['status'] ?? '') : '';
+
+            if ($statusCode === 401) {
+                return ['error' => "Google authentication failed ({$code}): {$message}. Try reconnecting your Google account."];
+            }
+
+            if ($statusCode === 403) {
+                if (str_contains($message, 'insufficient') || $errorStatus === 'PERMISSION_DENIED') {
+                    return ['error' => "Google permission denied ({$code}): {$message}. Reconnect your Google account to grant the required scopes."];
+                }
+
+                return ['error' => "Google access forbidden ({$code}): {$message}"];
+            }
+
+            return ['error' => "Google API error ({$code}): {$message}"];
+        }
+
+        return $decoded;
     }
 }
