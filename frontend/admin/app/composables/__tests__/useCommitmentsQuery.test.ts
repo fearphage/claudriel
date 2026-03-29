@@ -26,7 +26,7 @@ describe('fetchCommitments', () => {
     const result = await fetchCommitments({ status: 'pending' });
 
     expect(graphqlFetch).toHaveBeenCalledWith(
-      expect.stringContaining('commitmentList'),
+      expect.stringMatching(/CommitmentsListByStatus|commitmentList/),
       { status: 'pending' },
     );
     expect(result.items).toHaveLength(1);
@@ -41,8 +41,7 @@ describe('fetchCommitments', () => {
     const result = await fetchCommitments();
 
     expect(graphqlFetch).toHaveBeenCalledWith(
-      expect.stringContaining('commitmentList'),
-      {},
+      expect.stringMatching(/CommitmentsListAll|commitmentList/),
     );
     expect(result.items).toEqual([]);
   });

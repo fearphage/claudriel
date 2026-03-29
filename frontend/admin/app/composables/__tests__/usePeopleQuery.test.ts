@@ -26,7 +26,7 @@ describe('fetchPeople', () => {
     const result = await fetchPeople({ tier: 'inner_circle' });
 
     expect(graphqlFetch).toHaveBeenCalledWith(
-      expect.stringContaining('personList'),
+      expect.stringMatching(/PeopleListByTier|personList/),
       { tier: 'inner_circle' },
     );
     expect(result.items).toHaveLength(1);
@@ -41,8 +41,7 @@ describe('fetchPeople', () => {
     const result = await fetchPeople();
 
     expect(graphqlFetch).toHaveBeenCalledWith(
-      expect.stringContaining('personList'),
-      {},
+      expect.stringMatching(/PeopleListAll|personList/),
     );
     expect(result.items).toEqual([]);
   });

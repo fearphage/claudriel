@@ -17,7 +17,7 @@ const WORKSPACE_LIST = gql`
 `
 
 const PROSPECT_LIST = gql`
-  query OpsProspectList($workspaceUuid: String) {
+  query OpsProspectList($workspaceUuid: String!) {
     prospectList(
       filter: [{ field: "workspace_uuid", value: $workspaceUuid }]
       sort: "-updated_at"
@@ -39,7 +39,7 @@ const PROSPECT_LIST = gql`
 `
 
 const PROSPECT_LIST_ALL = gql`
-  query OpsProspectListAll($tenantId: String) {
+  query OpsProspectListAll($tenantId: String!) {
     prospectList(
       filter: [{ field: "tenant_id", value: $tenantId }]
       sort: "-updated_at"
@@ -61,7 +61,7 @@ const PROSPECT_LIST_ALL = gql`
 `
 
 const COMMITMENT_LIST_TENANT = gql`
-  query OpsCommitmentListTenant($tenantId: String) {
+  query OpsCommitmentListTenant($tenantId: String!) {
     commitmentList(
       filter: [{ field: "tenant_id", value: $tenantId }]
       sort: "-updated_at"
@@ -82,7 +82,7 @@ const COMMITMENT_LIST_TENANT = gql`
 `
 
 const COMMITMENT_LIST_WS = gql`
-  query OpsCommitmentListWs($workspaceUuid: String) {
+  query OpsCommitmentListWs($workspaceUuid: String!) {
     commitmentList(
       filter: [{ field: "workspace_uuid", value: $workspaceUuid }]
       sort: "-updated_at"
@@ -103,7 +103,7 @@ const COMMITMENT_LIST_WS = gql`
 `
 
 const SCHEDULE_LIST_WS = gql`
-  query OpsScheduleListWs($tenantId: String) {
+  query OpsScheduleListWs($tenantId: String!) {
     scheduleEntryList(
       filter: [{ field: "tenant_id", value: $tenantId }]
       sort: "starts_at"
@@ -122,7 +122,7 @@ const SCHEDULE_LIST_WS = gql`
 `
 
 const TRIAGE_LIST_WS = gql`
-  query OpsTriageListWs($tenantId: String) {
+  query OpsTriageListWs($tenantId: String!) {
     triageEntryList(
       filter: [{ field: "tenant_id", value: $tenantId }]
       sort: "-occurred_at"
