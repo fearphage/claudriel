@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout claudriel
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: claudriel
 
@@ -63,7 +63,7 @@ jobs:
 
     steps:
       - name: Checkout claudriel
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: claudriel
 
@@ -127,7 +127,7 @@ jobs:
 
     steps:
       - name: Checkout claudriel
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: claudriel
 
@@ -149,7 +149,7 @@ jobs:
         run: composer install --no-interaction --optimize-autoloader --prefer-dist
 
       - name: Set up SSH key
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
@@ -170,7 +170,7 @@ jobs:
 
     steps:
       - name: Checkout claudriel
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: claudriel
 
@@ -192,7 +192,7 @@ jobs:
         run: composer install --no-interaction --optimize-autoloader --prefer-dist
 
       - name: Set up SSH key
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
