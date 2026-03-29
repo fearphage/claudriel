@@ -67,3 +67,4 @@ evals/node_modules/
 .build/
 
 src/Controller/Pipeline/claudriel.code-workspace
+storage/mail-delivery.log
