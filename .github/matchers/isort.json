@@ -1,0 +1,15 @@
+{
+    "problemMatcher": [
+        {
+            "owner": "isort",
+            "pattern": [
+                {
+                    "regexp": "^([A-Z]+): (.+?) (.+)$",
+                    "severity": 1,
+                    "file": 2,
+                    "message": 3
+                }
+            ]
+        }
+    ]
+}

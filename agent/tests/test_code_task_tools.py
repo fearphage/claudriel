@@ -2,8 +2,10 @@
 
 from unittest.mock import MagicMock
 
-from tools.code_task_create import TOOL_DEF as CREATE_DEF, execute as create_execute
-from tools.code_task_status import TOOL_DEF as STATUS_DEF, execute as status_execute
+from tools.code_task_create import TOOL_DEF as CREATE_DEF
+from tools.code_task_create import execute as create_execute
+from tools.code_task_status import TOOL_DEF as STATUS_DEF
+from tools.code_task_status import execute as status_execute
 
 
 class TestCodeTaskCreateDef:
@@ -46,7 +48,10 @@ class TestCodeTaskCreateExecute:
 class TestCodeTaskStatusExecute:
     def test_calls_api(self):
         api = MagicMock()
-        api.get.return_value = {"status": "completed", "pr_url": "https://github.com/test/pull/1"}
+        api.get.return_value = {
+            "status": "completed",
+            "pr_url": "https://github.com/test/pull/1",
+        }
 
         result = status_execute(api, {"task_uuid": "abc-123"})
         api.get.assert_called_once_with("/api/internal/code-tasks/abc-123/status")
