@@ -2,6 +2,16 @@
 import { useLanguage } from '~/composables/useLanguage'
 import { useSchema } from '~/composables/useSchema'
 
+definePageMeta({
+  middleware: [
+    function (to) {
+      if (to.params.entityType === 'prospect') {
+        return navigateTo('/pipeline', { replace: true })
+      }
+    },
+  ],
+})
+
 const route = useRoute()
 const { t, entityLabel: translateEntityLabel } = useLanguage()
 const { entityTypes } = useAuth()
@@ -25,7 +35,7 @@ useHead({ title: computed(() => `${entityLabel.value} | ${config.public.appName}
         <h1>{{ t('error_not_found') }}</h1>
       </div>
       <p class="error">{{ error ?? t('error_loading_types') }}</p>
-      <NuxtLink to="/" class="btn">← {{ t('dashboard') }}</NuxtLink>
+      <NuxtLink to="/today" class="btn">← {{ t('ops_nav_today') }}</NuxtLink>
     </template>
 
     <template v-else>

@@ -5,9 +5,10 @@ import NavBuilder from '~/components/layout/NavBuilder.vue'
 import { entityTypes } from '../../fixtures/entityTypes'
 
 describe('NavBuilder', () => {
-  it('renders the dashboard link always', () => {
+  it('renders ops mode links always', () => {
     const wrapper = mount(NavBuilder)
-    expect(wrapper.text()).toContain('Dashboard')
+    expect(wrapper.text()).toContain('Today')
+    expect(wrapper.text()).toContain('All data')
   })
 
   it('renders nav section headings when entity types are populated', () => {
@@ -24,10 +25,11 @@ describe('NavBuilder', () => {
     expect(wrapper.text()).toContain('Content')
   })
 
-  it('renders no nav sections when entity types are empty', () => {
+  it('renders operations section when entity types are empty', () => {
     useState('claudriel.admin.session.entity-types').value = []
     const wrapper = mount(NavBuilder)
     const navSections = wrapper.findAll('.nav-section')
-    expect(navSections.length).toBe(0)
+    expect(navSections.length).toBeGreaterThanOrEqual(1)
+    expect(wrapper.text()).toContain('Operations')
   })
 })

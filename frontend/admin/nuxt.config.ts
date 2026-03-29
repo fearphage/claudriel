@@ -19,6 +19,14 @@ export default defineNuxtConfig({
         target: 'http://localhost:8081/graphql',
         changeOrigin: true,
       },
+      '/brief': {
+        target: 'http://localhost:8081/brief',
+        changeOrigin: true,
+      },
+      '/stream': {
+        target: 'http://localhost:8081/stream',
+        changeOrigin: true,
+      },
       '/admin/session': {
         target: 'http://localhost:8081/admin/session',
         changeOrigin: true,
@@ -32,6 +40,8 @@ export default defineNuxtConfig({
 
   routeRules: {
     '/api/**': { proxy: 'http://localhost:8081/api/**' },
+    '/brief': { proxy: 'http://localhost:8081/brief' },
+    '/stream/**': { proxy: 'http://localhost:8081/stream/**' },
   },
 
   app: {

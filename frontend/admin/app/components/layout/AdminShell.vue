@@ -3,6 +3,10 @@ import { useLanguage } from '~/composables/useLanguage'
 import { useClock } from '~/composables/useClock'
 
 const { t, locale, locales, setLocale } = useLanguage()
+const chatOpen = useState('claudriel.ops.chatRailOpen', () => false)
+function toggleChat() {
+  chatOpen.value = !chatOpen.value
+}
 const { formatted: clockTime } = useClock()
 const config = useRuntimeConfig()
 const appName = config.public.appName as string
@@ -49,8 +53,11 @@ async function handleLogout() {
       <button class="topbar-toggle" :aria-label="t('toggle_menu')" @click="toggleSidebar">
         <span class="topbar-toggle-icon">&#9776;</span>
       </button>
-      <NuxtLink to="/" class="topbar-brand">{{ appName }}</NuxtLink>
+      <NuxtLink to="/today" class="topbar-brand">{{ appName }}</NuxtLink>
       <span class="topbar-clock">{{ clockTime }}</span>
+      <button type="button" class="topbar-chat" @click="toggleChat">
+        {{ chatOpen ? t('ops_chat_hide') : t('ops_nav_chat') }}
+      </button>
       <button class="topbar-logout" type="button" @click="handleLogout">
         {{ t('logout') }}
       </button>
@@ -82,6 +89,9 @@ async function handleLogout() {
       <main id="main-content" class="content" role="main">
         <slot />
       </main>
+      <aside v-if="chatOpen" class="chat-rail" aria-label="Chat">
+        <OpsChatRail />
+      </aside>
     </div>
   </div>
 </template>
@@ -239,8 +249,33 @@ body {
 
 .content {
   flex: 1;
+  min-width: 0;
   padding: 24px;
   background: var(--bg-deep);
+}
+
+.topbar-chat {
+  border: 1px solid var(--border-emphasis);
+  background: transparent;
+  color: var(--accent-teal);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  margin-right: 8px;
+}
+
+.chat-rail {
+  width: min(400px, 100vw);
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  background: var(--bg-surface);
+  padding: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - var(--topbar-height));
 }
 
 /* Buttons */

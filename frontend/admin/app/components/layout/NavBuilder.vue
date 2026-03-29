@@ -10,8 +10,18 @@ const navGroups = computed(() => groupEntityTypes(entityTypes.value))
 
 <template>
   <nav class="nav">
-    <NuxtLink to="/" class="nav-item">
-      {{ t('dashboard') }}
+    <div class="nav-section">{{ t('ops_nav_modes') }}</div>
+    <NuxtLink to="/today" class="nav-item">
+      {{ t('ops_nav_today') }}
+    </NuxtLink>
+    <NuxtLink to="/workspaces" class="nav-item">
+      {{ t('ops_nav_workspaces') }}
+    </NuxtLink>
+    <NuxtLink to="/pipeline" class="nav-item">
+      {{ t('ops_nav_pipeline') }}
+    </NuxtLink>
+    <NuxtLink to="/data" class="nav-item">
+      {{ t('ops_nav_data') }}
     </NuxtLink>
     <template v-for="group in navGroups" :key="group.key">
       <div class="nav-section">{{ t(group.labelKey) }}</div>
@@ -36,6 +46,9 @@ const navGroups = computed(() => groupEntityTypes(entityTypes.value))
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+.nav .nav-section:first-child {
+  padding-top: 4px;
 }
 .nav-item {
   padding: 8px 16px;
