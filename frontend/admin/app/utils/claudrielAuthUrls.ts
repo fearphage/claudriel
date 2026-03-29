@@ -1,5 +1,5 @@
 /**
- * Split dev: Nuxt on :3000, PHP on :8081. Session + GraphQL live on PHP; Nitro proxies those paths.
+ * Split dev: Nuxt on :3333 (see nuxt.config devServer), PHP on :8081. Session + GraphQL live on PHP; Nitro proxies those paths.
  * Production: same host — login stays a relative `/login?redirect=…` path-only redirect.
  */
 

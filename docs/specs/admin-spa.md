@@ -104,14 +104,19 @@ Entity types in catalog: workspace, project, person, commitment, schedule_entry,
 | `NUXT_PUBLIC_ENABLE_REALTIME` | false (dev), true (prod) | Enable SSE broadcast |
 | `NUXT_PUBLIC_APP_NAME` | "Claudriel Admin" | Page title |
 | `NUXT_PUBLIC_PHP_ORIGIN` | — | Override PHP backend origin |
-| `PLAYWRIGHT_BASE_URL` | `http://localhost:3000/admin` | E2E test base URL |
+| `PLAYWRIGHT_BASE_URL` | `http://localhost:3333/admin` | E2E test base URL |
 
 ## Build / Deploy
 
-- `npm run dev` — Nuxt dev server on :3000
+- `npm run dev` — Nuxt dev server on **:3333** by default (`nuxt.config.ts` `devServer.port`), avoiding collisions with Mercure on :3000; override with `nuxt dev --port …` if needed
 - `npm run build` — Production static build
 - Production: static build served by Caddy (not a running Nuxt server)
 - `public/admin/` is built by CI, listed in `.gitignore`
+
+## Local dev pitfalls
+
+- **Port 3000**: Mercure or other tools often bind :3000; hitting that URL expecting Nuxt yields empty 200s and a blank page. Default admin dev is **:3333**; `config/waaseyaa.php` allows both 3333 and 3000 origins for CORS.
+- **PHP `/login` 500**: If `CLAUDRIEL_ENV=production` and required OAuth/API env vars are unset, `ClaudrielServiceProvider::boot()` throws and `/login` can return 500 with no body — IDE browser smoke tests cannot proceed until env is development-complete or vars are set.
 
 ## Known Constraints
 
@@ -121,4 +126,4 @@ Entity types in catalog: workspace, project, person, commitment, schedule_entry,
 - 15s fixed GraphQL timeout in `graphqlFetch`
 - TextValue wrapping is hardcoded per entity type for `text_long` fields
 - Schema caching is in-memory Map per entityType (no persistence)
-- Playwright E2E spins up both PHP (:8081) and Nuxt (:3000); skips chat tests in CI
+- Playwright E2E spins up both PHP (:8081) and Nuxt (:3333); skips chat tests in CI

@@ -24,7 +24,7 @@ final class ClaudrielAdminHostTest extends TestCase
     public function sanitize_redirect_allows_localhost_absolute_url(): void
     {
         $h = $this->host();
-        $url = 'http://127.0.0.1:3000/admin/';
+        $url = 'http://127.0.0.1:3333/admin/';
 
         self::assertSame($url, $h->sanitizeRedirectTarget($url));
     }
@@ -34,7 +34,7 @@ final class ClaudrielAdminHostTest extends TestCase
     {
         $h = $this->host();
 
-        self::assertSame('http://localhost:3000/admin/', $h->sanitizeRedirectTarget('http://localhost:3000/admin/'));
+        self::assertSame('http://localhost:3333/admin/', $h->sanitizeRedirectTarget('http://localhost:3333/admin/'));
     }
 
     #[Test]

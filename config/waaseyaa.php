@@ -43,7 +43,12 @@ return [
 
     // Allowed CORS origins for the admin SPA.
     'cors_origins' => array_merge(
-        ['http://localhost:3000', 'http://127.0.0.1:3000'],
+        [
+            'http://localhost:3333',
+            'http://127.0.0.1:3333',
+            'http://localhost:3000',
+            'http://127.0.0.1:3000',
+        ],
         array_filter(
             array_map('trim', explode(',', getenv('WAASEYAA_CORS_ORIGINS') ?: '')),
             static fn (string $v): bool => $v !== '',

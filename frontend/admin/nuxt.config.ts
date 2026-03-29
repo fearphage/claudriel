@@ -1,6 +1,10 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-01-01',
   devtools: { enabled: true },
+  devServer: {
+    // Default 3000 often collides with Mercure / other local services.
+    port: 3333,
+  },
   ssr: false,
   spaLoadingTemplate: 'spa-loading-template.html',
 
