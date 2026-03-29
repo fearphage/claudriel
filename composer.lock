@@ -5407,12 +5407,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/waaseyaa/ssr.git",
-                "reference": "9a085e6a0ffa7e944d191f080776473ea5459910"
+                "reference": "061f9b17487fab681b1080d7c50ef6910ea7ec72"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/waaseyaa/ssr/zipball/9a085e6a0ffa7e944d191f080776473ea5459910",
-                "reference": "9a085e6a0ffa7e944d191f080776473ea5459910",
+                "url": "https://api.github.com/repos/waaseyaa/ssr/zipball/061f9b17487fab681b1080d7c50ef6910ea7ec72",
+                "reference": "061f9b17487fab681b1080d7c50ef6910ea7ec72",
                 "shasum": ""
             },
             "require": {
@@ -5454,9 +5454,9 @@
             "description": "Server-side rendering with Twig templates for Waaseyaa",
             "support": {
                 "issues": "https://github.com/waaseyaa/ssr/issues",
-                "source": "https://github.com/waaseyaa/ssr/tree/v0.1.0-alpha.63"
+                "source": "https://github.com/waaseyaa/ssr/tree/v0.1.0-alpha.75"
             },
-            "time": "2026-03-28T02:08:06+00:00"
+            "time": "2026-03-29T15:19:43+00:00"
         },
         {
             "name": "waaseyaa/state",

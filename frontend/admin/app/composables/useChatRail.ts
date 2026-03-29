@@ -8,7 +8,7 @@ export interface ChatSessionRow {
   uuid: string
   title: string
   created_at?: string | null
-  workspace_id?: string | null
+  workspace_uuid?: string | null
 }
 
 export function useChatRail() {
