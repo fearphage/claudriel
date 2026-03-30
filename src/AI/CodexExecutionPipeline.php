@@ -106,13 +106,20 @@ final class CodexExecutionPipeline
         if ($dockerImage !== '') {
             $apiKey = $_ENV['ANTHROPIC_API_KEY'] ?? getenv('ANTHROPIC_API_KEY') ?: '';
 
-            return new SubprocessChatClient(['docker', 'run', '--rm', '-i', '--network=host', '-e', 'ANTHROPIC_API_KEY='.$apiKey, $dockerImage, 'python', '/srv/agent/main.py']);
+            return new SubprocessChatClient(['docker', 'run', '--rm', '-i', '--network=host', '-e', 'ANTHROPIC_API_KEY='.$apiKey, $dockerImage, 'python', '-m', 'claudriel_agent']);
         }
 
         $projectRoot = getcwd() ?: '/srv';
         $venv = $_ENV['AGENT_VENV'] ?? getenv('AGENT_VENV') ?: $projectRoot.'/agent/.venv';
-        $agentPath = $_ENV['AGENT_PATH'] ?? getenv('AGENT_PATH') ?: $projectRoot.'/agent/main.py';
+        $python = $venv.'/bin/python';
+        $agentPath = $_ENV['AGENT_PATH'] ?? getenv('AGENT_PATH') ?: '';
 
-        return new SubprocessChatClient([$venv.'/bin/python', $agentPath]);
+        // Prefer ``python -m claudriel_agent`` (matches Docker) so the package is loaded as a module.
+        // Optional AGENT_PATH overrides with a script path for custom entrypoints.
+        if ($agentPath !== '') {
+            return new SubprocessChatClient([$python, $agentPath]);
+        }
+
+        return new SubprocessChatClient([$python, '-m', 'claudriel_agent']);
     }
 }
