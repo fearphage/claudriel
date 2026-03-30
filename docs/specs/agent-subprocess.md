@@ -37,10 +37,13 @@ PHP writes a single JSON object to the subprocess stdin:
 
 ## Contract: Python → PHP (stdout JSON-lines)
 
-One JSON object per line. Event types:
+One JSON object per line. **Every line includes `protocol`** (string), the wire-format version emitted by `claudriel_agent.emit.emit()` — currently `1.0`. Hosts may reject unsupported versions; see [Protocol version bump policy](#protocol-version-bump-policy) below.
+
+Event types:
 
 | Event | Fields | Purpose |
 |-------|--------|---------|
+| *(all)* | `protocol` | Wire-format version (e.g. `1.0`); present on every line |
 | `message` | `content` | Streamed text token |
 | `tool_call` | `tool`, `args` | Agent invoking a tool |
 | `tool_result` | `tool`, `result` | Tool execution result |
@@ -76,9 +79,26 @@ Payloads must be strict JSON (no `NaN` / `Infinity`). Implementation: `claudriel
 - `progress` may appear before the terminal event (rate limits / model fallback).
 - `needs_continuation` may appear before `done` when the turn budget stops after tool results are emitted.
 
-Validation helper: `claudriel_agent.protocol.assert_valid_protocol_stream` (used in tests).
+Validation helper: `claudriel_agent.protocol.assert_valid_protocol_stream` (used in tests). It requires a matching `protocol` field on **every** parsed event (same value as `AGENT_PROTOCOL_VERSION` in `emit.py`).
 
 **Allowed I/O:** stdout JSONL (`emit`), stderr empty on success, HTTP only via `PhpApiClient`, Anthropic `messages.create` (and related client calls). Avoid ad-hoc file, socket, or logging writes in the agent path.
+
+## Protocol version bump policy
+
+- **When to bump** — Any change that alters the JSONL wire shape or required fields that downstream consumers rely on: new mandatory keys, renamed events, semantic changes to `tool_result` payload, or a structured tool success/error envelope on the wire. Use a string like `1.0` → `1.1` for additive, backward-compatible changes; use `2.0` (or similar) for breaking changes. Pair wire-format changes with tests and this document.
+- **When not to bump** — New tools, tool executor internals, prompts, truncation thresholds, or any change that does not alter the line protocol contract.
+- **Unknown versions (hosts)** — If `protocol` is present and not in the host’s supported set, reject with a clear error. Streams without `protocol` are **legacy** (pre-version agents); hosts may accept them only while those images are still supported. **PHP:** `SubprocessChatClient` inspects the **first** non-empty JSON line: if `protocol` is present and non-empty and not in the supported list (`1.0` today), it terminates the subprocess and surfaces an error; missing `protocol` on the first line keeps legacy behavior.
+- **Support horizon** — Claudriel currently deploys the agent image and PHP app together; treat version support as **lockstep** unless you explicitly maintain compatibility with older agent builds.
+- **Deferred: tool execution envelope** — Wrapping `tool_result.result` in `{ "ok": true, "result": ... }` / `{ "ok": false, "error": ... }` is a wire-format change and would require a bump (e.g. `1.1`) and host branching. Not required until a consumer needs uniform error surfaces on the stream.
+
+## Tool ergonomics roadmap (post–protocol freeze)
+
+Tracked as follow-up work (separate issues per phase):
+
+1. **Authoring speed** — Scaffold for new tools; shared HTTP/error helpers under `agent/claudriel_agent/tools/`.
+2. **Type-safe args** — TypedDict / pydantic (or similar) per tool, validated before `execute`.
+3. **Local dev CLI** — Thin wrapper: stdin JSON request → stdout JSONL, for debugging without PHP.
+4. **Eval harness** — Scenario fixtures + expected event subsequences or golden stdout in CI.
 
 ## Strict Emit System
 
@@ -96,6 +116,8 @@ ALLOWED_EMIT_EVENTS = frozenset({
 **Strict mode:** Set `CLAUDRIEL_EMIT_STRICT=1` (also accepts `true`, `yes`) to raise `ValueError` on any event name not in the allowlist. This catches typos during development. When unset or `0`, unknown events still emit for backward compatibility.
 
 **JSON serialization safety:** `emit()` calls `json.dumps(..., allow_nan=False)` so payloads never contain `NaN` or `Infinity`, which are not valid JSON and would break the PHP consumer. Non-serializable payloads raise `ValueError` immediately rather than producing corrupt output.
+
+**Protocol field:** `emit()` sets `protocol` to `AGENT_PROTOCOL_VERSION` after merging kwargs so callers cannot override the wire version.
 
 ## Tool Contract
 

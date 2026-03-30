@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from claudriel_agent.emit import AGENT_PROTOCOL_VERSION
+
 TERMINAL_EVENTS = frozenset({"done", "error"})
 
 
@@ -28,9 +30,10 @@ def parse_jsonl_events(lines: list[str]) -> list[dict[str, Any]]:
 
 
 def validate_protocol_events(events: list[dict[str, Any]]) -> None:
-    """Enforce terminal envelope and tool_call/tool_result ordering.
+    """Enforce terminal envelope, protocol version, and tool_call/tool_result ordering.
 
     Invariants:
+    - Every event has ``protocol`` equal to ``AGENT_PROTOCOL_VERSION`` from ``emit``.
     - Exactly one terminal event (`done` or `error`) in the stream.
     - Terminal is the last event; nothing follows.
     - `progress` and `needs_continuation` never appear after the terminal.
@@ -48,6 +51,12 @@ def validate_protocol_events(events: list[dict[str, Any]]) -> None:
         et = ev.get("event")
         if not isinstance(et, str):
             raise ProtocolValidationError(f"event {i}: missing or invalid 'event' field")
+
+        proto = ev.get("protocol")
+        if proto != AGENT_PROTOCOL_VERSION:
+            raise ProtocolValidationError(
+                f"event {i}: expected protocol {AGENT_PROTOCOL_VERSION!r}, got {proto!r}",
+            )
 
         if et in TERMINAL_EVENTS:
             terminal_indices.append(i)

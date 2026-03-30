@@ -6,6 +6,10 @@ import json
 import os
 from typing import Any
 
+# JSONL wire format version (every stdout line includes this). Bump only when the
+# line protocol contract changes; see docs/specs/agent-subprocess.md.
+AGENT_PROTOCOL_VERSION = "1.0"
+
 # Keep in sync with docs/specs/agent-subprocess.md and all emit() call sites.
 ALLOWED_EMIT_EVENTS = frozenset(
     {
@@ -27,6 +31,9 @@ def _emit_strict_enabled() -> bool:
 def emit(event: str, **kwargs: object) -> None:
     """Write a JSON-line event to stdout.
 
+    Every line includes ``protocol`` set to :data:`AGENT_PROTOCOL_VERSION` (after
+    merging kwargs, so callers cannot override the wire version).
+
     Uses ``allow_nan=False`` so payloads are strict JSON (no NaN/Infinity), which
     keeps the PHP consumer safe.
 
@@ -39,6 +46,7 @@ def emit(event: str, **kwargs: object) -> None:
             f"Unknown emit event {event!r}; allowed: {sorted(ALLOWED_EMIT_EVENTS)}",
         )
     payload: dict[str, Any] = {"event": event, **kwargs}
+    payload["protocol"] = AGENT_PROTOCOL_VERSION
     try:
         line = json.dumps(payload, ensure_ascii=False, allow_nan=False)
     except (TypeError, ValueError) as e:

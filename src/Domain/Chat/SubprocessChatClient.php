@@ -8,6 +8,9 @@ use Closure;
 
 final class SubprocessChatClient
 {
+    /** @var list<string> */
+    private const SUPPORTED_AGENT_PROTOCOLS = ['1.0'];
+
     /**
      * @param  list<string>  $command  Command to execute (e.g., ['{venv}/bin/python', '-m', 'claudriel_agent'] or ['docker', 'run', '--rm', '-i', 'image', 'python', '-m', 'claudriel_agent'])
      */
@@ -78,6 +81,8 @@ final class SubprocessChatClient
         $fullResponse = '';
         $startTime = time();
         $receivedDone = false;
+        $protocolCheckDone = false;
+        $protocolRejected = false;
 
         while (! $receivedDone) {
             if (time() - $startTime > $this->timeoutSeconds) {
@@ -129,6 +134,18 @@ final class SubprocessChatClient
                 continue;
             }
 
+            if (! $protocolCheckDone) {
+                $protocolCheckDone = true;
+                if (isset($event['protocol']) && $event['protocol'] !== ''
+                    && ! in_array((string) $event['protocol'], self::SUPPORTED_AGENT_PROTOCOLS, true)) {
+                    proc_terminate($process);
+                    $onError('Unsupported agent protocol version: '.(string) $event['protocol']);
+                    $protocolRejected = true;
+
+                    break;
+                }
+            }
+
             $eventType = $event['event'] ?? '';
 
             match ($eventType) {
@@ -173,6 +190,10 @@ final class SubprocessChatClient
 
         if ($stderr !== '' && $stderr !== false) {
             error_log('[Agent stderr] '.$stderr);
+        }
+
+        if ($protocolRejected) {
+            return;
         }
 
         if ($exitCode !== 0 && ! $receivedDone) {

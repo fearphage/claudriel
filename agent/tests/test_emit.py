@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from claudriel_agent.emit import ALLOWED_EMIT_EVENTS, emit
+from claudriel_agent.emit import AGENT_PROTOCOL_VERSION, ALLOWED_EMIT_EVENTS, emit
 
 
 def _minimal_kwargs_for_event(event: str) -> dict:
@@ -31,6 +31,7 @@ def test_emit_writes_json_line_to_stdout(capsys):
     line = json.loads(captured.out.strip())
     assert line["event"] == "message"
     assert line["content"] == "Hello"
+    assert line["protocol"] == AGENT_PROTOCOL_VERSION
 
 
 def test_emit_done_event(capsys):
@@ -38,6 +39,7 @@ def test_emit_done_event(capsys):
     captured = capsys.readouterr()
     line = json.loads(captured.out.strip())
     assert line["event"] == "done"
+    assert line["protocol"] == AGENT_PROTOCOL_VERSION
 
 
 def test_emit_error_event(capsys):
@@ -78,6 +80,12 @@ def test_emit_non_strict_allows_unknown_event(capsys, monkeypatch):
     assert line["event"] == "experimental_future_event"
 
 
+def test_emit_protocol_is_normative_not_overridable_by_kwargs(capsys):
+    emit("message", content="x", protocol="9.9")
+    line = json.loads(capsys.readouterr().out.strip())
+    assert line["protocol"] == AGENT_PROTOCOL_VERSION
+
+
 def test_emit_rejects_nan():
     with pytest.raises(ValueError, match="JSON-serializable"):
         emit("message", content=float("nan"))
@@ -92,6 +100,7 @@ def test_each_allowlisted_event_emits_one_json_line(capsys):
         assert len(lines) == 1, event
         obj = json.loads(lines[0])
         assert obj["event"] == event
+        assert obj["protocol"] == AGENT_PROTOCOL_VERSION
 
 
 def test_multi_emit_sequence_valid_protocol(capsys):
