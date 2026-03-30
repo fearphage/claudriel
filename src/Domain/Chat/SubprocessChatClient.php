@@ -136,13 +136,19 @@ final class SubprocessChatClient
 
             if (! $protocolCheckDone) {
                 $protocolCheckDone = true;
-                if (isset($event['protocol']) && $event['protocol'] !== ''
-                    && ! in_array((string) $event['protocol'], self::SUPPORTED_AGENT_PROTOCOLS, true)) {
-                    proc_terminate($process);
-                    $onError('Unsupported agent protocol version: '.(string) $event['protocol']);
-                    $protocolRejected = true;
+                // Legacy streams omit `protocol`. If the key is present, it must be non-empty
+                // and in the supported set — empty string must not bypass validation.
+                if (array_key_exists('protocol', $event)) {
+                    $pv = trim((string) $event['protocol']);
+                    if ($pv === '' || ! in_array($pv, self::SUPPORTED_AGENT_PROTOCOLS, true)) {
+                        proc_terminate($process);
+                        $onError($pv === ''
+                            ? 'Agent protocol version is empty'
+                            : 'Unsupported agent protocol version: '.$pv);
+                        $protocolRejected = true;
 
-                    break;
+                        break;
+                    }
                 }
             }
 

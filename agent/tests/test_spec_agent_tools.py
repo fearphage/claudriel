@@ -46,8 +46,10 @@ def parse_tool_names_from_agent_subprocess_spec(text: str) -> set[str]:
 @pytest.fixture(scope="module")
 def spec_text() -> str:
     path = _spec_path()
-    if not path.is_file():
-        pytest.skip(f"spec not found: {path}")
+    assert path.is_file(), (
+        f"spec file must exist for parity CI: {path}. "
+        "Do not skip — a missing spec masks tools table drift."
+    )
     return path.read_text(encoding="utf-8")
 
 

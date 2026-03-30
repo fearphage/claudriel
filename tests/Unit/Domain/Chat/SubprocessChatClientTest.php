@@ -173,4 +173,41 @@ final class SubprocessChatClientTest extends TestCase
 
         unlink($script);
     }
+
+    #[Test]
+    public function stream_calls_on_error_when_first_line_has_empty_protocol_string(): void
+    {
+        $script = sys_get_temp_dir().'/mock_agent_empty_proto_'.uniqid().'.php';
+        file_put_contents($script, <<<'PHP'
+        <?php
+        echo json_encode(['event' => 'message', 'content' => 'x', 'protocol' => '']) . "\n";
+        echo json_encode(['event' => 'done']) . "\n";
+        PHP);
+
+        $client = new SubprocessChatClient(
+            command: [PHP_BINARY, $script],
+            timeoutSeconds: 10,
+        );
+
+        $errors = [];
+
+        $client->stream(
+            systemPrompt: 'test',
+            messages: [],
+            accountId: 'acc-1',
+            tenantId: 'tenant-1',
+            apiBase: 'http://localhost',
+            apiToken: 'token',
+            onToken: function (string $token) {},
+            onDone: function (string $full) {},
+            onError: function (string $err) use (&$errors) {
+                $errors[] = $err;
+            },
+        );
+
+        $this->assertCount(1, $errors);
+        $this->assertStringContainsString('empty', $errors[0]);
+
+        unlink($script);
+    }
 }
