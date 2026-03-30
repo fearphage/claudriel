@@ -13,7 +13,7 @@ Browser → ChatStreamController (PHP)
            ↓ spawns subprocess
          agent/main.py (Python)
            ↓ Anthropic Messages API (tool-use)
-           ↓ tool calls → agent/tools/*.py
+           ↓ tool calls → agent/claudriel_agent/tools/*.py
            ↓ tools call → PHP internal API (HMAC Bearer)
          InternalGoogleController (PHP)
            ↓ OAuthTokenManager → Google APIs
@@ -52,6 +52,33 @@ One JSON object per line. Event types:
 Payloads must be strict JSON (no `NaN` / `Infinity`). Implementation: `claudriel_agent.emit.emit()` uses `json.dumps(..., allow_nan=False)`.
 
 **Strict event names (optional):** Set `CLAUDRIEL_EMIT_STRICT=1` in the agent environment to raise on unknown `event` strings (catches typos). If unset, unknown events still emit for backward compatibility. The canonical allowlist is `ALLOWED_EMIT_EVENTS` in `agent/claudriel_agent/emit.py`.
+
+## Source of truth (subprocess tools)
+
+**Python is canonical.** The authoritative set of tools for the stdin/stdout subprocess is whatever `discover_tools()` loads from `agent/claudriel_agent/tools/*.py`. The Tools table below is **derived documentation**: CI asserts parity with discovery (see agent tests). When adding a tool, add the module and update this table in the same change.
+
+**PHP `NativeAgentClient` tools** (`src/Domain/Chat/Tool/*.php`) are a **separate** execution path (in-process tool execution). They are not required to match the full Python subprocess tool list.
+
+## Stderr discipline
+
+- **Success path:** The subprocess must not write to **stderr**. PHP reads JSONL from stdout only; stray stderr breaks log parsing in some environments.
+- **Failure path:** Errors are communicated with a single **`error` event on stdout**, then exit code non-zero. Do not duplicate errors on stderr.
+
+## Protocol envelope and ordering
+
+**Terminal event:** Each invocation emits **exactly one** terminal event: `done` or `error`. It must be the **last** JSONL line. No events may follow; there must not be two terminal events.
+
+**Ordering (mechanical):**
+
+- `tool_result` must immediately follow its matching `tool_call` (same `tool` name) in FIFO order when multiple tools run in one turn.
+- `message`, `progress`, and `needs_continuation` must not appear **between** a `tool_call` and its `tool_result`.
+- Assistant `message` events may appear before `tool_call` in a turn (model returns text + tool_use).
+- `progress` may appear before the terminal event (rate limits / model fallback).
+- `needs_continuation` may appear before `done` when the turn budget stops after tool results are emitted.
+
+Validation helper: `claudriel_agent.protocol.assert_valid_protocol_stream` (used in tests).
+
+**Allowed I/O:** stdout JSONL (`emit`), stderr empty on success, HTTP only via `PhpApiClient`, Anthropic `messages.create` (and related client calls). Avoid ad-hoc file, socket, or logging writes in the agent path.
 
 ## Strict Emit System
 
@@ -95,20 +122,43 @@ Tools are loaded dynamically at startup by `agent/claudriel_agent/tools_discover
 
 ## Tools
 
-All tools live in `agent/tools/` and delegate to the PHP backend via `PhpApiClient`:
+All tools live in `agent/claudriel_agent/tools/` and delegate to the PHP backend via `PhpApiClient`:
 
 | Tool | File | Internal API Endpoint |
 |------|------|-----------------------|
-| `gmail_list` | `gmail_list.py` | `GET /api/internal/gmail/list` |
-| `gmail_read` | `gmail_read.py` | `GET /api/internal/gmail/read/{id}` |
-| `gmail_send` | `gmail_send.py` | `POST /api/internal/gmail/send` |
-| `calendar_list` | `calendar_list.py` | `GET /api/internal/calendar/list` |
+| `brief_generate` | `brief_generate.py` | `POST /api/internal/brief/generate` |
 | `calendar_create` | `calendar_create.py` | `POST /api/internal/calendar/create` |
-| `prospect_list` | `prospect_list.py` | `GET /api/internal/prospects/list` |
-| `prospect_update` | `prospect_update.py` | `POST /api/internal/prospects/{uuid}/update` |
-| `pipeline_fetch_leads` | `pipeline_fetch_leads.py` | `POST /api/internal/pipeline/fetch-leads` |
+| `calendar_list` | `calendar_list.py` | `GET /api/internal/calendar/list` |
 | `code_task_create` | `code_task_create.py` | `POST /api/internal/code-tasks/create` |
 | `code_task_status` | `code_task_status.py` | `GET /api/internal/code-tasks/{uuid}/status` |
+| `commitment_list` | `commitment_list.py` | `GET /api/internal/commitments/list` |
+| `commitment_update` | `commitment_update.py` | `POST /api/internal/commitments/{uuid}/update` |
+| `event_search` | `event_search.py` | `GET /api/internal/events/search` |
+| `github_add_comment` | `github_add_comment.py` | `POST /api/internal/github/comment/{owner}/{repo}/{number}` |
+| `github_create_issue` | `github_create_issue.py` | `POST /api/internal/github/issue/{owner}/{repo}` |
+| `github_list_issues` | `github_list_issues.py` | `GET /api/internal/github/issues` |
+| `github_list_pulls` | `github_list_pulls.py` | `GET /api/internal/github/pulls` |
+| `github_notifications` | `github_notifications.py` | `GET /api/internal/github/notifications` |
+| `github_read_issue` | `github_read_issue.py` | `GET /api/internal/github/issue/{owner}/{repo}/{number}` |
+| `github_read_pull` | `github_read_pull.py` | `GET /api/internal/github/pull/{owner}/{repo}/{number}` |
+| `gmail_list` | `gmail_list.py` | `GET /api/internal/gmail/list` |
+| `gmail_read` | `gmail_read.py` | `GET /api/internal/gmail/read/{message_id}` |
+| `gmail_send` | `gmail_send.py` | `POST /api/internal/gmail/send` |
+| `judgment_rule_suggest` | `judgment_rule_suggest.py` | `POST /api/internal/rules/suggest` |
+| `person_detail` | `person_detail.py` | `GET /api/internal/persons/{uuid}` |
+| `person_search` | `person_search.py` | `GET /api/internal/persons/search` |
+| `pipeline_fetch_leads` | `pipeline_fetch_leads.py` | `POST /api/internal/pipeline/fetch-leads` |
+| `prospect_list` | `prospect_list.py` | `GET /api/internal/prospects/list` |
+| `prospect_update` | `prospect_update.py` | `POST /api/internal/prospects/{uuid}/update` |
+| `repo_clone` | `repo_clone.py` | `POST /api/internal/workspaces/{uuid}/clone-repo` |
+| `schedule_query` | `schedule_query.py` | `GET /api/internal/schedule/query` |
+| `search_global` | `search_global.py` | `GET /api/internal/search/global` |
+| `triage_list` | `triage_list.py` | `GET /api/internal/triage/list` |
+| `triage_resolve` | `triage_resolve.py` | `POST /api/internal/triage/{uuid}/resolve` |
+| `workspace_context` | `workspace_context.py` | `GET /api/internal/workspaces/{uuid}` |
+| `workspace_create` | `workspace_create.py` | `POST /api/internal/workspaces/create` |
+| `workspace_delete` | `workspace_delete.py` | `POST /api/internal/workspaces/{uuid}/delete` |
+| `workspace_list` | `workspace_list.py` | `GET /api/internal/workspaces/list` |
 
 ## HMAC Authentication
 
@@ -137,6 +187,7 @@ Internal API endpoints use short-lived HMAC-SHA256 tokens:
 4. **The Python agent is an adapter, not a second backend.** It must not own permissions, entity validation, multi-step business workflows, or durable state. Those belong in PHP and internal APIs. Each subprocess run is a clean slate: no global caches or long-lived registries beyond the request.
 5. **DRY at the protocol layer, repetition at the tool layer.** Shared behavior belongs in `emit`, `PhpApiClient`, and the Anthropic loop. Individual tools stay flat, explicit, and easy to grep (`TOOL_DEF` + `execute` per file); avoid tool frameworks or shared abstractions that hide HTTP routes.
 6. **Contract tests enforce tool shape.** CI runs tests that validate every `agent/claudriel_agent/tools/*.py` module exports a consistent `TOOL_DEF` + synchronous `execute(api, args)` and does not import sibling tool modules.
+7. **Protocol validation** — `claudriel_agent.protocol` validates JSONL streams (single terminal `done`/`error`, `tool_call`/`tool_result` pairing). Golden tests and spec parity tests guard subprocess invariants.
 
 ## Agent Loop Details
 

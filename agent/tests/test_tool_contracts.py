@@ -123,3 +123,75 @@ def test_tool_modules_do_not_import_sibling_tools() -> None:
     for stem, tree in _parse_tool_modules_ast():
         all_violations.extend(_collect_sibling_tool_import_violations(tree, f"{stem}.py"))
     assert not all_violations, "Sibling tool imports:\n" + "\n".join(all_violations)
+
+
+def _minimal_args_from_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    """Build args that satisfy JSON Schema ``required`` keys for tool contract smoke calls."""
+    required = schema.get("required")
+    if not isinstance(required, list):
+        required = []
+    props = schema.get("properties")
+    if not isinstance(props, dict):
+        props = {}
+    out: dict[str, Any] = {}
+    for key in required:
+        if not isinstance(key, str):
+            continue
+        p = props.get(key, {})
+        if not isinstance(p, dict):
+            p = {}
+        t = p.get("type")
+        if t == "integer":
+            out[key] = 0
+        elif t == "number":
+            out[key] = 0.0
+        elif t == "boolean":
+            out[key] = False
+        elif t == "array":
+            out[key] = []
+        elif t == "object":
+            out[key] = {}
+        else:
+            out[key] = ""
+    return out
+
+
+def test_tool_modules_do_not_call_emit() -> None:
+    """Tools must not emit JSONL; only loop/emit drive stdout protocol."""
+    for stem, tree in _parse_tool_modules_ast():
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                if node.func.id == "emit":
+                    raise AssertionError(f"{stem}.py must not call emit(); use return dict only")
+            if isinstance(node, ast.ImportFrom):
+                mod = node.module or ""
+                if mod == "claudriel_agent.emit" or mod.endswith(".emit"):
+                    raise AssertionError(f"{stem}.py must not import emit module")
+
+
+def test_execute_returns_dict_with_stub_api() -> None:
+    from unittest.mock import MagicMock
+
+    tools_dir = _tools_package_dir()
+    tool_defs, executors = discover_tools(
+        package_name="claudriel_agent.tools",
+        package_path=tools_dir,
+    )
+    api = MagicMock()
+    api.get.return_value = {}
+    api.post.return_value = {}
+    api.put.return_value = {}
+    api.patch.return_value = {}
+    api.delete.return_value = {}
+
+    for tool_def in tool_defs:
+        name = tool_def["name"]
+        execute = executors[name]
+        schema = tool_def.get("input_schema")
+        assert isinstance(schema, dict)
+        args = _minimal_args_from_schema(schema)
+        try:
+            result = execute(api, args)
+        except Exception as e:
+            raise AssertionError(f"{name}: execute(api, {args!r}) raised: {e}") from e
+        assert isinstance(result, dict), f"{name}: execute must return dict, got {type(result).__name__}"

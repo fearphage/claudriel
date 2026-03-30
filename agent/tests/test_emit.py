@@ -92,3 +92,27 @@ def test_each_allowlisted_event_emits_one_json_line(capsys):
         assert len(lines) == 1, event
         obj = json.loads(lines[0])
         assert obj["event"] == event
+
+
+def test_multi_emit_sequence_valid_protocol(capsys):
+    from claudriel_agent.protocol import assert_valid_protocol_stream
+
+    emit("message", content="hello")
+    emit("tool_call", tool="gmail_list", args={"query": "in:inbox"})
+    emit("tool_result", tool="gmail_list", result={"messages": []})
+    emit("done")
+    out = capsys.readouterr().out
+    events = assert_valid_protocol_stream(out)
+    assert [e["event"] for e in events] == ["message", "tool_call", "tool_result", "done"]
+
+
+def test_each_stdout_line_is_single_json_object(capsys):
+    emit("progress", phase="p", summary="s", level="info")
+    emit("message", content="line1\nline2")
+    captured = capsys.readouterr()
+    for line in captured.out.splitlines():
+        if not line.strip():
+            continue
+        obj = json.loads(line)
+        assert isinstance(obj, dict)
+        assert "\n" not in line or line.count("{") == 1
