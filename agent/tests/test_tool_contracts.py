@@ -40,7 +40,9 @@ def _collect_sibling_tool_import_violations(tree: ast.AST, filename: str) -> lis
             if mod == "claudriel_agent.tools":
                 for alias in node.names:
                     if alias.name != "*":
-                        violations.append(f"{filename}: from claudriel_agent.tools import {alias.name}")
+                        violations.append(
+                            f"{filename}: from claudriel_agent.tools import {alias.name}"
+                        )
             elif mod is not None and mod.startswith("claudriel_agent.tools."):
                 violations.append(f"{filename}: from {mod} import ...")
         elif isinstance(node, ast.Import):
@@ -56,10 +58,12 @@ def _collect_sibling_tool_import_violations(tree: ast.AST, filename: str) -> lis
 
 
 def _tool_def_ok(tool_def: dict[str, Any], tool_name: str) -> None:
-    assert isinstance(tool_def.get("name"), str) and tool_def["name"].strip(), (
-        f"{tool_name}: TOOL_DEF['name'] must be a non-empty string"
-    )
-    assert isinstance(tool_def.get("description"), str), f"{tool_name}: TOOL_DEF['description'] must be str"
+    assert (
+        isinstance(tool_def.get("name"), str) and tool_def["name"].strip()
+    ), f"{tool_name}: TOOL_DEF['name'] must be a non-empty string"
+    assert isinstance(
+        tool_def.get("description"), str
+    ), f"{tool_name}: TOOL_DEF['description'] must be str"
     schema = tool_def.get("input_schema")
     assert isinstance(schema, dict), f"{tool_name}: TOOL_DEF['input_schema'] must be a dict"
     assert schema.get("type") == "object", f"{tool_name}: input_schema['type'] must be 'object'"
@@ -91,7 +95,9 @@ def test_tool_module_stem_matches_tool_def_name() -> None:
         if tool_def is None or execute is None:
             continue
         name = tool_def.get("name")
-        assert name == path.stem, f"{path.name}: TOOL_DEF['name'] must equal module stem, got {name!r}"
+        assert (
+            name == path.stem
+        ), f"{path.name}: TOOL_DEF['name'] must equal module stem, got {name!r}"
 
 
 def test_all_discovered_tools_match_contract() -> None:
@@ -115,7 +121,9 @@ def test_all_discovered_tools_match_contract() -> None:
         assert not inspect.iscoroutinefunction(execute), f"{name}: execute() must be synchronous"
 
         ret = sig.return_annotation
-        assert _return_annotation_ok(ret), f"{name}: execute() return annotation must be dict-like or omitted"
+        assert _return_annotation_ok(
+            ret
+        ), f"{name}: execute() return annotation must be dict-like or omitted"
 
 
 def test_tool_modules_do_not_import_sibling_tools() -> None:
@@ -194,4 +202,6 @@ def test_execute_returns_dict_with_stub_api() -> None:
             result = execute(api, args)
         except Exception as e:
             raise AssertionError(f"{name}: execute(api, {args!r}) raised: {e}") from e
-        assert isinstance(result, dict), f"{name}: execute must return dict, got {type(result).__name__}"
+        assert isinstance(
+            result, dict
+        ), f"{name}: execute must return dict, got {type(result).__name__}"

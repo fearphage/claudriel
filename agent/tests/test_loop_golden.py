@@ -81,7 +81,9 @@ def _run_with_responses(
     return buf.getvalue(), ""
 
 
-def test_golden_text_only_stderr_empty(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_golden_text_only_stderr_empty(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     monkeypatch.setenv("CLAUDRIEL_AGENT_TOOLS", "gmail_list")
     resp = _FakeResponse([_FakeText("Hello from model.")])
     req = {
@@ -95,7 +97,9 @@ def test_golden_text_only_stderr_empty(monkeypatch: pytest.MonkeyPatch, capsys: 
     out, _ = _run_with_responses(monkeypatch, [resp], req)
     events = assert_valid_protocol_stream(out)
     assert events[-1]["event"] == "done"
-    assert any(e.get("event") == "message" and e.get("content") == "Hello from model." for e in events)
+    assert any(
+        e.get("event") == "message" and e.get("content") == "Hello from model." for e in events
+    )
     captured = capsys.readouterr()
     assert captured.err == ""
 

@@ -12,7 +12,9 @@ from claudriel_agent.loop import run_agent_request
 from claudriel_agent.tools_discovery import ToolRegistry
 
 
-def test_mocked_success_path_stderr_empty(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
+def test_mocked_success_path_stderr_empty(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("CLAUDRIEL_AGENT_TOOLS", "gmail_list")
 
     instance = MagicMock()
