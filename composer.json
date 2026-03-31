@@ -36,7 +36,8 @@
         "laravel/pint": "^1.28",
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^10.5",
-        "symfony/event-dispatcher": "^7.0"
+        "symfony/event-dispatcher": "^7.0",
+        "waaseyaa/testing": "^0.1"
     },
     "autoload": {
         "psr-4": { "Claudriel\\": "src/" }
@@ -49,7 +50,8 @@
         "lint": "pint --test",
         "format": "pint",
         "analyse": "phpstan analyse",
-        "serve:php": "php -S 0.0.0.0:37840 -t public public/router.php"
+        "serve:php": "php -S 0.0.0.0:37840 -t public public/router.php",
+        "audit-site": "./bin/waaseyaa-audit-site"
     },
     "config": {
         "optimize-autoloader": true,

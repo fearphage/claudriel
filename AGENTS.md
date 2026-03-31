@@ -30,6 +30,8 @@ Follow PSR-4 autoloading: PHP classes use the `Claudriel\\` namespace and live u
 ## Testing Guidelines
 Add PHP tests under `tests/Unit/` with names ending in `Test.php`; integration tests go under `tests/Integration/`. Add agent subprocess tests as `test_*.py` files under `agent/tests/`. Run the smallest relevant test set locally before opening a PR, then run the full repo checks if your change crosses PHP and agent boundaries.
 
+GraphQL schema contract tests (`tests/Integration/GraphQL/SchemaContractTest.php`) extend `Waaseyaa\Testing\GraphQL\AbstractGraphQlSchemaContractTestCase` from `waaseyaa/testing` (`^0.1` in `composer.json`).
+
 Full layered smoke (CI parity, Playwright, HTTP script, matrix checklists): [docs/smoke/FULL_SMOKE_CHECKLIST.md](docs/smoke/FULL_SMOKE_CHECKLIST.md).
 
 ## Commit & Pull Request Guidelines

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "36f592af5072c3e70575d0771c0578f5",
+    "content-hash": "786cee629a0780b09047c8463f29da9c",
     "packages": [
         {
             "name": "doctrine/dbal",
@@ -5602,23 +5602,24 @@
         },
         {
             "name": "waaseyaa/testing",
-            "version": "dev-main",
+            "version": "v0.1.0-alpha.91",
             "source": {
                 "type": "git",
                 "url": "https://github.com/waaseyaa/testing.git",
-                "reference": "1ea569d4f23f2c0578d4f8f39c41e7561df9d110"
+                "reference": "07e116f07846c6bc4f27d632931849e63585535d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/waaseyaa/testing/zipball/1ea569d4f23f2c0578d4f8f39c41e7561df9d110",
-                "reference": "1ea569d4f23f2c0578d4f8f39c41e7561df9d110",
+                "url": "https://api.github.com/repos/waaseyaa/testing/zipball/07e116f07846c6bc4f27d632931849e63585535d",
+                "reference": "07e116f07846c6bc4f27d632931849e63585535d",
                 "shasum": ""
             },
             "require": {
                 "php": ">=8.4",
-                "phpunit/phpunit": "^10.5"
+                "phpunit/phpunit": "^10.5",
+                "symfony/event-dispatcher": "^7.0",
+                "waaseyaa/graphql": "@dev"
             },
-            "default-branch": true,
             "type": "library",
             "extra": {
                 "branch-alias": {
@@ -5635,12 +5636,12 @@
             "license": [
                 "GPL-2.0-or-later"
             ],
-            "description": "Testing utilities for Waaseyaa — base test case, entity factories, and helper traits.",
+            "description": "Testing utilities for Waaseyaa — base test case, entity factories, GraphQL schema contract base, and helper traits.",
             "support": {
                 "issues": "https://github.com/waaseyaa/testing/issues",
-                "source": "https://github.com/waaseyaa/testing/tree/v0.1.0-alpha.10"
+                "source": "https://github.com/waaseyaa/testing/tree/v0.1.0-alpha.91"
             },
-            "time": "2026-03-16T21:50:01+00:00"
+            "time": "2026-03-30T22:50:44+00:00"
         },
         {
             "name": "waaseyaa/typed-data",
