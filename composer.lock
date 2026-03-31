@@ -4449,12 +4449,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/waaseyaa/cli.git",
-                "reference": "83df8b72578e933225e730f2145dfa533d909b02"
+                "reference": "e51919b525bdb60bb125636567ddfd909c4947b5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/waaseyaa/cli/zipball/83df8b72578e933225e730f2145dfa533d909b02",
-                "reference": "83df8b72578e933225e730f2145dfa533d909b02",
+                "url": "https://api.github.com/repos/waaseyaa/cli/zipball/e51919b525bdb60bb125636567ddfd909c4947b5",
+                "reference": "e51919b525bdb60bb125636567ddfd909c4947b5",
                 "shasum": ""
             },
             "require": {
@@ -4489,9 +4489,9 @@
             "description": "Command-line interface and console commands for Waaseyaa",
             "support": {
                 "issues": "https://github.com/waaseyaa/cli/issues",
-                "source": "https://github.com/waaseyaa/cli/tree/v0.1.0-alpha.74"
+                "source": "https://github.com/waaseyaa/cli/tree/v0.1.0-alpha.91"
             },
-            "time": "2026-03-29T14:15:56+00:00"
+            "time": "2026-03-30T22:50:44+00:00"
         },
         {
             "name": "waaseyaa/config",
@@ -5602,7 +5602,7 @@
         },
         {
             "name": "waaseyaa/testing",
-            "version": "v0.1.0-alpha.79",
+            "version": "dev-main",
             "source": {
                 "type": "git",
                 "url": "https://github.com/waaseyaa/testing.git",
@@ -5618,6 +5618,7 @@
                 "php": ">=8.4",
                 "phpunit/phpunit": "^10.5"
             },
+            "default-branch": true,
             "type": "library",
             "extra": {
                 "branch-alias": {
@@ -5637,7 +5638,7 @@
             "description": "Testing utilities for Waaseyaa — base test case, entity factories, and helper traits.",
             "support": {
                 "issues": "https://github.com/waaseyaa/testing/issues",
-                "source": "https://github.com/waaseyaa/testing/tree/v0.1.0-alpha.79"
+                "source": "https://github.com/waaseyaa/testing/tree/v0.1.0-alpha.10"
             },
             "time": "2026-03-16T21:50:01+00:00"
         },

@@ -12,7 +12,7 @@ declare(strict_types=1);
 $root = dirname(__DIR__);
 require $root . '/vendor/autoload.php';
 
-use Claudriel\Support\Provenance\ComposerProvenanceReporter;
+use Waaseyaa\CLI\Provenance\ComposerProvenanceReporter;
 
 $argv = $_SERVER['argv'] ?? [];
 
